@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <vector>
 
+
 const uint32_t WIDTH = 1200;
 const uint32_t HEIGHT = 1200;
 
@@ -55,7 +56,7 @@ private:
 
 		uint32_t extensionCount = 0;
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-		std::vector<VkExtensionProperties> extensions(0);
+		std::vector<VkExtensionProperties> extensions(extensionCount);
 
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 		for (auto& e : extensions) supported_extensions.insert(std::string(e.extensionName));
@@ -64,6 +65,7 @@ private:
 		const char** glfwExtensions;
 		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
+		std::cout << "Supported extensions:\n";
 		for (auto& e : supported_extensions) {
 			std::cout << e << "\n";
 		}
@@ -71,8 +73,8 @@ private:
 
 		for (uint32_t i = 0; i < glfwExtensionCount; ++i)
 		{
-			if (supported_extensions.find("VK_KHR_surface") != supported_extensions.end()) {
-				std::cout << "glfw extension: " << glfwExtensions[i] << " not supported!\n";
+			if (supported_extensions.find(glfwExtensions[i]) == supported_extensions.end()) {
+				throw std::runtime_error("glfw extension: " + std::string(glfwExtensions[i]) + " not supported!\n");
 			}
 		}
 
