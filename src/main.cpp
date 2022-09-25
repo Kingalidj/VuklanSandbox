@@ -5,113 +5,117 @@
 #include <iostream>
 #include <stdexcept>
 
-#include <unordered_set>
-#include <string>
 #include <algorithm>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
+#include <cassert>
 
 const uint32_t WIDTH = 1200;
 const uint32_t HEIGHT = 1200;
 
 class Application {
 public:
-	void run() {
-		initWindow();
-		initVulkan();
-		mainLoop();
-		cleanup();
-	}
+  void run() {
+    initWindow();
+    initVulkan();
+    mainLoop();
+    cleanup();
+  }
 
 private:
-	GLFWwindow* window = nullptr;
+  GLFWwindow *window = nullptr;
 
-	VkInstance instance = 0;
-	std::unordered_set<std::string> supported_extensions;
+  VkInstance instance = 0;
 
-	void initWindow() {
-		glfwInit();
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  void initWindow() {
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
-	}
+    window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+  }
 
-	void initVulkan() {
-		createInstance();
-	}
+  void initVulkan() { createInstance(); }
 
-	void createInstance() {
-		VkApplicationInfo appInfo{};
-		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		appInfo.pApplicationName = "Hello Triangle";
-		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.pEngineName = "No Engine";
-		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.apiVersion = VK_API_VERSION_1_0;
+  void createInstance() {
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "Triangle";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName = "No Engine";
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_0;
 
-		VkInstanceCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		createInfo.pApplicationInfo = &appInfo;
+    VkInstanceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &appInfo;
 
-		uint32_t extensionCount = 0;
-		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-		std::vector<VkExtensionProperties> extensions(extensionCount);
+    uint32_t extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> extensions(extensionCount);
+    std::vector<std::string> extensionNames;
+    extensionNames.reserve(extensionCount);
 
-		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
-		for (auto& e : extensions) supported_extensions.insert(std::string(e.extensionName));
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount,
+                                           extensions.data());
+    for (auto &e : extensions)
+      extensionNames.push_back(e.extensionName);
 
-		uint32_t glfwExtensionCount = 0;
-		const char** glfwExtensions;
-		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    uint32_t glfwExtensionCount = 0;
+    const char **glfwExtensions;
+    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-		std::cout << "Supported extensions:\n";
-		for (auto& e : supported_extensions) {
-			std::cout << e << "\n";
-		}
-		std::cout << "\n";
+    for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
+      bool found = false;
 
-		for (uint32_t i = 0; i < glfwExtensionCount; ++i)
-		{
-			if (supported_extensions.find(glfwExtensions[i]) == supported_extensions.end()) {
-				throw std::runtime_error("glfw extension: " + std::string(glfwExtensions[i]) + " not supported!\n");
-			}
-		}
+      for (uint32_t j = 0; j < extensionCount; ++j) {
+        std::string name = std::string(glfwExtensions[i]);
 
-		createInfo.enabledExtensionCount = glfwExtensionCount;
-		createInfo.ppEnabledExtensionNames = glfwExtensions;
-		createInfo.enabledLayerCount = 0;
+        if (name == extensionNames.at(j))
+          found = true;
+        std::cout << glfwExtensions[i] << ", " << extensions[j].extensionName
+                  << "\n";
+      }
 
-		if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to create instance!");
-		}
-	}
+      if (!found)
+        throw std::runtime_error(
+            "glfw extension: " + std::string(glfwExtensions[i]) +
+            " not supported!\n");
+    }
 
-	void mainLoop() {
-		while (!glfwWindowShouldClose(window)) {
-			glfwPollEvents();
-		}
-	}
+    createInfo.enabledExtensionCount = glfwExtensionCount;
+    createInfo.ppEnabledExtensionNames = glfwExtensions;
+    createInfo.enabledLayerCount = 0;
 
-	void cleanup() {
-		glfwDestroyWindow(window);
+    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create instance!");
+    }
+  }
 
-		glfwTerminate();
-	}
+  void mainLoop() {
+    while (!glfwWindowShouldClose(window)) {
+      glfwPollEvents();
+    }
+  }
 
+  void cleanup() {
+    glfwDestroyWindow(window);
+
+    glfwTerminate();
+  }
 };
 
 int main() {
-	Application app;
+  Application app;
 
-	try {
-		app.run();
-	}
-	catch (const std::exception& e) {
-		std::cerr << e.what() << std::endl;
-		return EXIT_FAILURE;
-	}
+  try {
+    app.run();
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << std::endl;
+    return EXIT_FAILURE;
+  }
 
-	return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
 }
