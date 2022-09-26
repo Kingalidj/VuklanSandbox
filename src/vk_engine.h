@@ -10,7 +10,7 @@ public:
   bool m_IsInitialized{false};
   int m_FrameNumber{0};
 
-  VkExtent2D m_WindowExtent{1700, 900};
+  VkExtent2D m_WindowExtent{800, 600};
 
   struct GLFWwindow *m_Window = nullptr;
 
