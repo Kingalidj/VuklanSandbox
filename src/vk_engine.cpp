@@ -30,13 +30,27 @@ void VulkanEngine::init() {
   m_Window = glfwCreateWindow(m_WindowExtent.width, m_WindowExtent.height,
                               "Vulkan Engine", nullptr, nullptr);
 
-	init_vulkan();
+  init_vulkan();
+  init_swapchain();
+	init_commands();
 
   m_IsInitialized = true;
 }
 
 void VulkanEngine::cleanup() {
-  if (!m_IsInitialized) {
+  if (m_IsInitialized) {
+		vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
+		vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
+
+		for (int i = 0; i < m_SwapChainImageViews.size(); ++i) {
+			vkDestroyImageView(m_Device, m_SwapChainImageViews[i], nullptr);
+		}
+
+		vkDestroyDevice(m_Device, nullptr);
+		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
+		vkb::destroy_debug_utils_messenger(m_Instance, m_DebugMessenger);
+		vkDestroyInstance(m_Instance, nullptr);
+
     glfwDestroyWindow(m_Window);
     glfwTerminate();
   }
@@ -75,8 +89,37 @@ void VulkanEngine::init_vulkan() {
                                            .value();
 
   vkb::DeviceBuilder deviceBuilder{physicalDevice};
-	vkb::Device vkbDevice = deviceBuilder.build().value();
-	
-	m_Device = vkbDevice.device;
-	m_ChosenGPU = physicalDevice.physical_device;
+  vkb::Device vkbDevice = deviceBuilder.build().value();
+
+  m_Device = vkbDevice.device;
+  m_ChosenGPU = physicalDevice.physical_device;
+
+	m_GraphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
+	m_GraphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+}
+
+void VulkanEngine::init_swapchain() {
+  vkb::SwapchainBuilder swapchainBuilder{m_ChosenGPU, m_Device, m_Surface};
+
+  vkb::Swapchain vkbSwapchain =
+      swapchainBuilder.use_default_format_selection()
+          .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+          .set_desired_extent(m_WindowExtent.width, m_WindowExtent.height)
+          .build()
+          .value();
+
+  m_SwapChain = vkbSwapchain.swapchain;
+  m_SwapChainImages = vkbSwapchain.get_images().value();
+  m_SwapChainImageViews = vkbSwapchain.get_image_views().value();
+
+  m_SwapChainImageFormat = vkbSwapchain.image_format;
+
+}
+
+void VulkanEngine::init_commands() {
+	VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(m_GraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+	VK_CHECK(vkCreateCommandPool(m_Device, &commandPoolInfo, nullptr, &m_CommandPool));
+
+	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(m_CommandPool, 1);
+	VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo, &m_MainCommandBuffer));
 }

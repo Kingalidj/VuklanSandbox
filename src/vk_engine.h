@@ -2,6 +2,8 @@
 
 #include "vk_types.h"
 
+#include <vector>
+
 class VulkanEngine {
 public:
 
@@ -23,7 +25,21 @@ public:
 	VkDevice m_Device;
 	VkSurfaceKHR m_Surface; //vulkan window
 
+	VkSwapchainKHR m_SwapChain;
+	VkFormat m_SwapChainImageFormat;
+
+	std::vector<VkImage> m_SwapChainImages;
+	std::vector<VkImageView> m_SwapChainImageViews;
+
+	VkQueue m_GraphicsQueue;
+	uint32_t m_GraphicsQueueFamily;
+
+	VkCommandPool m_CommandPool;
+	VkCommandBuffer m_MainCommandBuffer;
+
 private:
 
 	void init_vulkan();
+	void init_swapchain();
+	void init_commands();
 };
