@@ -19,6 +19,10 @@ add_executable(${PROJ_NAME}
 		src/vk_initializers.cpp
 	)
 
+ADD_CUSTOM_TARGET(copy_resources ALL COMMAND 
+                   COMMAND ${CMAKE_COMMAND} -E copy_directory
+									 ${CMAKE_SOURCE_DIR}/res/ $<TARGET_FILE_DIR:${PROJ_NAME}>/res/)
+
 target_link_libraries(${PROJ_NAME} vk-bootstrap::vk-bootstrap)
 
 target_include_directories(${PROJ_NAME}
@@ -30,3 +34,4 @@ target_link_libraries (${PROJ_NAME} ${VULKAN_LIB_LIST})
 target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan)
 
 target_link_libraries (${PROJ_NAME} glfw)
+
