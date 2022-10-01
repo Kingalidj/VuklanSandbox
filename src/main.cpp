@@ -1,5 +1,7 @@
 #include "vk_engine.h"
 
+#include "Logger.h"
+
 int main() {
 
 	VulkanEngine app;

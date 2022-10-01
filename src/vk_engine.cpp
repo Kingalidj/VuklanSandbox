@@ -3,6 +3,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 
+#include "Logger.h"
+
 #include "vk_initializers.h"
 #include "vk_types.h"
 
@@ -18,9 +20,8 @@
   do {                                                                         \
     VkResult err = x;                                                          \
     if (err) {                                                                 \
-      std::cerr << "at line: " << __LINE__ << ", in file: " << __FILE__        \
-                << "\n";                                                       \
-      std::cerr << "Detected Vulkan error: " << err << std::endl;              \
+      CORE_ERROR("at line: {}, in file: {}\nDetected Vulkan error: {}",        \
+                 __LINE__, __FILE__, err)                                      \
       abort();                                                                 \
     }                                                                          \
   } while (0)
@@ -31,6 +32,7 @@ bool load_spirv_shader_module(const char *filePath,
   std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
+		CORE_WARN("Could not open spv file: {}", filePath);
     return false;
   }
 
@@ -51,6 +53,7 @@ bool load_spirv_shader_module(const char *filePath,
   VkShaderModule shaderModule;
   if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
       VK_SUCCESS) {
+		CORE_WARN("Could not compile shader: {}", filePath);
     return false;
   }
 
@@ -70,13 +73,14 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   } else if (ext == ".frag") {
     kind = shaderc_fragment_shader;
   } else {
-    std::cerr << "unknown extension for file: " << filePath << std::endl;
+		CORE_WARN("unknown extension for file: {}", filePath);
     return false;
   }
 
   std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
+		CORE_WARN("Could not open file: {}", filePath);
     return false;
   }
 
@@ -91,7 +95,7 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
 
   shaderc::CompileOptions cOptions;
   cOptions.SetTargetEnvironment(shaderc_target_env_vulkan,
-                                shaderc_env_version_vulkan_1_2);
+                                shaderc_env_version_vulkan_1_1);
   const bool optimize = true;
 
   if (optimize)
@@ -99,8 +103,8 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
 
   shaderc::Compiler compiler;
 
-  shaderc::SpvCompilationResult module =
-      compiler.CompileGlslToSpv(source.data(), kind, filePath.c_str());
+  shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(
+      source, kind, (char *)filePath.c_str(), cOptions);
   if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
     std::cerr << module.GetErrorMessage() << std::endl;
     return false;
@@ -119,6 +123,7 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   VkShaderModule shaderModule;
   if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
       VK_SUCCESS) {
+		CORE_WARN("Could not compile shader: {}", filePath);
     return false;
   }
 
@@ -243,8 +248,8 @@ void VulkanEngine::draw() {
 
   VK_CHECK(vkBeginCommandBuffer(m_MainCommandBuffer, &cmdBeginInfo));
 
-  VkClearValue clearValue;
-  float flash = std::abs(std::sin(m_FrameNumber / 120.f));
+  VkClearValue clearValue = {};
+  float flash = 1 - std::abs(std::sin(m_FrameNumber / 120.f));
   clearValue.color = {{0.0f, 0.0f, flash, 1.0f}};
 
   // start main renderpass
@@ -435,19 +440,17 @@ void VulkanEngine::init_pipelines() {
   VkShaderModule triangleFragShader;
   if (!load_glsl_shader_module("res/shaders/triangle.frag", &triangleFragShader,
                                m_Device)) {
-    std::cerr << "Could not load triangle.frag.spv" << std::endl;
     return;
   } else {
-    std::cout << "Triangle fragment shader successfully loaded" << std::endl;
+		CORE_INFO("Triangle fragment shader successfully loaded")
   }
 
   VkShaderModule triangleVertexShader;
   if (!load_glsl_shader_module("res/shaders/triangle.vert",
                                &triangleVertexShader, m_Device)) {
-    std::cerr << "Could not load triangle.vert.spv" << std::endl;
     return;
   } else {
-    std::cout << "Triangle vertex shader successfully loaded" << std::endl;
+		CORE_INFO("Triangle vertex shader successfully loaded")
   }
 
   VkPipelineLayoutCreateInfo pipeline_layout_info =

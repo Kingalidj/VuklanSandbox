@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(PROJ_NAME Application)
-project(${PROJ_NAME})
+project(Application)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -9,17 +8,20 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_VERBOSE_MAKEFILE 1)
 
-add_compile_options( -Wall )
+# add_compile_options( -Wall )
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
 add_subdirectory(vendor)
 
-add_executable(${PROJ_NAME} 
+add_executable(${PROJECT_NAME} 
 	src/main.cpp
 	src/vk_engine.cpp
 	src/vk_initializers.cpp
+	src/logger.cpp
 	)
+
+# target_compile_options(${PROJECT_NAME} PRIVATE "-Wall")
 
 macro(print_all_variables)
 	message(STATUS "print_all_variables------------------------------------------{")
@@ -40,7 +42,7 @@ add_custom_command(
 	copy_command
 	COMMAND 
 	${CMAKE_COMMAND} -E copy_directory
-	${CMAKE_SOURCE_DIR}/res/ $<TARGET_FILE_DIR:${PROJ_NAME}>/res/
+	${CMAKE_SOURCE_DIR}/res/ $<TARGET_FILE_DIR:${PROJECT_NAME}>/res/
 
 	DEPENDS
 	always_rebuild
@@ -51,28 +53,27 @@ add_custom_command(
 	COMMAND cmake -E echo
 	)
 
-set_property(TARGET ${PROJ_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
+set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
 
 
-target_include_directories(${PROJ_NAME}
+target_include_directories(${PROJECT_NAME}
 	PUBLIC ${VULKAN_INCLUDE_DIRS}
 	)
 
 get_filename_component(VULKAN_LIB ${Vulkan_LIBRARY} DIRECTORY)
 
-# link_directories(${VULKAN_LIB})
-
 message(${VULKAN_LIB})
 
-find_library(SHADERC_LIB shaderc_shared
+find_library(SHADERC_LIB shaderc_combined
 	HINTS ${VULKAN_LIB}
 	)
 
 message(${VULKAN_LIB})
 
-target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan)
-target_link_libraries(${PROJECT_NAME} ${SHADERC_LIB})
-
-target_link_libraries (${PROJ_NAME} glfw)
-
-target_link_libraries(${PROJ_NAME} vk-bootstrap::vk-bootstrap)
+target_link_libraries(${PROJECT_NAME} 
+	Vulkan::Vulkan 
+	${SHADERC_LIB}
+	glfw
+	vk-bootstrap::vk-bootstrap
+	spdlog
+	)
