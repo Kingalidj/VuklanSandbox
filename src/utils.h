@@ -1,3 +1,5 @@
+#pragma once
+
 namespace Utils {
 
 enum class LogLevel {
@@ -5,6 +7,11 @@ enum class LogLevel {
   INFO,
   WARN,
   ERROR,
+};
+
+enum class ShaderType {
+	FRAGMENT,
+	VERTEX,
 };
 
 }

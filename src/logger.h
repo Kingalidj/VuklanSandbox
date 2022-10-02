@@ -10,7 +10,6 @@
 class Logger {
 
 public:
-  static void init();
 
   Logger(Logger const &) = delete;
   void operator=(const Logger &) = delete;
@@ -52,6 +51,8 @@ public:
   }
 
 private:
+  static void init();
+
   static std::shared_ptr<spdlog::logger> s_CoreLogger;
   static std::shared_ptr<spdlog::logger> s_ClientLogger;
   static std::ostringstream s_OStream;

@@ -21,6 +21,10 @@ add_executable(${PROJECT_NAME}
 	src/logger.cpp
 	)
 
+target_precompile_headers(${PROJECT_NAME}
+	PRIVATE src/pch.h
+	)
+
 # target_compile_options(${PROJECT_NAME} PRIVATE "-Wall")
 
 macro(print_all_variables)
@@ -62,13 +66,9 @@ target_include_directories(${PROJECT_NAME}
 
 get_filename_component(VULKAN_LIB ${Vulkan_LIBRARY} DIRECTORY)
 
-message(${VULKAN_LIB})
-
-find_library(SHADERC_LIB shaderc_combined
+find_library(SHADERC_LIB shaderc_shared
 	HINTS ${VULKAN_LIB}
 	)
-
-message(${VULKAN_LIB})
 
 target_link_libraries(${PROJECT_NAME} 
 	Vulkan::Vulkan 

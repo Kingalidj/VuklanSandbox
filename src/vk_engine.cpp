@@ -3,7 +3,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 
-#include "Logger.h"
 #include "vk_initializers.h"
 #include "vk_types.h"
 
@@ -12,8 +11,6 @@
 #include <shaderc/shaderc.hpp>
 
 #include <cmath>
-#include <fstream>
-#include <iostream>
 
 #define VK_CHECK(x)                                                            \
   do {                                                                         \
@@ -24,6 +21,26 @@
       abort();                                                                 \
     }                                                                          \
   } while (0)
+
+bool compile_shader_module(uint32_t *buffer, uint32_t byteSize,
+                           VkShaderModule *outShaderModule,
+                           const VkDevice device) {
+  VkShaderModuleCreateInfo createInfo = {};
+  createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  createInfo.pNext = nullptr;
+
+  createInfo.codeSize = byteSize;
+  createInfo.pCode = buffer;
+
+  VkShaderModule shaderModule;
+  if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
+      VK_SUCCESS) {
+    return false;
+  }
+
+  *outShaderModule = shaderModule;
+  return true;
+}
 
 bool load_spirv_shader_module(const char *filePath,
                               VkShaderModule *outShaderModule,
@@ -42,38 +59,47 @@ bool load_spirv_shader_module(const char *filePath,
   file.read((char *)buffer.data(), fileSize);
   file.close();
 
-  VkShaderModuleCreateInfo createInfo = {};
-  createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  createInfo.pNext = nullptr;
-
-  createInfo.codeSize = buffer.size() * sizeof(uint32_t);
-  createInfo.pCode = buffer.data();
-
-  VkShaderModule shaderModule;
-  if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
-      VK_SUCCESS) {
+  if (!compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t),
+                             outShaderModule, device)) {
     CORE_WARN("Could not compile shader: {}", filePath);
     return false;
   }
 
-  *outShaderModule = shaderModule;
   return true;
 }
 
 bool load_glsl_shader_module(std::filesystem::path filePath,
                              VkShaderModule *outShaderModule,
                              const VkDevice device) {
-
-  shaderc_shader_kind kind;
   auto ext = filePath.extension();
 
+  Utils::ShaderType type;
   if (ext == ".vert") {
-    kind = shaderc_vertex_shader;
+    type = Utils::ShaderType::VERTEX;
   } else if (ext == ".frag") {
-    kind = shaderc_fragment_shader;
+    type = Utils::ShaderType::FRAGMENT;
   } else {
     CORE_WARN("unknown extension for file: {}", filePath);
     return false;
+  }
+
+  return load_glsl_shader_module(filePath, type, outShaderModule, device);
+}
+
+bool load_glsl_shader_module(std::filesystem::path filePath,
+                             Utils::ShaderType type,
+                             VkShaderModule *outShaderModule,
+                             const VkDevice device) {
+
+  shaderc_shader_kind kind;
+
+  switch (type) {
+  case Utils::ShaderType::VERTEX:
+    kind = shaderc_vertex_shader;
+    break;
+  case Utils::ShaderType::FRAGMENT:
+    kind = shaderc_fragment_shader;
+    break;
   }
 
   std::ifstream file(filePath, std::ios::ate | std::ios::binary);
@@ -112,21 +138,11 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   std::vector<uint32_t> buffer =
       std::vector<uint32_t>(module.cbegin(), module.cend());
 
-  VkShaderModuleCreateInfo createInfo = {};
-  createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  createInfo.pNext = nullptr;
-
-  createInfo.codeSize = buffer.size() * sizeof(uint32_t);
-  createInfo.pCode = buffer.data();
-
-  VkShaderModule shaderModule;
-  if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
-      VK_SUCCESS) {
+  if (!compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t),
+                             outShaderModule, device)) {
     CORE_WARN("Could not compile shader: {}", filePath);
     return false;
   }
-
-  *outShaderModule = shaderModule;
   return true;
 }
 
@@ -329,7 +345,7 @@ void VulkanEngine::init_vulkan() {
           .set_app_name("Vulkan Application")
           .request_validation_layers(true)
           .require_api_version(1, 1, 0)
-					.set_debug_callback(spdlog_debug_callback)
+          .set_debug_callback(spdlog_debug_callback)
           /* .use_default_debug_messenger() */
           //          .set_debug_messenger_severity(
           // VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
@@ -482,7 +498,8 @@ void VulkanEngine::init_pipelines() {
 
   VkShaderModule triangleVertexShader;
   if (!load_glsl_shader_module("res/shaders/triangle.vert",
-                               &triangleVertexShader, m_Device)) {
+                               Utils::ShaderType::VERTEX, &triangleVertexShader,
+                               m_Device)) {
     return;
   } else {
     CORE_INFO("Triangle vertex shader successfully loaded")

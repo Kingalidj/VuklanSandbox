@@ -2,12 +2,6 @@
 
 #include "vk_types.h"
 
-#include <filesystem>
-#include <vector>
-
-#include <deque>
-#include <functional>
-
 struct DeletionQueue {
 
   std::deque<std::function<void()>> deletors;
@@ -39,10 +33,18 @@ public:
   VkPipeline build_pipeline(VkDevice device, VkRenderPass renderPass);
 };
 
+bool compile_shader_module(uint32_t *buffer, uint32_t byteSize,
+                           VkShaderModule *outShaderModule,
+                           const VkDevice device);
+
 bool load_spirv_shader_module(const char *filePath,
                               VkShaderModule *outShaderModule,
                               const VkDevice device);
 
+bool load_glsl_shader_module(std::filesystem::path filePath,
+                             Utils::ShaderType type,
+                             VkShaderModule *outShaderModule,
+                             const VkDevice device);
 bool load_glsl_shader_module(std::filesystem::path filePath,
                              VkShaderModule *outShaderModule,
                              const VkDevice device);
@@ -89,7 +91,7 @@ public:
 
   VkPipeline m_TrianglePipeline;
 
-	DeletionQueue m_MainDeletionQueue;
+  DeletionQueue m_MainDeletionQueue;
 
 private:
   void init_vulkan();
