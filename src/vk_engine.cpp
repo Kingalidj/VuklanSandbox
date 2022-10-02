@@ -4,7 +4,6 @@
 #include "GLFW/glfw3.h"
 
 #include "Logger.h"
-
 #include "vk_initializers.h"
 #include "vk_types.h"
 
@@ -32,7 +31,7 @@ bool load_spirv_shader_module(const char *filePath,
   std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
-		CORE_WARN("Could not open spv file: {}", filePath);
+    CORE_WARN("Could not open spv file: {}", filePath);
     return false;
   }
 
@@ -53,7 +52,7 @@ bool load_spirv_shader_module(const char *filePath,
   VkShaderModule shaderModule;
   if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
       VK_SUCCESS) {
-		CORE_WARN("Could not compile shader: {}", filePath);
+    CORE_WARN("Could not compile shader: {}", filePath);
     return false;
   }
 
@@ -73,14 +72,14 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   } else if (ext == ".frag") {
     kind = shaderc_fragment_shader;
   } else {
-		CORE_WARN("unknown extension for file: {}", filePath);
+    CORE_WARN("unknown extension for file: {}", filePath);
     return false;
   }
 
   std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
-		CORE_WARN("Could not open file: {}", filePath);
+    CORE_WARN("Could not open file: {}", filePath);
     return false;
   }
 
@@ -123,7 +122,7 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   VkShaderModule shaderModule;
   if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
       VK_SUCCESS) {
-		CORE_WARN("Could not compile shader: {}", filePath);
+    CORE_WARN("Could not compile shader: {}", filePath);
     return false;
   }
 
@@ -202,25 +201,12 @@ void VulkanEngine::init() {
 void VulkanEngine::cleanup() {
   if (m_IsInitialized) {
 
-    vkDeviceWaitIdle(m_Device);
+    vkWaitForFences(m_Device, 1, &m_RenderFence, true, 1000000000);
 
-    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
+    m_MainDeletionQueue.flush();
 
-    vkDestroyFence(m_Device, m_RenderFence, nullptr);
-    vkDestroySemaphore(m_Device, m_RenderSemaphore, nullptr);
-    vkDestroySemaphore(m_Device, m_PresentSemaphore, nullptr);
-
-    vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
-
-    vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-
-    for (uint32_t i = 0; i < m_FrameBuffers.size(); i++) {
-      vkDestroyFramebuffer(m_Device, m_FrameBuffers[i], nullptr);
-      vkDestroyImageView(m_Device, m_SwapChainImageViews[i], nullptr);
-    }
-
-    vkDestroyDevice(m_Device, nullptr);
     vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
+    vkDestroyDevice(m_Device, nullptr);
     vkb::destroy_debug_utils_messenger(m_Instance, m_DebugMessenger);
     vkDestroyInstance(m_Instance, nullptr);
 
@@ -239,7 +225,7 @@ void VulkanEngine::draw() {
 
   // we will write to this image index (framebuffer)
   uint32_t swapchainImageIndex;
-  VK_CHECK(vkAcquireNextImageKHR(m_Device, m_SwapChain, 1000000000,
+  VK_CHECK(vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000,
                                  m_PresentSemaphore, nullptr,
                                  &swapchainImageIndex));
 
@@ -289,7 +275,7 @@ void VulkanEngine::draw() {
 
   VkPresentInfoKHR presentInfo = vkinit::present_info();
 
-  presentInfo.pSwapchains = &m_SwapChain;
+  presentInfo.pSwapchains = &m_Swapchain;
   presentInfo.swapchainCount = 1;
 
   presentInfo.pWaitSemaphores = &m_RenderSemaphore;
@@ -311,13 +297,40 @@ void VulkanEngine::run() {
   }
 }
 
+VkBool32
+spdlog_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
+                      VkDebugUtilsMessageTypeFlagsEXT msgType,
+                      const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+                      void *) {
+  auto mt = vkb::to_string_message_type(msgType);
+
+  switch (msgSeverity) {
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+    CORE_TRACE("({}) {}", mt, pCallbackData->pMessage);
+    break;
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+    CORE_INFO("({}) {}", mt, pCallbackData->pMessage);
+    break;
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+    CORE_WARN("({}) {}", mt, pCallbackData->pMessage);
+    break;
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+  case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
+    CORE_ERROR("({}) {}", mt, pCallbackData->pMessage);
+    break;
+  }
+
+  return VK_FALSE;
+}
+
 void VulkanEngine::init_vulkan() {
   vkb::Instance vkb_inst =
       vkb::InstanceBuilder()
           .set_app_name("Vulkan Application")
           .request_validation_layers(true)
           .require_api_version(1, 1, 0)
-          .use_default_debug_messenger()
+					.set_debug_callback(spdlog_debug_callback)
+          /* .use_default_debug_messenger() */
           //          .set_debug_messenger_severity(
           // VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
           .build()
@@ -354,11 +367,14 @@ void VulkanEngine::init_swapchain() {
           .build()
           .value();
 
-  m_SwapChain = vkbSwapchain.swapchain;
-  m_SwapChainImages = vkbSwapchain.get_images().value();
-  m_SwapChainImageViews = vkbSwapchain.get_image_views().value();
+  m_Swapchain = vkbSwapchain.swapchain;
+  m_SwapchainImages = vkbSwapchain.get_images().value();
+  m_SwapchainImageViews = vkbSwapchain.get_image_views().value();
 
-  m_SwapChainImageFormat = vkbSwapchain.image_format;
+  m_SwapchainImageFormat = vkbSwapchain.image_format;
+
+  m_MainDeletionQueue.push_function(
+      [=]() { vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr); });
 }
 
 void VulkanEngine::init_commands() {
@@ -371,11 +387,14 @@ void VulkanEngine::init_commands() {
       vkinit::command_buffer_allocate_info(m_CommandPool, 1);
   VK_CHECK(
       vkAllocateCommandBuffers(m_Device, &cmdAllocInfo, &m_MainCommandBuffer));
+
+  m_MainDeletionQueue.push_function(
+      [=]() { vkDestroyCommandPool(m_Device, m_CommandPool, nullptr); });
 }
 
 void VulkanEngine::init_default_renderpass() {
   VkAttachmentDescription color_attachment = {};
-  color_attachment.format = m_SwapChainImageFormat;
+  color_attachment.format = m_SwapchainImageFormat;
   color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
   color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -406,20 +425,28 @@ void VulkanEngine::init_default_renderpass() {
 
   VK_CHECK(
       vkCreateRenderPass(m_Device, &render_pass_info, nullptr, &m_RenderPass));
+
+  m_MainDeletionQueue.push_function(
+      [=]() { vkDestroyRenderPass(m_Device, m_RenderPass, nullptr); });
 }
 
 void VulkanEngine::init_framebuffers() {
   VkFramebufferCreateInfo fb_info =
       vkinit::framebuffer_create_info(m_RenderPass, m_WindowExtent);
 
-  const uint32_t swapchain_imagecount = m_SwapChainImages.size();
+  const uint32_t swapchain_imagecount = m_SwapchainImages.size();
   m_FrameBuffers = std::vector<VkFramebuffer>(swapchain_imagecount);
 
   // create framebuffers for each of the swapchain image views
   for (uint32_t i = 0; i < swapchain_imagecount; i++) {
-    fb_info.pAttachments = &m_SwapChainImageViews[i];
+    fb_info.pAttachments = &m_SwapchainImageViews[i];
     VK_CHECK(
         vkCreateFramebuffer(m_Device, &fb_info, nullptr, &m_FrameBuffers[i]));
+
+    m_MainDeletionQueue.push_function([=]() {
+      vkDestroyFramebuffer(m_Device, m_FrameBuffers[i], nullptr);
+      vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
+    });
   }
 }
 
@@ -428,11 +455,19 @@ void VulkanEngine::init_sync_structures() {
       vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
   VK_CHECK(vkCreateFence(m_Device, &fenceCreateInfo, nullptr, &m_RenderFence));
 
+  m_MainDeletionQueue.push_function(
+      [=]() { vkDestroyFence(m_Device, m_RenderFence, nullptr); });
+
   VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
   VK_CHECK(vkCreateSemaphore(m_Device, &semaphoreCreateInfo, nullptr,
                              &m_PresentSemaphore));
   VK_CHECK(vkCreateSemaphore(m_Device, &semaphoreCreateInfo, nullptr,
                              &m_RenderSemaphore));
+
+  m_MainDeletionQueue.push_function([=]() {
+    vkDestroySemaphore(m_Device, m_PresentSemaphore, nullptr);
+    vkDestroySemaphore(m_Device, m_RenderSemaphore, nullptr);
+  });
 }
 
 void VulkanEngine::init_pipelines() {
@@ -442,7 +477,7 @@ void VulkanEngine::init_pipelines() {
                                m_Device)) {
     return;
   } else {
-		CORE_INFO("Triangle fragment shader successfully loaded")
+    CORE_INFO("Triangle fragment shader successfully loaded")
   }
 
   VkShaderModule triangleVertexShader;
@@ -450,7 +485,7 @@ void VulkanEngine::init_pipelines() {
                                &triangleVertexShader, m_Device)) {
     return;
   } else {
-		CORE_INFO("Triangle vertex shader successfully loaded")
+    CORE_INFO("Triangle vertex shader successfully loaded")
   }
 
   VkPipelineLayoutCreateInfo pipeline_layout_info =
@@ -491,4 +526,12 @@ void VulkanEngine::init_pipelines() {
   pipelineBuilder.m_PipelineLayout = m_TrianglePipelineLayout;
 
   m_TrianglePipeline = pipelineBuilder.build_pipeline(m_Device, m_RenderPass);
+
+  vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
+  vkDestroyShaderModule(m_Device, triangleVertexShader, nullptr);
+
+  m_MainDeletionQueue.push_function([=]() {
+    vkDestroyPipeline(m_Device, m_TrianglePipeline, nullptr);
+    vkDestroyPipelineLayout(m_Device, m_TrianglePipelineLayout, nullptr);
+  });
 }

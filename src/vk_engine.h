@@ -2,8 +2,26 @@
 
 #include "vk_types.h"
 
-#include <vector>
 #include <filesystem>
+#include <vector>
+
+#include <deque>
+#include <functional>
+
+struct DeletionQueue {
+
+  std::deque<std::function<void()>> deletors;
+
+  void push_function(std::function<void()> &&func) { deletors.push_back(func); }
+
+  void flush() {
+    for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
+      (*it)();
+    }
+
+    deletors.clear();
+  }
+};
 
 class PipelineBuilder {
 
@@ -21,13 +39,13 @@ public:
   VkPipeline build_pipeline(VkDevice device, VkRenderPass renderPass);
 };
 
-bool load_spirv_shader_module(const char *filePath, VkShaderModule *outShaderModule,
-                        const VkDevice device);
+bool load_spirv_shader_module(const char *filePath,
+                              VkShaderModule *outShaderModule,
+                              const VkDevice device);
 
 bool load_glsl_shader_module(std::filesystem::path filePath,
                              VkShaderModule *outShaderModule,
                              const VkDevice device);
-
 
 class VulkanEngine {
 public:
@@ -49,11 +67,11 @@ public:
   VkDevice m_Device;
   VkSurfaceKHR m_Surface; // vulkan window
 
-  VkSwapchainKHR m_SwapChain;
-  VkFormat m_SwapChainImageFormat;
+  VkSwapchainKHR m_Swapchain;
+  VkFormat m_SwapchainImageFormat;
 
-  std::vector<VkImage> m_SwapChainImages;
-  std::vector<VkImageView> m_SwapChainImageViews;
+  std::vector<VkImage> m_SwapchainImages;
+  std::vector<VkImageView> m_SwapchainImageViews;
 
   VkQueue m_GraphicsQueue;
   uint32_t m_GraphicsQueueFamily;
@@ -67,9 +85,11 @@ public:
   VkSemaphore m_PresentSemaphore, m_RenderSemaphore;
   VkFence m_RenderFence;
 
-	VkPipelineLayout m_TrianglePipelineLayout;
+  VkPipelineLayout m_TrianglePipelineLayout;
 
-	VkPipeline m_TrianglePipeline;
+  VkPipeline m_TrianglePipeline;
+
+	DeletionQueue m_MainDeletionQueue;
 
 private:
   void init_vulkan();
