@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk_types.h"
+#include "vk_mesh.h"
 
 struct DeletionQueue {
 
@@ -93,6 +94,12 @@ public:
 
   DeletionQueue m_MainDeletionQueue;
 
+	VkPipeline m_MeshPipeline;
+	Mesh m_TriangleMesh;
+
+	VkBuffer m_VertexBuffer;
+	VkDeviceMemory m_VertexBufferMemory;
+
 private:
   void init_vulkan();
   void init_swapchain();
@@ -101,4 +108,8 @@ private:
   void init_framebuffers();
   void init_sync_structures();
   void init_pipelines();
+
+	void load_meshes();
+	void upload_mesh(Mesh& mesh);
+	std::optional<uint32_t> find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 };

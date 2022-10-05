@@ -1,5 +1,7 @@
 #include "vk_engine.h"
 
+#include "vk_mesh.h"
+
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 
@@ -21,6 +23,35 @@
       abort();                                                                 \
     }                                                                          \
   } while (0)
+
+/*
+struct QueueFamilyIndices {
+        std::optional<uint32_t> graphicsFamily;
+};
+
+QueueFamilyIndices find_queue_families(VkPhysicalDevice device) {
+        QueueFamilyIndices indices;
+
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+nullptr);
+
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                                                                                                                                                         queueFamilies.data());
+
+        int i = 0;
+        for (const auto &queueFamily : queueFamilies) {
+                if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                        indices.graphicsFamily = i;
+                }
+                i++;
+                // TODO: break?
+        }
+
+        return indices;
+}
+*/
 
 bool compile_shader_module(uint32_t *buffer, uint32_t byteSize,
                            VkShaderModule *outShaderModule,
@@ -75,9 +106,9 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
 
   Utils::ShaderType type;
   if (ext == ".vert") {
-    type = Utils::ShaderType::VERTEX;
+    type = Utils::ShaderType::Vertex;
   } else if (ext == ".frag") {
-    type = Utils::ShaderType::FRAGMENT;
+    type = Utils::ShaderType::Fragment;
   } else {
     CORE_WARN("unknown extension for file: {}", filePath);
     return false;
@@ -94,10 +125,10 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   shaderc_shader_kind kind;
 
   switch (type) {
-  case Utils::ShaderType::VERTEX:
+  case Utils::ShaderType::Vertex:
     kind = shaderc_vertex_shader;
     break;
-  case Utils::ShaderType::FRAGMENT:
+  case Utils::ShaderType::Fragment:
     kind = shaderc_fragment_shader;
     break;
   }
@@ -121,7 +152,7 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   shaderc::CompileOptions cOptions;
   cOptions.SetTargetEnvironment(shaderc_target_env_vulkan,
                                 shaderc_env_version_vulkan_1_1);
-  const bool optimize = true;
+  const bool optimize = false;
 
   if (optimize)
     cOptions.SetOptimizationLevel(shaderc_optimization_level_performance);
@@ -211,6 +242,8 @@ void VulkanEngine::init() {
   init_sync_structures();
   init_pipelines();
 
+  load_meshes();
+
   m_IsInitialized = true;
 }
 
@@ -266,7 +299,12 @@ void VulkanEngine::draw() {
 
   vkCmdBindPipeline(m_MainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     m_TrianglePipeline);
-  vkCmdDraw(m_MainCommandBuffer, 3, 1, 0, 0);
+
+  /* vkCmdDraw(m_MainCommandBuffer, 3, 1, 0, 0); */
+
+  VkDeviceSize offset = 0;
+  vkCmdBindVertexBuffers(m_MainCommandBuffer, 0, 1, &m_VertexBuffer, &offset);
+  vkCmdDraw(m_MainCommandBuffer, m_TriangleMesh.vertices.size(), 1, 0, 0);
 
   vkCmdEndRenderPass(m_MainCommandBuffer);
   VK_CHECK(vkEndCommandBuffer(m_MainCommandBuffer));
@@ -358,7 +396,7 @@ void VulkanEngine::init_vulkan() {
   VK_CHECK(glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface));
 
   vkb::PhysicalDevice physicalDevice = vkb::PhysicalDeviceSelector(vkb_inst)
-                                           .set_minimum_version(1, 1)
+                                           .set_minimum_version(1, 2)
                                            .set_surface(m_Surface)
                                            .select()
                                            .value();
@@ -498,7 +536,7 @@ void VulkanEngine::init_pipelines() {
 
   VkShaderModule triangleVertexShader;
   if (!load_glsl_shader_module("res/shaders/triangle.vert",
-                               Utils::ShaderType::VERTEX, &triangleVertexShader,
+                               Utils::ShaderType::Vertex, &triangleVertexShader,
                                m_Device)) {
     return;
   } else {
@@ -542,6 +580,18 @@ void VulkanEngine::init_pipelines() {
       vkinit::color_blend_attachment_state();
   pipelineBuilder.m_PipelineLayout = m_TrianglePipelineLayout;
 
+  VertexInputDescription vertexDescription = Vertex::get_vertex_description();
+
+  pipelineBuilder.m_VertexInputInfo.pVertexAttributeDescriptions =
+      vertexDescription.attributes.data();
+  pipelineBuilder.m_VertexInputInfo.vertexAttributeDescriptionCount =
+      vertexDescription.attributes.size();
+
+  pipelineBuilder.m_VertexInputInfo.pVertexBindingDescriptions =
+      vertexDescription.bindings.data();
+  pipelineBuilder.m_VertexInputInfo.vertexBindingDescriptionCount =
+      vertexDescription.bindings.size();
+
   m_TrianglePipeline = pipelineBuilder.build_pipeline(m_Device, m_RenderPass);
 
   vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
@@ -551,4 +601,72 @@ void VulkanEngine::init_pipelines() {
     vkDestroyPipeline(m_Device, m_TrianglePipeline, nullptr);
     vkDestroyPipelineLayout(m_Device, m_TrianglePipelineLayout, nullptr);
   });
+}
+
+void VulkanEngine::load_meshes() {
+  m_TriangleMesh.vertices.resize(3);
+
+  m_TriangleMesh.vertices[0].position = {0.5f, 0.5f, 0.0f};
+  m_TriangleMesh.vertices[1].position = {-0.5f, 0.5f, 0.0f};
+  m_TriangleMesh.vertices[2].position = {0.f, -0.5f, 0.0f};
+
+  m_TriangleMesh.vertices[0].color = {1.f, 0.f, 1.0f};
+  m_TriangleMesh.vertices[1].color = {1.f, 0.f, 0.0f};
+  m_TriangleMesh.vertices[2].color = {0.f, 0.f, 1.0f};
+
+  upload_mesh(m_TriangleMesh);
+}
+
+void VulkanEngine::upload_mesh(Mesh &mesh) {
+  VkBufferCreateInfo bufferInfo = {};
+  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  bufferInfo.size = mesh.vertices.size() * sizeof(Vertex);
+  bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  VK_CHECK(vkCreateBuffer(m_Device, &bufferInfo, nullptr, &m_VertexBuffer));
+
+  VkMemoryRequirements memRequirements;
+  vkGetBufferMemoryRequirements(m_Device, m_VertexBuffer, &memRequirements);
+
+  VkMemoryAllocateInfo allocInfo = {};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memRequirements.size;
+  auto memoryTypeIndex = find_memory_type(
+      memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  CORE_ASSERT(memoryTypeIndex.has_value(),
+              "Could not find memory for vertex buffer");
+
+  allocInfo.memoryTypeIndex = memoryTypeIndex.value();
+
+  VK_CHECK(
+      vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_VertexBufferMemory));
+  vkBindBufferMemory(m_Device, m_VertexBuffer, m_VertexBufferMemory, 0);
+
+  m_MainDeletionQueue.push_function([=]() {
+    vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
+    vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
+  });
+
+  void *data;
+  vkMapMemory(m_Device, m_VertexBufferMemory, 0, bufferInfo.size, 0, &data);
+  memcpy(data, mesh.vertices.data(), (size_t)bufferInfo.size);
+  vkUnmapMemory(m_Device, m_VertexBufferMemory);
+}
+
+std::optional<uint32_t>
+VulkanEngine::find_memory_type(uint32_t typeFilter,
+                               VkMemoryPropertyFlags properties) {
+  VkPhysicalDeviceMemoryProperties memProperties;
+  vkGetPhysicalDeviceMemoryProperties(m_ChosenGPU, &memProperties);
+
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags &
+                                    properties) == properties) {
+      return i;
+    }
+  }
+
+  return std::nullopt;
 }

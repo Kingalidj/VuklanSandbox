@@ -10,5 +10,7 @@
 
 #include <functional>
 
+#include <optional>
+
 #include "utils.h"
 #include "logger.h"

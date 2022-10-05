@@ -3,15 +3,22 @@
 namespace Utils {
 
 enum class LogLevel {
-  TRACE,
-  INFO,
-  WARN,
-  ERROR,
+  Trace,
+  Info,
+  Warn,
+  Error,
 };
 
 enum class ShaderType {
-	FRAGMENT,
-	VERTEX,
+  Fragment,
+  Vertex,
 };
 
-}
+enum class QueueType {
+  Present,
+  Graphics,
+  Compute,
+  Transfer,
+};
+
+} // namespace Utils

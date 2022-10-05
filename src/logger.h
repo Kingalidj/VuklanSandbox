@@ -31,19 +31,19 @@ public:
   static void log(Utils::LogLevel level, const Args &...msg) {
 
     switch (level) {
-    case Utils::LogLevel::TRACE:
+    case Utils::LogLevel::Trace:
       s_CoreLogger->trace(msg...);
       break;
 
-    case Utils::LogLevel::INFO:
+    case Utils::LogLevel::Info:
       s_CoreLogger->info(msg...);
       break;
 
-    case Utils::LogLevel::WARN:
+    case Utils::LogLevel::Warn:
       s_CoreLogger->warn(msg...);
       break;
 
-    case Utils::LogLevel::ERROR:
+    case Utils::LogLevel::Error:
       s_CoreLogger->error(msg...);
       break;
     }
@@ -62,8 +62,10 @@ private:
 #define CORE_INFO(...) ::Logger::get_core_logger()->info(__VA_ARGS__);
 #define CORE_WARN(...) ::Logger::get_core_logger()->warn(__VA_ARGS__);
 #define CORE_ERROR(...) ::Logger::get_core_logger()->error(__VA_ARGS__);
+#define CORE_ASSERT(x, ...) { if(!(x)) { CORE_ERROR("Assertion Failed: {0}", __VA_ARGS__); abort(); }}
 
 #define TRACE(...) ::Logger::get_client_logger()->trace(__VA_ARGS__);
 #define INFO(...) ::Logger::get_client_logger()->info(__VA_ARGS__);
 #define WARN(...) ::Logger::get_client_logger()->warn(__VA_ARGS__);
 #define ERROR(...) ::Logger::get_client_logger()->error(__VA_ARGS__);
+#define ASSERT(x, ...) { if(!(x)) { ERROR("Assertion Failed: {0}", __VA_ARGS__); abort(); }}
