@@ -14,11 +14,15 @@ find_package(Vulkan REQUIRED FATAL_ERROR)
 
 add_subdirectory(vendor)
 
+set(resources res)
+
+
 add_executable(${PROJECT_NAME} 
 	src/main.cpp
 	src/vk_engine.cpp
 	src/vk_initializers.cpp
 	src/logger.cpp
+	src/vk_mesh.cpp
 	)
 
 target_precompile_headers(${PROJECT_NAME}
@@ -36,26 +40,23 @@ macro(print_all_variables)
 	message(STATUS "print_all_variables------------------------------------------}")
 endmacro()
 
-add_custom_target(
-	copy_resources ALL
-	DEPENDS copy_command
-	)
+if (WIN32)
+	get_filename_component(real_path "${resources}" REALPATH)
+	string(REPLACE "/" "\\" target_path "${real_path}")
 
-add_custom_command(
-	OUTPUT
-	copy_command
-	COMMAND 
-	${CMAKE_COMMAND} -E copy_directory
-	${CMAKE_SOURCE_DIR}/res/ $<TARGET_FILE_DIR:${PROJECT_NAME}>/res/
-
-	DEPENDS
-	always_rebuild
-	)
-
-add_custom_command(
-	OUTPUT always_rebuild
-	COMMAND cmake -E echo
-	)
+	add_custom_command( #link_resources ALL
+		TARGET ${PROJECT_NAME}
+		COMMAND cmd /C if not exist "${resources}" mklink /J ${resources} "${target_path}"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}
+		)
+else()
+	add_custom_command(
+		TARGET ${PROJECT_NAME}
+		COMMAND 
+		${CMAKE_COMMAND} -E create_symlink 
+		${CMAKE_SOURCE_DIR}/${resources} $<TARGET_FILE_DIR:${PROJECT_NAME}>/${resources}
+		)
+endif()
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
 
@@ -66,7 +67,7 @@ target_include_directories(${PROJECT_NAME}
 
 get_filename_component(VULKAN_LIB ${Vulkan_LIBRARY} DIRECTORY)
 
-find_library(SHADERC_LIB shaderc_shared
+find_library(SHADERC_LIB shaderc_combined
 	HINTS ${VULKAN_LIB}
 	)
 
@@ -76,4 +77,6 @@ target_link_libraries(${PROJECT_NAME}
 	glfw
 	vk-bootstrap::vk-bootstrap
 	spdlog
+	glm
+	stb_image
 	)
