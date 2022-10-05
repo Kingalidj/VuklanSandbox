@@ -23,6 +23,7 @@ add_executable(${PROJECT_NAME}
 	src/vk_initializers.cpp
 	src/logger.cpp
 	src/vk_mesh.cpp
+	src/vk_shader.cpp
 	)
 
 target_precompile_headers(${PROJECT_NAME}
