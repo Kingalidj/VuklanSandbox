@@ -11,7 +11,7 @@ bool load_spirv_shader_module(const char *filePath,
                               const VkDevice device);
 
 bool load_glsl_shader_module(std::filesystem::path filePath,
-                             Utils::ShaderType type,
+                             utils::ShaderType type,
                              VkShaderModule *outShaderModule,
                              const VkDevice device);
 

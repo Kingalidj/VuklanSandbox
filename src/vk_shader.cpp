@@ -47,17 +47,17 @@ bool load_spirv_shader_module(const char *filePath,
   return true;
 }
 bool load_glsl_shader_module(std::filesystem::path filePath,
-                             Utils::ShaderType type,
+                             utils::ShaderType type,
                              VkShaderModule *outShaderModule,
                              const VkDevice device) {
 
   shaderc_shader_kind kind;
 
   switch (type) {
-  case Utils::ShaderType::Vertex:
+  case utils::ShaderType::Vertex:
     kind = shaderc_vertex_shader;
     break;
-  case Utils::ShaderType::Fragment:
+  case utils::ShaderType::Fragment:
     kind = shaderc_fragment_shader;
     break;
   }
@@ -111,11 +111,11 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
                              const VkDevice device) {
   auto ext = filePath.extension();
 
-  Utils::ShaderType type;
+  utils::ShaderType type;
   if (ext == ".vert") {
-    type = Utils::ShaderType::Vertex;
+    type = utils::ShaderType::Vertex;
   } else if (ext == ".frag") {
-    type = Utils::ShaderType::Fragment;
+    type = utils::ShaderType::Fragment;
   } else {
     CORE_WARN("unknown extension for file: {}", filePath);
     return false;

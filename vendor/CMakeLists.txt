@@ -20,4 +20,8 @@ include_directories(glm)
 # == stb ==
 
 add_subdirectory(stb)
-# include_directories(stb)
+
+# == vma ==
+
+add_subdirectory(VulkanMemoryAllocator)
+include_directories(VulkanMemoryAllocator/include)

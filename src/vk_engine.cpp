@@ -20,87 +20,9 @@
     VkResult err = x;                                                          \
     if (err) {                                                                 \
       CORE_ERROR("at line: {}, in file: {}\nDetected Vulkan error: {}",        \
-                 __LINE__, __FILE__, err)                                      \
-      abort();                                                                 \
+                 __LINE__, __FILE__, err);                                     \
     }                                                                          \
   } while (0)
-
-/*
-struct QueueFamilyIndices {
-        std::optional<uint32_t> graphicsFamily;
-};
-
-QueueFamilyIndices find_queue_families(VkPhysicalDevice device) {
-        QueueFamilyIndices indices;
-
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
-nullptr);
-
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
-                                                                                                                                                                         queueFamilies.data());
-
-        int i = 0;
-        for (const auto &queueFamily : queueFamilies) {
-                if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                        indices.graphicsFamily = i;
-                }
-                i++;
-                // TODO: break?
-        }
-
-        return indices;
-}
-*/
-
-VkPipeline PipelineBuilder::build_pipeline(VkDevice device, VkRenderPass pass) {
-  VkPipelineViewportStateCreateInfo viewportState = {};
-  viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-  viewportState.pNext = nullptr;
-
-  viewportState.viewportCount = 1;
-  viewportState.pViewports = &m_Viewport;
-  viewportState.scissorCount = 1;
-  viewportState.pScissors = &m_Scissor;
-
-  VkPipelineColorBlendStateCreateInfo colorBlending = {};
-  colorBlending.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-  colorBlending.pNext = nullptr;
-
-  colorBlending.logicOpEnable = VK_FALSE;
-  colorBlending.logicOp = VK_LOGIC_OP_COPY;
-  colorBlending.attachmentCount = 1;
-  colorBlending.pAttachments = &m_ColorBlendAttachment;
-
-  VkGraphicsPipelineCreateInfo pipelineInfo = {};
-  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.pNext = nullptr;
-
-  pipelineInfo.stageCount = m_ShaderStages.size();
-  pipelineInfo.pStages = m_ShaderStages.data();
-  pipelineInfo.pVertexInputState = &m_VertexInputInfo;
-  pipelineInfo.pInputAssemblyState = &m_InputAssembly;
-  pipelineInfo.pViewportState = &viewportState;
-  pipelineInfo.pRasterizationState = &m_Rasterizer;
-  pipelineInfo.pMultisampleState = &m_Multisampling;
-  pipelineInfo.pColorBlendState = &colorBlending;
-  pipelineInfo.layout = m_PipelineLayout;
-  pipelineInfo.renderPass = pass;
-  pipelineInfo.subpass = 0;
-  pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
-  VkPipeline pipeLine;
-
-  if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,
-                                nullptr, &pipeLine) != VK_SUCCESS) {
-    std::cerr << "failed to create pipeline" << std::endl;
-    return VK_NULL_HANDLE;
-  } else {
-    return pipeLine;
-  }
-}
 
 void VulkanEngine::init() {
 
@@ -255,17 +177,13 @@ spdlog_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
 }
 
 void VulkanEngine::init_vulkan() {
-  vkb::Instance vkb_inst =
-      vkb::InstanceBuilder()
-          .set_app_name("Vulkan Application")
-          .request_validation_layers(true)
-          .require_api_version(1, 1, 0)
-          .set_debug_callback(spdlog_debug_callback)
-          /* .use_default_debug_messenger() */
-          //          .set_debug_messenger_severity(
-          // VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-          .build()
-          .value();
+  vkb::Instance vkb_inst = vkb::InstanceBuilder()
+                               .set_app_name("Vulkan Application")
+                               .request_validation_layers(true)
+                               .require_api_version(1, 1, 0)
+                               .set_debug_callback(spdlog_debug_callback)
+                               .build()
+                               .value();
 
   m_Instance = vkb_inst.instance;
   m_DebugMessenger = vkb_inst.debug_messenger;
@@ -408,16 +326,16 @@ void VulkanEngine::init_pipelines() {
                                m_Device)) {
     return;
   } else {
-    CORE_INFO("Triangle fragment shader successfully loaded")
+    CORE_INFO("Triangle fragment shader successfully loaded");
   }
 
   VkShaderModule triangleVertexShader;
   if (!load_glsl_shader_module("res/shaders/triangle.vert",
-                               Utils::ShaderType::Vertex, &triangleVertexShader,
+                               utils::ShaderType::Vertex, &triangleVertexShader,
                                m_Device)) {
     return;
   } else {
-    CORE_INFO("Triangle vertex shader successfully loaded")
+    CORE_INFO("Triangle vertex shader successfully loaded");
   }
 
   VkPipelineLayoutCreateInfo pipeline_layout_info =
@@ -426,50 +344,26 @@ void VulkanEngine::init_pipelines() {
   VK_CHECK(vkCreatePipelineLayout(m_Device, &pipeline_layout_info, nullptr,
                                   &m_TrianglePipelineLayout));
 
-  PipelineBuilder pipelineBuilder;
-
-  pipelineBuilder.m_ShaderStages.push_back(
-      vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT,
-                                                triangleVertexShader));
-
-  pipelineBuilder.m_ShaderStages.push_back(
-      vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT,
-                                                triangleFragShader));
-
-  pipelineBuilder.m_VertexInputInfo = vkinit::vertex_input_state_create_info();
-  pipelineBuilder.m_InputAssembly =
-      vkinit::input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-
-  pipelineBuilder.m_Viewport.x = 0.0f;
-  pipelineBuilder.m_Viewport.y = 0.0f;
-  pipelineBuilder.m_Viewport.width = (float)m_WindowExtent.width;
-  pipelineBuilder.m_Viewport.height = (float)m_WindowExtent.height;
-  pipelineBuilder.m_Viewport.minDepth = 0.0f;
-  pipelineBuilder.m_Viewport.maxDepth = 1.0f;
-
-  pipelineBuilder.m_Scissor.offset = {0, 0};
-  pipelineBuilder.m_Scissor.extent = m_WindowExtent;
-
-  pipelineBuilder.m_Rasterizer =
-      vkinit::rasterization_state_create_info(VK_POLYGON_MODE_FILL);
-  pipelineBuilder.m_Multisampling = vkinit::multisampling_state_create_info();
-  pipelineBuilder.m_ColorBlendAttachment =
-      vkinit::color_blend_attachment_state();
-  pipelineBuilder.m_PipelineLayout = m_TrianglePipelineLayout;
-
   VertexInputDescription vertexDescription = Vertex::get_vertex_description();
 
-  pipelineBuilder.m_VertexInputInfo.pVertexAttributeDescriptions =
-      vertexDescription.attributes.data();
-  pipelineBuilder.m_VertexInputInfo.vertexAttributeDescriptionCount =
-      vertexDescription.attributes.size();
-
-  pipelineBuilder.m_VertexInputInfo.pVertexBindingDescriptions =
-      vertexDescription.bindings.data();
-  pipelineBuilder.m_VertexInputInfo.vertexBindingDescriptionCount =
-      vertexDescription.bindings.size();
-
-  m_TrianglePipeline = pipelineBuilder.build_pipeline(m_Device, m_RenderPass);
+  m_TrianglePipeline =
+      vkinit::PipelineBuilder()
+          .set_device(m_Device)
+          .set_render_pass(m_RenderPass)
+          .add_shader_module(triangleVertexShader, utils::ShaderType::Vertex)
+          .add_shader_module(triangleFragShader, utils::ShaderType::Fragment)
+          .set_viewport(
+              {0.0f, 0.0f},
+              {(float)m_WindowExtent.width, (float)m_WindowExtent.height},
+              {0.0f, 1.0f})
+          .set_scissor({0, 0}, m_WindowExtent)
+          .set_pipeline_layout(m_TrianglePipelineLayout)
+          .set_vertex_description(vertexDescription.attributes.data(),
+                                  vertexDescription.attributes.size(),
+                                  vertexDescription.bindings.data(),
+                                  vertexDescription.bindings.size())
+          .build()
+          .value();
 
   vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
   vkDestroyShaderModule(m_Device, triangleVertexShader, nullptr);

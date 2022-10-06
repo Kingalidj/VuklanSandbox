@@ -219,4 +219,127 @@ VkPipelineLayoutCreateInfo pipeline_layout_create_info() {
   return info;
 }
 
+PipelineBuilder &
+PipelineBuilder::add_shader_module(VkShaderModule shaderModule,
+                                   utils::ShaderType shaderType) {
+  VkShaderStageFlagBits flag;
+
+  switch (shaderType) {
+  case utils::ShaderType::Vertex:
+    flag = VK_SHADER_STAGE_VERTEX_BIT;
+    break;
+  case utils::ShaderType::Fragment:
+    flag = VK_SHADER_STAGE_FRAGMENT_BIT;
+    break;
+  }
+
+  shaderStages.push_back(pipeline_shader_stage_create_info(flag, shaderModule));
+  return *this;
+}
+PipelineBuilder &PipelineBuilder::set_viewport(VkViewport viewport) {
+  this->viewport = viewport;
+  return *this;
+}
+PipelineBuilder &PipelineBuilder::set_scissor(VkRect2D scissor) {
+  this->scissor = scissor;
+  return *this;
+}
+PipelineBuilder &PipelineBuilder::set_scissor(VkOffset2D offset,
+                                              VkExtent2D extent) {
+  scissor.offset = offset;
+  scissor.extent = extent;
+  return *this;
+}
+PipelineBuilder &PipelineBuilder::set_pipeline_layout(VkPipelineLayout layout) {
+  pipelineLayout = layout;
+  return *this;
+}
+PipelineBuilder &PipelineBuilder::set_vertex_description(
+    VkVertexInputAttributeDescription *pAttributes, uint32_t attributesCount,
+    VkVertexInputBindingDescription *pBindings, uint32_t bindingCount) {
+  vertexInputInfo.pVertexAttributeDescriptions = pAttributes;
+  vertexInputInfo.vertexAttributeDescriptionCount = attributesCount;
+  vertexInputInfo.pVertexBindingDescriptions = pBindings;
+  vertexInputInfo.vertexBindingDescriptionCount = bindingCount;
+  return *this;
+}
+PipelineBuilder &PipelineBuilder::set_render_pass(VkRenderPass renderPass) {
+  this->renderPass = renderPass;
+  return *this;
+}
+PipelineBuilder &PipelineBuilder::set_device(VkDevice device) {
+  this->device = device;
+  return *this;
+}
+
+std::optional<VkPipeline> PipelineBuilder::build() {
+
+  if (device == VK_NULL_HANDLE) {
+    CORE_ERROR("Could not build Pipeline: VkDevice is not set");
+    return std::nullopt;
+  } else if (renderPass == VK_NULL_HANDLE) {
+    CORE_ERROR("Could not build Pipeline: VkRenderPass is not set");
+    return std::nullopt;
+  } else if (pipelineLayout == VK_NULL_HANDLE) {
+    CORE_ERROR("Could not build Pipeline: VkPipelineLayout is not set");
+    return std::nullopt;
+  }
+
+  VkPipelineViewportStateCreateInfo viewportState = {};
+  viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+  viewportState.pNext = nullptr;
+
+  viewportState.viewportCount = 1;
+  viewportState.pViewports = &viewport;
+  viewportState.scissorCount = 1;
+  viewportState.pScissors = &scissor;
+
+  VkPipelineColorBlendStateCreateInfo colorBlending = {};
+  colorBlending.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+  colorBlending.pNext = nullptr;
+
+  colorBlending.logicOpEnable = VK_FALSE;
+  colorBlending.logicOp = VK_LOGIC_OP_COPY;
+  colorBlending.attachmentCount = 1;
+  colorBlending.pAttachments = &colorBlendAttachment;
+
+  VkGraphicsPipelineCreateInfo pipelineInfo = {};
+  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = nullptr;
+
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
+  pipelineInfo.pVertexInputState = &vertexInputInfo;
+  pipelineInfo.pInputAssemblyState = &inputAssembly;
+  pipelineInfo.pViewportState = &viewportState;
+  pipelineInfo.pRasterizationState = &rasterizer;
+  pipelineInfo.pMultisampleState = &multisampling;
+  pipelineInfo.pColorBlendState = &colorBlending;
+  pipelineInfo.layout = pipelineLayout;
+  pipelineInfo.renderPass = renderPass;
+  pipelineInfo.subpass = 0;
+  pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+  VkPipeline pipeLine;
+
+  if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,
+                                nullptr, &pipeLine) != VK_SUCCESS) {
+    CORE_ERROR("failed to create pipeline");
+    return VK_NULL_HANDLE;
+  } else {
+    return pipeLine;
+  }
+}
+
+PipelineBuilder &PipelineBuilder::set_viewport(fVec2D zero, fVec2D size,
+                                               fVec2D depth) {
+  viewport.x = zero.x;
+  viewport.y = zero.y;
+  viewport.width = size.x;
+  viewport.height = size.y;
+  viewport.minDepth = depth.x;
+  viewport.maxDepth = depth.y;
+  return *this;
+}
 } // namespace vkinit

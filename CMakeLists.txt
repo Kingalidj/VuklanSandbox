@@ -77,6 +77,7 @@ target_link_libraries(${PROJECT_NAME}
 	${SHADERC_LIB}
 	glfw
 	vk-bootstrap::vk-bootstrap
+	VulkanMemoryAllocator
 	spdlog
 	glm
 	stb_image
