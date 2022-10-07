@@ -342,4 +342,13 @@ PipelineBuilder &PipelineBuilder::set_viewport(fVec2D zero, fVec2D size,
   viewport.maxDepth = depth.y;
   return *this;
 }
+PipelineBuilder &PipelineBuilder::set_vertex_description(
+    std::vector<VkVertexInputAttributeDescription> &attributes,
+    std::vector<VkVertexInputBindingDescription> &bindings) {
+  vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
+  vertexInputInfo.vertexAttributeDescriptionCount = attributes.size();
+  vertexInputInfo.pVertexBindingDescriptions = bindings.data();
+  vertexInputInfo.vertexBindingDescriptionCount = bindings.size();
+  return *this;
+}
 } // namespace vkinit

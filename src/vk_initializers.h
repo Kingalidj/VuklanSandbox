@@ -5,11 +5,11 @@
 namespace vkinit {
 
 struct fVec2D {
-	float x, y;
+  float x, y;
 };
 
 struct uVec2D {
-	uint32_t x, y;
+  uint32_t x, y;
 };
 
 VkCommandPoolCreateInfo
@@ -90,8 +90,11 @@ struct PipelineBuilder {
   PipelineBuilder &set_vertex_description(
       VkVertexInputAttributeDescription *pAttributes, uint32_t attributesCount,
       VkVertexInputBindingDescription *pBindings, uint32_t bindingCount);
+  PipelineBuilder &set_vertex_description(
+      std::vector<VkVertexInputAttributeDescription> &attributes,
+      std::vector<VkVertexInputBindingDescription> &bindings);
 
-	std::optional<VkPipeline> build();
+  std::optional<VkPipeline> build();
 };
 
 } // namespace vkinit

@@ -3,6 +3,13 @@
 #include "vk_types.h"
 #include "vk_mesh.h"
 
+#include <glm/glm.hpp>
+
+struct MeshPushConstants {
+	glm::vec4 data;
+	glm::mat4 renderMatrix;
+};
+
 struct DeletionQueue {
 
   std::deque<std::function<void()>> deletors;
@@ -57,16 +64,17 @@ public:
   VkFence m_RenderFence;
 
   VkPipelineLayout m_TrianglePipelineLayout;
-
-  VkPipeline m_TrianglePipeline;
+	VkPipelineLayout m_MeshPipelineLayout;
+  VkPipeline m_MeshPipeline;
 
   DeletionQueue m_MainDeletionQueue;
 
-	VkPipeline m_MeshPipeline;
 	Mesh m_TriangleMesh;
 
-	VkBuffer m_VertexBuffer;
-	VkDeviceMemory m_VertexBufferMemory;
+/* 	VkBuffer m_VertexBuffer; */
+/* 	VkDeviceMemory m_VertexBufferMemory; */
+
+	VmaAllocator m_Allocator;
 
 private:
   void init_vulkan();
