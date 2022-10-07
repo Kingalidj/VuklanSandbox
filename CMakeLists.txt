@@ -81,4 +81,5 @@ target_link_libraries(${PROJECT_NAME}
 	spdlog
 	glm
 	stb_image
+	tinyobjloader
 	)

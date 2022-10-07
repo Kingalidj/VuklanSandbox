@@ -2,6 +2,11 @@
 
 add_subdirectory(vk-bootstrap)
 
+# == vma ==
+
+add_subdirectory(VulkanMemoryAllocator)
+include_directories(VulkanMemoryAllocator/include)
+
 # == glfw ==
 
 add_subdirectory(glfw)
@@ -21,7 +26,7 @@ include_directories(glm)
 
 add_subdirectory(stb)
 
-# == vma ==
+# == tinyobjloader ==
 
-add_subdirectory(VulkanMemoryAllocator)
-include_directories(VulkanMemoryAllocator/include)
+add_subdirectory(tinyobjloader)
+include_directories(tinyobjloader)
