@@ -94,7 +94,7 @@ struct PipelineBuilder {
       std::vector<VkVertexInputAttributeDescription> &attributes,
       std::vector<VkVertexInputBindingDescription> &bindings);
 
-  std::optional<VkPipeline> build();
+  VkPipeline build();
 };
 
 } // namespace vkinit

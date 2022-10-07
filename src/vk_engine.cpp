@@ -208,7 +208,7 @@ void VulkanEngine::init_vulkan() {
                                            .select()
                                            .value();
 
-  vkb::Device vkbDevice = vkb::DeviceBuilder(physicalDevice).build().value();
+	vkb::Device vkbDevice = vkb::DeviceBuilder(physicalDevice).build().value();
 
   m_Device = vkbDevice.device;
   m_ChosenGPU = physicalDevice.physical_device;
@@ -399,8 +399,9 @@ void VulkanEngine::init_pipelines() {
                          (float)m_WindowExtent.height}, // TODO: use uint32_t
                         {0.0f, 1.0f})
           .set_scissor({0, 0}, m_WindowExtent)
-          .build()
-          .value();
+          .build();
+
+  /* m_MeshPipeline = pipelineBuilder.build(); */
 
   vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
   vkDestroyShaderModule(m_Device, triangleVertexShader, nullptr);
@@ -434,6 +435,8 @@ void VulkanEngine::upload_mesh(Mesh &mesh) {
 
   VmaAllocationCreateInfo vmaAllocInfo = {};
   vmaAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+  vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                       VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
   VK_CHECK(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo,
                            &mesh.vertexBuffer.buffer,

@@ -272,17 +272,20 @@ PipelineBuilder &PipelineBuilder::set_device(VkDevice device) {
   return *this;
 }
 
-std::optional<VkPipeline> PipelineBuilder::build() {
+VkPipeline PipelineBuilder::build() {
 
   if (device == VK_NULL_HANDLE) {
     CORE_ERROR("Could not build Pipeline: VkDevice is not set");
-    return std::nullopt;
+    //return std::nullopt;
+    return VK_NULL_HANDLE;
   } else if (renderPass == VK_NULL_HANDLE) {
     CORE_ERROR("Could not build Pipeline: VkRenderPass is not set");
-    return std::nullopt;
+    //return std::nullopt;
+    return VK_NULL_HANDLE;
   } else if (pipelineLayout == VK_NULL_HANDLE) {
     CORE_ERROR("Could not build Pipeline: VkPipelineLayout is not set");
-    return std::nullopt;
+    //return std::nullopt;
+    return VK_NULL_HANDLE;
   }
 
   VkPipelineViewportStateCreateInfo viewportState = {};

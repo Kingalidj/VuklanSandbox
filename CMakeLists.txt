@@ -8,7 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_VERBOSE_MAKEFILE 1)
 
-# add_compile_options( -Wall )
+add_compile_options( -g )
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
