@@ -203,12 +203,12 @@ void VulkanEngine::init_vulkan() {
   VK_CHECK(glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface));
 
   vkb::PhysicalDevice physicalDevice = vkb::PhysicalDeviceSelector(vkb_inst)
-                                           .set_minimum_version(1, 2)
+                                           .set_minimum_version(1, 1)
                                            .set_surface(m_Surface)
                                            .select()
                                            .value();
 
-	vkb::Device vkbDevice = vkb::DeviceBuilder(physicalDevice).build().value();
+  vkb::Device vkbDevice = vkb::DeviceBuilder(physicalDevice).build().value();
 
   m_Device = vkbDevice.device;
   m_ChosenGPU = physicalDevice.physical_device;
@@ -399,7 +399,8 @@ void VulkanEngine::init_pipelines() {
                          (float)m_WindowExtent.height}, // TODO: use uint32_t
                         {0.0f, 1.0f})
           .set_scissor({0, 0}, m_WindowExtent)
-          .build();
+          .build()
+          .value();
 
   /* m_MeshPipeline = pipelineBuilder.build(); */
 

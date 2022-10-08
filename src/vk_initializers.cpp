@@ -272,20 +272,17 @@ PipelineBuilder &PipelineBuilder::set_device(VkDevice device) {
   return *this;
 }
 
-VkPipeline PipelineBuilder::build() {
+std::optional<VkPipeline> PipelineBuilder::build() {
 
   if (device == VK_NULL_HANDLE) {
     CORE_ERROR("Could not build Pipeline: VkDevice is not set");
-    //return std::nullopt;
-    return VK_NULL_HANDLE;
+    return std::nullopt;
   } else if (renderPass == VK_NULL_HANDLE) {
     CORE_ERROR("Could not build Pipeline: VkRenderPass is not set");
-    //return std::nullopt;
-    return VK_NULL_HANDLE;
+    return std::nullopt;
   } else if (pipelineLayout == VK_NULL_HANDLE) {
     CORE_ERROR("Could not build Pipeline: VkPipelineLayout is not set");
-    //return std::nullopt;
-    return VK_NULL_HANDLE;
+    return std::nullopt;
   }
 
   VkPipelineViewportStateCreateInfo viewportState = {};
@@ -328,8 +325,7 @@ VkPipeline PipelineBuilder::build() {
 
   if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,
                                 nullptr, &pipeLine) != VK_SUCCESS) {
-    CORE_ERROR("failed to create pipeline");
-    return VK_NULL_HANDLE;
+    return std::nullopt;
   } else {
     return pipeLine;
   }
