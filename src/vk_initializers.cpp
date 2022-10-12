@@ -6,7 +6,7 @@ VkCommandPoolCreateInfo
 command_pool_create_info(uint32_t queueFamilyIndex,
                          VkCommandPoolCreateFlags flags) {
 
-  VkCommandPoolCreateInfo info = {};
+  VkCommandPoolCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   info.pNext = nullptr;
 
@@ -19,7 +19,7 @@ VkCommandBufferAllocateInfo
 command_buffer_allocate_info(VkCommandPool pool, uint32_t count,
                              VkCommandBufferLevel level) {
 
-  VkCommandBufferAllocateInfo info = {};
+  VkCommandBufferAllocateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   info.pNext = nullptr;
 
@@ -31,7 +31,7 @@ command_buffer_allocate_info(VkCommandPool pool, uint32_t count,
 
 VkCommandBufferBeginInfo
 command_buffer_begin_info(VkCommandBufferUsageFlags flags) {
-  VkCommandBufferBeginInfo info = {};
+  VkCommandBufferBeginInfo info{};
   info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   info.pNext = nullptr;
 
@@ -42,7 +42,7 @@ command_buffer_begin_info(VkCommandBufferUsageFlags flags) {
 
 VkFramebufferCreateInfo framebuffer_create_info(VkRenderPass renderPass,
                                                 VkExtent2D extent) {
-  VkFramebufferCreateInfo info = {};
+  VkFramebufferCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
   info.pNext = nullptr;
 
@@ -56,7 +56,7 @@ VkFramebufferCreateInfo framebuffer_create_info(VkRenderPass renderPass,
 }
 
 VkFenceCreateInfo fence_create_info(VkFenceCreateFlags flags) {
-  VkFenceCreateInfo info = {};
+  VkFenceCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   info.pNext = nullptr;
   info.flags = flags;
@@ -64,7 +64,7 @@ VkFenceCreateInfo fence_create_info(VkFenceCreateFlags flags) {
 }
 
 VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags flags) {
-  VkSemaphoreCreateInfo info = {};
+  VkSemaphoreCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   info.pNext = nullptr;
   info.flags = flags;
@@ -72,7 +72,7 @@ VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags flags) {
 }
 
 VkSubmitInfo submit_info(VkCommandBuffer *cmd) {
-  VkSubmitInfo info = {};
+  VkSubmitInfo info{};
   info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   info.pNext = nullptr;
 
@@ -88,7 +88,7 @@ VkSubmitInfo submit_info(VkCommandBuffer *cmd) {
 }
 
 VkPresentInfoKHR present_info() {
-  VkPresentInfoKHR info = {};
+  VkPresentInfoKHR info{};
   info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   info.pNext = nullptr;
 
@@ -104,7 +104,7 @@ VkPresentInfoKHR present_info() {
 VkRenderPassBeginInfo renderpass_begin_info(VkRenderPass renderPass,
                                             VkExtent2D windowExtent,
                                             VkFramebuffer framebuffer) {
-  VkRenderPassBeginInfo info = {};
+  VkRenderPassBeginInfo info{};
   info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   info.pNext = nullptr;
 
@@ -135,7 +135,7 @@ pipeline_shader_stage_create_info(VkShaderStageFlagBits stage,
 }
 
 VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info() {
-  VkPipelineVertexInputStateCreateInfo info = {};
+  VkPipelineVertexInputStateCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   info.pNext = nullptr;
 
@@ -146,7 +146,7 @@ VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info() {
 
 VkPipelineInputAssemblyStateCreateInfo
 input_assembly_create_info(VkPrimitiveTopology topology) {
-  VkPipelineInputAssemblyStateCreateInfo info = {};
+  VkPipelineInputAssemblyStateCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
   info.pNext = nullptr;
 
@@ -158,7 +158,7 @@ input_assembly_create_info(VkPrimitiveTopology topology) {
 VkPipelineRasterizationStateCreateInfo
 rasterization_state_create_info(VkPolygonMode polygonMode) {
   // TODO: check cull + depth settings
-  VkPipelineRasterizationStateCreateInfo info = {};
+  VkPipelineRasterizationStateCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
   info.pNext = nullptr;
 
@@ -184,7 +184,7 @@ rasterization_state_create_info(VkPolygonMode polygonMode) {
 VkPipelineMultisampleStateCreateInfo multisampling_state_create_info() {
   // TODO: to enable this set rasterizationSamples to more than 1
   //  has to be supported by renderpass
-  VkPipelineMultisampleStateCreateInfo info = {};
+  VkPipelineMultisampleStateCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   info.pNext = nullptr;
 
@@ -198,7 +198,7 @@ VkPipelineMultisampleStateCreateInfo multisampling_state_create_info() {
 }
 
 VkPipelineColorBlendAttachmentState color_blend_attachment_state() {
-  VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+  VkPipelineColorBlendAttachmentState colorBlendAttachment{};
   colorBlendAttachment.colorWriteMask =
       VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
       VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -271,6 +271,12 @@ PipelineBuilder &PipelineBuilder::set_device(VkDevice device) {
   this->device = device;
   return *this;
 }
+PipelineBuilder &PipelineBuilder::set_depth_stencil(bool depthTest, bool depthWrite,
+                                                    VkCompareOp compareOp) {
+  enableDepthStencil = true;
+  depthStencil = depth_stencil_create_info(depthTest, depthWrite, compareOp);
+  return *this;
+}
 
 std::optional<VkPipeline> PipelineBuilder::build() {
 
@@ -285,7 +291,7 @@ std::optional<VkPipeline> PipelineBuilder::build() {
     return std::nullopt;
   }
 
-  VkPipelineViewportStateCreateInfo viewportState = {};
+  VkPipelineViewportStateCreateInfo viewportState{};
   viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
   viewportState.pNext = nullptr;
 
@@ -294,7 +300,7 @@ std::optional<VkPipeline> PipelineBuilder::build() {
   viewportState.scissorCount = 1;
   viewportState.pScissors = &scissor;
 
-  VkPipelineColorBlendStateCreateInfo colorBlending = {};
+  VkPipelineColorBlendStateCreateInfo colorBlending{};
   colorBlending.sType =
       VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
   colorBlending.pNext = nullptr;
@@ -304,7 +310,7 @@ std::optional<VkPipeline> PipelineBuilder::build() {
   colorBlending.attachmentCount = 1;
   colorBlending.pAttachments = &colorBlendAttachment;
 
-  VkGraphicsPipelineCreateInfo pipelineInfo = {};
+  VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipelineInfo.pNext = nullptr;
 
@@ -320,6 +326,8 @@ std::optional<VkPipeline> PipelineBuilder::build() {
   pipelineInfo.renderPass = renderPass;
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+  if (enableDepthStencil)
+		pipelineInfo.pDepthStencilState = &depthStencil;
 
   VkPipeline pipeLine;
 
@@ -349,5 +357,59 @@ PipelineBuilder &PipelineBuilder::set_vertex_description(
   vertexInputInfo.pVertexBindingDescriptions = bindings.data();
   vertexInputInfo.vertexBindingDescriptionCount = bindings.size();
   return *this;
+}
+VkImageCreateInfo image_create_info(VkFormat format,
+                                    VkImageUsageFlags usageFlags,
+                                    VkExtent3D extent) {
+  VkImageCreateInfo info{};
+  info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  info.pNext = nullptr;
+
+  info.imageType = VK_IMAGE_TYPE_2D;
+
+  info.format = format;
+  info.extent = extent;
+
+  info.mipLevels = 1;
+  info.arrayLayers = 1;
+  info.samples = VK_SAMPLE_COUNT_1_BIT;
+  info.tiling = VK_IMAGE_TILING_OPTIMAL; // use linear for access from the cpu
+  info.usage = usageFlags;
+
+  return info;
+}
+VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image,
+                                            VkImageAspectFlags aspectFlags) {
+  VkImageViewCreateInfo info{};
+  info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  info.pNext = nullptr;
+
+  info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  info.image = image;
+  info.format = format;
+  info.subresourceRange.baseMipLevel = 0;
+  info.subresourceRange.levelCount = 1;
+  info.subresourceRange.baseArrayLayer = 0;
+  info.subresourceRange.layerCount = 1;
+  info.subresourceRange.aspectMask = aspectFlags;
+
+  return info;
+}
+VkPipelineDepthStencilStateCreateInfo
+depth_stencil_create_info(bool depthTest, bool depthWrite,
+                          VkCompareOp compareOp) {
+  VkPipelineDepthStencilStateCreateInfo info = {};
+  info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+  info.pNext = nullptr;
+
+  info.depthTestEnable = depthTest ? VK_TRUE : VK_FALSE;
+  info.depthWriteEnable = depthWrite ? VK_TRUE : VK_FALSE;
+  info.depthCompareOp = depthTest ? compareOp : VK_COMPARE_OP_ALWAYS;
+  info.depthBoundsTestEnable = VK_FALSE;
+  info.minDepthBounds = 0.0f; // Optional
+  info.maxDepthBounds = 1.0f; // Optional
+  info.stencilTestEnable = VK_FALSE;
+
+  return info;
 }
 } // namespace vkinit

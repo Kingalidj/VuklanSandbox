@@ -66,6 +66,8 @@ struct PipelineBuilder {
   VkPipelineColorBlendAttachmentState colorBlendAttachment;
   VkPipelineMultisampleStateCreateInfo multisampling;
   VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+  bool enableDepthStencil = false;
+  VkPipelineDepthStencilStateCreateInfo depthStencil{};
 
   VkDevice device = VK_NULL_HANDLE;
   VkRenderPass renderPass = VK_NULL_HANDLE;
@@ -87,6 +89,7 @@ struct PipelineBuilder {
   PipelineBuilder &set_scissor(VkRect2D scissor);
   PipelineBuilder &set_scissor(VkOffset2D offset, VkExtent2D extent);
   PipelineBuilder &set_pipeline_layout(VkPipelineLayout layout);
+  PipelineBuilder &set_depth_stencil(bool depthTest, bool depthWrite, VkCompareOp compareOp);
   PipelineBuilder &set_vertex_description(
       VkVertexInputAttributeDescription *pAttributes, uint32_t attributesCount,
       VkVertexInputBindingDescription *pBindings, uint32_t bindingCount);
@@ -94,7 +97,17 @@ struct PipelineBuilder {
       std::vector<VkVertexInputAttributeDescription> &attributes,
       std::vector<VkVertexInputBindingDescription> &bindings);
 
-	std::optional<VkPipeline> build();
+  std::optional<VkPipeline> build();
 };
+
+VkImageCreateInfo image_create_info(VkFormat format,
+                                    VkImageUsageFlags usageFlags,
+                                    VkExtent3D extent);
+VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image,
+                                            VkImageAspectFlags aspectFlags);
+
+VkPipelineDepthStencilStateCreateInfo
+depth_stencil_create_info(bool depthTest, bool depthWrite,
+                          VkCompareOp compareOp);
 
 } // namespace vkinit

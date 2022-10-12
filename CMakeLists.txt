@@ -8,7 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_VERBOSE_MAKEFILE 1)
 
-add_compile_options( -g )
+# add_compile_options( -g )
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
@@ -22,7 +22,7 @@ add_executable(${PROJECT_NAME}
 	src/vk_engine.cpp
 	src/vk_initializers.cpp
 	src/logger.cpp
-	src/vk_mesh.cpp
+	src/vk_scene.cpp
 	src/vk_shader.cpp
 	)
 

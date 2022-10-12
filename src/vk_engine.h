@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vk_mesh.h"
+#include "vk_scene.h"
 #include "vk_types.h"
 
 #include <glm/glm.hpp>
@@ -30,7 +30,7 @@ public:
   bool m_IsInitialized{false};
   int m_FrameNumber{0};
 
-  VkExtent2D m_WindowExtent{800, 600};
+  VkExtent2D m_WindowExtent{600, 600};
 
   struct GLFWwindow *m_Window = nullptr;
 
@@ -69,10 +69,25 @@ public:
 
   DeletionQueue m_MainDeletionQueue;
 
-  Mesh m_TriangleMesh;
+  Mesh m_MonkeyMesh;
+	Mesh m_TriangleMesh;
 
-  /* 	VkBuffer m_VertexBuffer; */
-  /* 	VkDeviceMemory m_VertexBufferMemory; */
+  VkImageView m_DepthImageView;
+  AllocatedImage m_DepthImage;
+
+  VkFormat m_DepthFormat;
+
+  std::vector<RenderObject> m_RenderObjects;
+
+  std::unordered_map<std::string, Material> m_Materials;
+  std::unordered_map<std::string, Mesh> m_Meshes;
+
+  Material *create_material(VkPipeline pipeline, VkPipelineLayout layout,
+                            const std::string &name);
+	Material *get_material(const std::string& name);
+	Mesh *get_mesh(const std::string& name);
+
+	void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
 
   VmaAllocator m_Allocator;
 
@@ -84,6 +99,7 @@ private:
   void init_framebuffers();
   void init_sync_structures();
   void init_pipelines();
+	void init_scene();
 
   void load_meshes();
   void upload_mesh(Mesh &mesh);
