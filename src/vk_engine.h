@@ -5,6 +5,14 @@
 
 #include <glm/glm.hpp>
 
+struct FrameData {
+  VkSemaphore presentSemaphore, renderSemaphore;
+  VkFence renderFence;
+
+  VkCommandPool commandPool;
+  VkCommandBuffer mainCommandBuffer;
+};
+
 struct MeshPushConstants {
   glm::vec4 data;
   glm::mat4 renderMatrix;
@@ -24,6 +32,8 @@ struct DeletionQueue {
     deletors.clear();
   }
 };
+
+constexpr uint32_t FRAME_OVERLAP = 2;
 
 class VulkanEngine {
 public:
@@ -54,14 +64,17 @@ public:
   VkQueue m_GraphicsQueue;
   uint32_t m_GraphicsQueueFamily;
 
-  VkCommandPool m_CommandPool;
-  VkCommandBuffer m_MainCommandBuffer;
+  /* VkCommandPool m_CommandPool; */
+  /* VkCommandBuffer m_MainCommandBuffer; */
+
+  FrameData m_Frames[FRAME_OVERLAP];
+  FrameData &get_current_frame();
 
   VkRenderPass m_RenderPass;
   std::vector<VkFramebuffer> m_FrameBuffers;
 
-  VkSemaphore m_PresentSemaphore, m_RenderSemaphore;
-  VkFence m_RenderFence;
+  /* VkSemaphore m_PresentSemaphore, m_RenderSemaphore; */
+  /* VkFence m_RenderFence; */
 
   VkPipelineLayout m_TrianglePipelineLayout;
   VkPipelineLayout m_MeshPipelineLayout;
@@ -70,7 +83,7 @@ public:
   DeletionQueue m_MainDeletionQueue;
 
   Mesh m_MonkeyMesh;
-	Mesh m_TriangleMesh;
+  Mesh m_TriangleMesh;
 
   VkImageView m_DepthImageView;
   AllocatedImage m_DepthImage;
@@ -84,10 +97,10 @@ public:
 
   Material *create_material(VkPipeline pipeline, VkPipelineLayout layout,
                             const std::string &name);
-	Material *get_material(const std::string& name);
-	Mesh *get_mesh(const std::string& name);
+  Material *get_material(const std::string &name);
+  Mesh *get_mesh(const std::string &name);
 
-	void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
+  void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
 
   VmaAllocator m_Allocator;
 
@@ -99,7 +112,7 @@ private:
   void init_framebuffers();
   void init_sync_structures();
   void init_pipelines();
-	void init_scene();
+  void init_scene();
 
   void load_meshes();
   void upload_mesh(Mesh &mesh);
