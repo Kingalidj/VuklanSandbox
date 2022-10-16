@@ -85,7 +85,7 @@ struct PipelineBuilder {
   PipelineBuilder &set_device(VkDevice device);
   PipelineBuilder &set_render_pass(VkRenderPass renderPass);
   PipelineBuilder &set_viewport(VkViewport viewport);
-  PipelineBuilder &set_viewport(fVec2D zero, fVec2D size, fVec2D depth);
+  PipelineBuilder &set_viewport(VkOffset2D offset, VkExtent2D size, fVec2D depth);
   PipelineBuilder &set_scissor(VkRect2D scissor);
   PipelineBuilder &set_scissor(VkOffset2D offset, VkExtent2D extent);
   PipelineBuilder &set_pipeline_layout(VkPipelineLayout layout);

@@ -339,14 +339,17 @@ std::optional<VkPipeline> PipelineBuilder::build() {
   }
 }
 
-PipelineBuilder &PipelineBuilder::set_viewport(fVec2D zero, fVec2D size,
+PipelineBuilder &PipelineBuilder::set_viewport(VkOffset2D offset, VkExtent2D size,
                                                fVec2D depth) {
-  viewport.x = zero.x;
-  viewport.y = zero.y;
-  viewport.width = size.x;
-  viewport.height = size.y;
+  viewport.x = offset.x;
+  viewport.y = offset.y;
+  viewport.width = size.width;
+  viewport.height = size.height;
   viewport.minDepth = depth.x;
   viewport.maxDepth = depth.y;
+
+  set_scissor(offset, size);
+
   return *this;
 }
 PipelineBuilder &PipelineBuilder::set_vertex_description(

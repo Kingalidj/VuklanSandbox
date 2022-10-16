@@ -5,12 +5,21 @@
 
 #include <glm/glm.hpp>
 
+struct GPUCameraData {
+  glm::mat4 view;
+  glm::mat4 proj;
+	glm::mat4 viewProj;
+};
+
 struct FrameData {
   VkSemaphore presentSemaphore, renderSemaphore;
   VkFence renderFence;
 
   VkCommandPool commandPool;
   VkCommandBuffer mainCommandBuffer;
+
+	AllocatedBuffer cameraBuffer;
+	VkDescriptorSet globalDescriptor;
 };
 
 struct MeshPushConstants {
@@ -104,6 +113,9 @@ public:
 
   VmaAllocator m_Allocator;
 
+	VkDescriptorSetLayout m_GlobalSetLayout;
+	VkDescriptorPool m_DescriptorPool;
+
 private:
   void init_vulkan();
   void init_swapchain();
@@ -113,7 +125,11 @@ private:
   void init_sync_structures();
   void init_pipelines();
   void init_scene();
+	void init_descriptors();
 
   void load_meshes();
   void upload_mesh(Mesh &mesh);
+
+  AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage,
+                                VmaMemoryUsage memoryUsage);
 };
