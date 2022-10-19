@@ -85,11 +85,13 @@ struct PipelineBuilder {
   PipelineBuilder &set_device(VkDevice device);
   PipelineBuilder &set_render_pass(VkRenderPass renderPass);
   PipelineBuilder &set_viewport(VkViewport viewport);
-  PipelineBuilder &set_viewport(VkOffset2D offset, VkExtent2D size, fVec2D depth);
+  PipelineBuilder &set_viewport(VkOffset2D offset, VkExtent2D size,
+                                fVec2D depth);
   PipelineBuilder &set_scissor(VkRect2D scissor);
   PipelineBuilder &set_scissor(VkOffset2D offset, VkExtent2D extent);
   PipelineBuilder &set_pipeline_layout(VkPipelineLayout layout);
-  PipelineBuilder &set_depth_stencil(bool depthTest, bool depthWrite, VkCompareOp compareOp);
+  PipelineBuilder &set_depth_stencil(bool depthTest, bool depthWrite,
+                                     VkCompareOp compareOp);
   PipelineBuilder &set_vertex_description(
       VkVertexInputAttributeDescription *pAttributes, uint32_t attributesCount,
       VkVertexInputBindingDescription *pBindings, uint32_t bindingCount);
@@ -110,4 +112,12 @@ VkPipelineDepthStencilStateCreateInfo
 depth_stencil_create_info(bool depthTest, bool depthWrite,
                           VkCompareOp compareOp);
 
+VkDescriptorSetLayoutBinding
+descriptorset_layout_binding(VkDescriptorType type,
+                             VkShaderStageFlags stageFlags, uint32_t binding);
+
+VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type,
+                                             VkDescriptorSet dstSet,
+                                             VkDescriptorBufferInfo *bufferInfo,
+                                             uint32_t binding);
 } // namespace vkinit

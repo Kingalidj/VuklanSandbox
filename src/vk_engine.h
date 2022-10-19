@@ -5,10 +5,22 @@
 
 #include <glm/glm.hpp>
 
+struct GPUSceneData {
+  glm::vec4 fogColor;
+  glm::vec4 fogDistance;
+  glm::vec4 ambientColor;
+  glm::vec4 sunlightDirection;
+  glm::vec4 sunlightColor;
+};
+
 struct GPUCameraData {
   glm::mat4 view;
   glm::mat4 proj;
-	glm::mat4 viewProj;
+  glm::mat4 viewProj;
+};
+
+struct GPUObjectData {
+	glm::mat4 modelMatrix;
 };
 
 struct FrameData {
@@ -18,8 +30,11 @@ struct FrameData {
   VkCommandPool commandPool;
   VkCommandBuffer mainCommandBuffer;
 
-	AllocatedBuffer cameraBuffer;
-	VkDescriptorSet globalDescriptor;
+  AllocatedBuffer cameraBuffer;
+	AllocatedBuffer objectBuffer;
+
+  VkDescriptorSet globalDescriptor;
+	VkDescriptorSet objectDescriptor;
 };
 
 struct MeshPushConstants {
@@ -63,6 +78,7 @@ public:
   VkPhysicalDevice m_ChosenGPU;
   VkDevice m_Device;
   VkSurfaceKHR m_Surface; // vulkan window
+  VkPhysicalDeviceProperties m_GPUProperties;
 
   VkSwapchainKHR m_Swapchain;
   VkFormat m_SwapchainImageFormat;
@@ -113,8 +129,14 @@ public:
 
   VmaAllocator m_Allocator;
 
-	VkDescriptorSetLayout m_GlobalSetLayout;
-	VkDescriptorPool m_DescriptorPool;
+  VkDescriptorSetLayout m_GlobalSetLayout;
+	VkDescriptorSetLayout m_ObjectSetLayout;
+  VkDescriptorPool m_DescriptorPool;
+
+  GPUSceneData m_SceneParameters;
+  AllocatedBuffer m_SceneParameterBuffer;
+
+  size_t pad_uniform_buffer_size(size_t originalSize);
 
 private:
   void init_vulkan();
@@ -125,7 +147,7 @@ private:
   void init_sync_structures();
   void init_pipelines();
   void init_scene();
-	void init_descriptors();
+  void init_descriptors();
 
   void load_meshes();
   void upload_mesh(Mesh &mesh);
