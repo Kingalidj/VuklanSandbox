@@ -2,6 +2,7 @@
 
 //shader input
 layout (location = 0) in vec3 inColor;
+layout (location = 1) in vec2 texCoord;
 
 //output write
 layout (location = 0) out vec4 outFragColor;
@@ -17,6 +18,7 @@ layout(set = 0, binding = 1) uniform  SceneData{
 void main()
 {
 	//return color
-	outFragColor = vec4(inColor + sceneData.ambientColor.xyz ,1.0f);
+	/* outFragColor = vec4(inColor + sceneData.ambientColor.xyz ,1.0f); */
+	outFragColor = vec4(texCoord.x,texCoord.y,0.5f,1.0f);
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace utils {
+namespace vkutil {
 
 enum class LogLevel {
   Trace,

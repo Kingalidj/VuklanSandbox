@@ -81,7 +81,7 @@ struct PipelineBuilder {
         vertexInputInfo(vertex_input_state_create_info()) {}
 
   PipelineBuilder &add_shader_module(VkShaderModule shaderModule,
-                                     utils::ShaderType shaderType);
+                                     vkutil::ShaderType shaderType);
   PipelineBuilder &set_device(VkDevice device);
   PipelineBuilder &set_render_pass(VkRenderPass renderPass);
   PipelineBuilder &set_viewport(VkViewport viewport);
@@ -120,4 +120,5 @@ VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type,
                                              VkDescriptorSet dstSet,
                                              VkDescriptorBufferInfo *bufferInfo,
                                              uint32_t binding);
+
 } // namespace vkinit

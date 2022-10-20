@@ -23,6 +23,7 @@ add_executable(${PROJECT_NAME}
 	src/vk_initializers.cpp
 	src/logger.cpp
 	src/vk_scene.cpp
+	src/vk_textures.cpp
 	src/vk_shader.cpp
 	)
 

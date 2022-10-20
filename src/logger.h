@@ -28,22 +28,22 @@ public:
   inline static std::ostringstream &get_ostream() { return s_OStream; };
 
   template <typename... Args>
-  static void log(utils::LogLevel level, const Args &...msg) {
+  static void log(vkutil::LogLevel level, const Args &...msg) {
 
     switch (level) {
-    case utils::LogLevel::Trace:
+    case vkutil::LogLevel::Trace:
       s_CoreLogger->trace(msg...);
       break;
 
-    case utils::LogLevel::Info:
+    case vkutil::LogLevel::Info:
       s_CoreLogger->info(msg...);
       break;
 
-    case utils::LogLevel::Warn:
+    case vkutil::LogLevel::Warn:
       s_CoreLogger->warn(msg...);
       break;
 
-    case utils::LogLevel::Error:
+    case vkutil::LogLevel::Error:
       s_CoreLogger->error(msg...);
       break;
     }

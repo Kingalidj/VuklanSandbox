@@ -221,14 +221,14 @@ VkPipelineLayoutCreateInfo pipeline_layout_create_info() {
 
 PipelineBuilder &
 PipelineBuilder::add_shader_module(VkShaderModule shaderModule,
-                                   utils::ShaderType shaderType) {
+                                   vkutil::ShaderType shaderType) {
   VkShaderStageFlagBits flag;
 
   switch (shaderType) {
-  case utils::ShaderType::Vertex:
+  case vkutil::ShaderType::Vertex:
     flag = VK_SHADER_STAGE_VERTEX_BIT;
     break;
-  case utils::ShaderType::Fragment:
+  case vkutil::ShaderType::Fragment:
     flag = VK_SHADER_STAGE_FRAGMENT_BIT;
     break;
   }
