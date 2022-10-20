@@ -71,7 +71,7 @@ public:
   bool m_IsInitialized{false};
   int m_FrameNumber{0};
 
-  VkExtent2D m_WindowExtent{600, 600};
+  VkExtent2D m_WindowExtent{800, 800};
 
   struct GLFWwindow *m_Window = nullptr;
 
@@ -132,6 +132,8 @@ public:
 
   VkDescriptorSetLayout m_GlobalSetLayout;
   VkDescriptorSetLayout m_ObjectSetLayout;
+	VkDescriptorSetLayout m_SingleTextureSetLayout;
+
   VkDescriptorPool m_DescriptorPool;
 
   GPUSceneData m_SceneParameters;
@@ -164,6 +166,7 @@ private:
   void init_pipelines();
   void init_scene();
   void init_descriptors();
+	void init_imgui();
 
   void load_meshes();
   void load_images();

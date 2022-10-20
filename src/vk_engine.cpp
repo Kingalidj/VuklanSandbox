@@ -96,7 +96,7 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize,
 
 void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first,
                                 int count) {
-  glm::vec3 camPos = {0.f, -3.f, -8.f};
+  glm::vec3 camPos = {0.f, -3.f, -9.f};
 
   glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
   glm::mat4 projection = glm::perspective(
@@ -164,6 +164,12 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first,
       vkCmdBindDescriptorSets(
           cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout,
           1, 1, &get_current_frame().objectDescriptor, 0, nullptr);
+
+      if (object.material->textureSet != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                object.material->pipelineLayout, 2, 1,
+                                &object.material->textureSet, 0, nullptr);
+      }
     }
 
     /* glm::mat4 model = object.transformMatrix * rotMat; */
@@ -596,21 +602,21 @@ void VulkanEngine::init_sync_structures() {
 
 void VulkanEngine::init_pipelines() {
 
-  VkShaderModule triangleFragShader;
-  if (!vkutil::load_glsl_shader_module("res/shaders/triangle.frag",
-                                       &triangleFragShader, m_Device)) {
+  VkShaderModule texturedMeshFragShader;
+  if (!vkutil::load_glsl_shader_module("res/shaders/textured_lit.frag",
+                                       &texturedMeshFragShader, m_Device)) {
     return;
   } else {
-    CORE_INFO("Triangle fragment shader successfully loaded");
+    CORE_INFO("textured_mesh fragment shader successfully loaded");
   }
 
-  VkShaderModule triangleVertexShader;
-  if (!vkutil::load_glsl_shader_module("res/shaders/triangle.vert",
+  VkShaderModule texturedMeshVertexShader;
+  if (!vkutil::load_glsl_shader_module("res/shaders/textured_mesh.vert",
                                        vkutil::ShaderType::Vertex,
-                                       &triangleVertexShader, m_Device)) {
+                                       &texturedMeshVertexShader, m_Device)) {
     return;
   } else {
-    CORE_INFO("Triangle vertex shader successfully loaded");
+    CORE_INFO("textured_mesh vertex shader successfully loaded");
   }
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo =
@@ -627,11 +633,12 @@ void VulkanEngine::init_pipelines() {
   /* pushConstant.size = sizeof(MeshPushConstants); */
   /* pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; */
 
-  VkDescriptorSetLayout setLayouts[] = {m_GlobalSetLayout, m_ObjectSetLayout};
+  VkDescriptorSetLayout setLayouts[] = {m_GlobalSetLayout, m_ObjectSetLayout,
+                                        m_SingleTextureSetLayout};
 
   /* meshPipelineLayoutInfo.pPushConstantRanges = &pushConstant; */
   /* meshPipelineLayoutInfo.pushConstantRangeCount = 1; */
-  meshPipelineLayoutInfo.setLayoutCount = 2;
+  meshPipelineLayoutInfo.setLayoutCount = 3;
   meshPipelineLayoutInfo.pSetLayouts = setLayouts;
 
   VK_CHECK(vkCreatePipelineLayout(m_Device, &meshPipelineLayoutInfo, nullptr,
@@ -646,8 +653,10 @@ void VulkanEngine::init_pipelines() {
           .set_pipeline_layout(m_MeshPipelineLayout)
           .set_vertex_description(vertexDescription.attributes,
                                   vertexDescription.bindings)
-          .add_shader_module(triangleVertexShader, vkutil::ShaderType::Vertex)
-          .add_shader_module(triangleFragShader, vkutil::ShaderType::Fragment)
+          .add_shader_module(texturedMeshVertexShader,
+                             vkutil::ShaderType::Vertex)
+          .add_shader_module(texturedMeshFragShader,
+                             vkutil::ShaderType::Fragment)
           .set_viewport({0, 0}, m_WindowExtent, {0.0f, 1.0f})
           //.set_scissor({ 0, 0 }, { m_WindowExtent.width / 2,
           // m_WindowExtent.height })
@@ -659,8 +668,8 @@ void VulkanEngine::init_pipelines() {
 
   /* m_MeshPipeline = pipelineBuilder.build(); */
 
-  vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
-  vkDestroyShaderModule(m_Device, triangleVertexShader, nullptr);
+  vkDestroyShaderModule(m_Device, texturedMeshFragShader, nullptr);
+  vkDestroyShaderModule(m_Device, texturedMeshVertexShader, nullptr);
 
   m_MainDeletionQueue.push_function([=]() {
     vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
@@ -670,7 +679,7 @@ void VulkanEngine::init_pipelines() {
 }
 
 void VulkanEngine::load_meshes() {
-  m_MonkeyMesh = load_mesh_from_obj("res/models/monkey_smooth.obj").value();
+  m_MonkeyMesh = load_mesh_from_obj("res/models/lost_empire.obj").value();
 
   m_TriangleMesh.vertices.resize(3);
   m_TriangleMesh.vertices[0].position = {0.5f, 0.5f, 0.0f};
@@ -684,7 +693,7 @@ void VulkanEngine::load_meshes() {
   upload_mesh(m_MonkeyMesh);
   upload_mesh(m_TriangleMesh);
 
-  m_Meshes["monkey"] = m_MonkeyMesh;
+  m_Meshes["empire"] = m_MonkeyMesh;
   m_Meshes["triangle"] = m_TriangleMesh;
 }
 
@@ -756,27 +765,59 @@ void VulkanEngine::upload_mesh(Mesh &mesh) {
 }
 
 void VulkanEngine::init_scene() {
-  RenderObject monkey;
-  monkey.mesh = get_mesh("monkey");
-  monkey.material = get_material("defaultmesh");
-  monkey.transformMatrix = glm::mat4(1.0f);
+  RenderObject empire;
+  empire.mesh = get_mesh("empire");
+  empire.material = get_material("defaultmesh");
+  empire.transformMatrix = glm::translate(glm::vec3{5, -10, 0});
 
-  m_RenderObjects.push_back(monkey);
+  m_RenderObjects.push_back(empire);
 
-  for (int x = -20; x <= 20; x++) {
-    for (int y = -20; y <= 20; y++) {
+  Material *texturedMat = get_material("defaultmesh");
 
-      RenderObject tri{};
-      tri.mesh = get_mesh("triangle");
-      tri.material = get_material("defaultmesh");
-      glm::mat4 translation =
-          glm::translate(glm::mat4{1.0}, glm::vec3(x, 0, y));
-      glm::mat4 scale = glm::scale(glm::mat4{1.0}, glm::vec3(0.2, 0.2, 0.2));
-      tri.transformMatrix = translation * scale;
+  VkDescriptorSetAllocateInfo allocInfo = {};
+  allocInfo.pNext = nullptr;
+  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  allocInfo.descriptorPool = m_DescriptorPool;
+  allocInfo.descriptorSetCount = 1;
+  allocInfo.pSetLayouts = &m_SingleTextureSetLayout;
 
-      m_RenderObjects.push_back(tri);
-    }
-  }
+  vkAllocateDescriptorSets(m_Device, &allocInfo, &texturedMat->textureSet);
+
+  VkSamplerCreateInfo samplerInfo =
+      vkinit::sampler_create_info(VK_FILTER_NEAREST);
+
+  VkSampler blockySampler;
+  vkCreateSampler(m_Device, &samplerInfo, nullptr, &blockySampler);
+
+  m_MainDeletionQueue.push_function(
+      [=]() { vkDestroySampler(m_Device, blockySampler, nullptr); });
+
+  VkDescriptorImageInfo imageBufferInfo;
+  imageBufferInfo.sampler = blockySampler;
+  imageBufferInfo.imageView = m_Textures["empire_diffuse"].imageView;
+  imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+  VkWriteDescriptorSet texture1 = vkinit::write_descriptor_image(
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMat->textureSet,
+      &imageBufferInfo, 0);
+
+  vkUpdateDescriptorSets(m_Device, 1, &texture1, 0, nullptr);
+
+  /* for (int x = -20; x <= 20; x++) { */
+  /*   for (int y = -20; y <= 20; y++) { */
+
+  /*     RenderObject tri{}; */
+  /*     tri.mesh = get_mesh("triangle"); */
+  /*     tri.material = get_material("defaultmesh"); */
+  /*     glm::mat4 translation = */
+  /*         glm::translate(glm::mat4{1.0}, glm::vec3(x, 0, y)); */
+  /*     glm::mat4 scale = glm::scale(glm::mat4{1.0}, glm::vec3(0.2, 0.2, 0.2));
+   */
+  /*     tri.transformMatrix = translation * scale; */
+
+  /*     m_RenderObjects.push_back(tri); */
+  /*   } */
+  /* } */
 }
 
 void VulkanEngine::init_descriptors() {
@@ -784,7 +825,8 @@ void VulkanEngine::init_descriptors() {
   std::vector<VkDescriptorPoolSize> sizes = {
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10},
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 10},
-      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10}};
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10},
+      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10}};
 
   // create a descriptor pool that will hold 10 uniform buffers
   VkDescriptorPoolCreateInfo poolInfo{};
@@ -832,6 +874,21 @@ void VulkanEngine::init_descriptors() {
   set2Info.pBindings = &objectBind;
 
   vkCreateDescriptorSetLayout(m_Device, &set2Info, nullptr, &m_ObjectSetLayout);
+
+  VkDescriptorSetLayoutBinding textureBind =
+      vkinit::descriptorset_layout_binding(
+          VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+
+  VkDescriptorSetLayoutCreateInfo set3Info{};
+  set3Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  set3Info.pNext = nullptr;
+  set3Info.bindingCount = 1;
+  set3Info.flags = 0;
+  set3Info.pBindings = &textureBind;
+
+  vkCreateDescriptorSetLayout(m_Device, &set3Info, nullptr,
+                              &m_SingleTextureSetLayout);
 
   const size_t sceneParamBufferSize =
       FRAME_OVERLAP * pad_uniform_buffer_size(sizeof(GPUSceneData));
@@ -924,6 +981,7 @@ void VulkanEngine::init_descriptors() {
 
     vkDestroyDescriptorSetLayout(m_Device, m_GlobalSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(m_Device, m_ObjectSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_Device, m_SingleTextureSetLayout, nullptr);
 
     vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
 
@@ -977,12 +1035,12 @@ void VulkanEngine::load_images() {
   Texture lostEmpire;
 
   if (!vkutil::load_image_from_file("res/images/lost_empire-RGBA.png", *this,
-                               lostEmpire.imageBuffer)) {
-		CORE_WARN("could not load image!");
-		return;
-	} else {
-		CORE_INFO("successfully loaded image: lost_empire-RGBA.png");
-	}
+                                    lostEmpire.imageBuffer)) {
+    CORE_WARN("could not load image!");
+    return;
+  } else {
+    CORE_INFO("successfully loaded image: lost_empire-RGBA.png");
+  }
 
   VkImageViewCreateInfo imageInfo = vkinit::imageview_create_info(
       VK_FORMAT_R8G8B8A8_SRGB, lostEmpire.imageBuffer.image,
@@ -993,6 +1051,7 @@ void VulkanEngine::load_images() {
   m_Textures["empire_diffuse"] = lostEmpire;
 
   m_MainDeletionQueue.push_function([=]() {
-		vkDestroyImageView(m_Device, lostEmpire.imageView, nullptr);;
+    vkDestroyImageView(m_Device, lostEmpire.imageView, nullptr);
+    ;
   });
 }

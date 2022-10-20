@@ -83,4 +83,5 @@ target_link_libraries(${PROJECT_NAME}
 	glm
 	stb_image
 	tinyobjloader
+	imgui
 	)

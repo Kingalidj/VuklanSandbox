@@ -109,6 +109,8 @@ bool load_image_from_file(const char *file, VulkanEngine &engine,
 	vmaDestroyBuffer(engine.m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 
 	outImage = newImage;
+
+	CORE_TRACE("loaded image: {}, with handle: {}", file, (void*)outImage.image);
   return true;
 }
 } // namespace vkutil

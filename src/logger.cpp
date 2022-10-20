@@ -11,7 +11,7 @@ void Logger::init() {
   auto ostreamSink =
       std::make_shared<spdlog::sinks::ostream_sink_st>(s_OStream);
 
-  spdlog::set_pattern("%^%n [%l]: %v%$");
+  spdlog::set_pattern("%^%n (%T) [%l]: %v%$");
 
   s_CoreLogger = spdlog::stdout_color_mt("CORE");
   s_CoreLogger->set_level(spdlog::level::trace);

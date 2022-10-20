@@ -90,27 +90,29 @@ std::optional<Mesh> load_mesh_from_obj(const char *filename) {
 				tinyobj::real_t uy = attrib.texcoords[2 * idx.texcoord_index + 1];
 
         // copy it into our vertex
-        Vertex new_vert;
-        new_vert.position.x = vx;
-        new_vert.position.y = vy;
-        new_vert.position.z = vz;
+        Vertex newVert;
+        newVert.position.x = vx;
+        newVert.position.y = vy;
+        newVert.position.z = vz;
 
-        new_vert.normal.x = nx;
-        new_vert.normal.y = ny;
-        new_vert.normal.z = nz;
+        newVert.normal.x = nx;
+        newVert.normal.y = ny;
+        newVert.normal.z = nz;
 
-				new_vert.uv.x = ux;
-				new_vert.uv.y = 1-uy;
+				newVert.uv.x = ux;
+				newVert.uv.y = 1-uy;
 
         // we are setting the vertex color as the vertex normal. This is just
         // for display purposes
-        new_vert.color = new_vert.normal;
+        newVert.color = newVert.normal;
 
-        mesh.vertices.push_back(new_vert);
+        mesh.vertices.push_back(newVert);
       }
       index_offset += fv;
     }
   }
+
+	CORE_TRACE("loaded mesh: {} with buffer vk_handle: {}", filename, (void*)mesh.vertexBuffer.buffer);
 
   return mesh;
 }

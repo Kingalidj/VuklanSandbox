@@ -271,7 +271,8 @@ PipelineBuilder &PipelineBuilder::set_device(VkDevice device) {
   this->device = device;
   return *this;
 }
-PipelineBuilder &PipelineBuilder::set_depth_stencil(bool depthTest, bool depthWrite,
+PipelineBuilder &PipelineBuilder::set_depth_stencil(bool depthTest,
+                                                    bool depthWrite,
                                                     VkCompareOp compareOp) {
   enableDepthStencil = true;
   depthStencil = depth_stencil_create_info(depthTest, depthWrite, compareOp);
@@ -327,7 +328,7 @@ std::optional<VkPipeline> PipelineBuilder::build() {
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
   if (enableDepthStencil)
-		pipelineInfo.pDepthStencilState = &depthStencil;
+    pipelineInfo.pDepthStencilState = &depthStencil;
 
   VkPipeline pipeLine;
 
@@ -339,8 +340,8 @@ std::optional<VkPipeline> PipelineBuilder::build() {
   }
 }
 
-PipelineBuilder &PipelineBuilder::set_viewport(VkOffset2D offset, VkExtent2D size,
-                                               fVec2D depth) {
+PipelineBuilder &PipelineBuilder::set_viewport(VkOffset2D offset,
+                                               VkExtent2D size, fVec2D depth) {
   viewport.x = offset.x;
   viewport.y = offset.y;
   viewport.width = size.width;
@@ -440,6 +441,38 @@ VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type,
   write.descriptorCount = 1;
   write.descriptorType = type;
   write.pBufferInfo = bufferInfo;
+
+  return write;
+}
+
+VkSamplerCreateInfo sampler_create_info(VkFilter filters, VkSamplerAddressMode samplerAdressMode /*= VK_SAMPLER_ADDRESS_MODE_REPEAT*/)
+{
+	VkSamplerCreateInfo info = {};
+	info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	info.pNext = nullptr;
+
+	info.magFilter = filters;
+	info.minFilter = filters;
+	info.addressModeU = samplerAdressMode;
+	info.addressModeV = samplerAdressMode;
+	info.addressModeW = samplerAdressMode;
+
+	return info;
+}
+
+VkWriteDescriptorSet write_descriptor_image(VkDescriptorType type,
+                                            VkDescriptorSet dstSet,
+                                            VkDescriptorImageInfo *imageInfo,
+                                            uint32_t binding) {
+  VkWriteDescriptorSet write = {};
+  write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  write.pNext = nullptr;
+
+  write.dstBinding = binding;
+  write.dstSet = dstSet;
+  write.descriptorCount = 1;
+  write.descriptorType = type;
+  write.pImageInfo = imageInfo;
 
   return write;
 }
