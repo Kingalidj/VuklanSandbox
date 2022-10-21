@@ -7,7 +7,7 @@ struct Texture {
 	VkImageView imageView;
 };
 
-struct VulkanEngine;
+class VulkanEngine;
 
 namespace vkutil {
 

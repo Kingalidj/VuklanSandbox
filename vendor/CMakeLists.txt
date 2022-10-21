@@ -44,13 +44,15 @@ target_sources( imgui
 	imgui/imgui.cpp
 
 	PRIVATE
-	imgui/backends/imgui_impl_opengl3.cpp
+	imgui/backends/imgui_impl_vulkan.cpp
 	imgui/backends/imgui_impl_glfw.cpp
 	)
 
 target_include_directories( imgui
 	PUBLIC imgui
 	PUBLIC imgui/backends
+
+	PUBLIC ${VULKAN_INCLUDE_DIRS}
 	)
 
-target_link_libraries(imgui PUBLIC glfw)
+target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
