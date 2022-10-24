@@ -6,6 +6,9 @@
 
 #include <glm/glm.hpp>
 
+#include <imgui_impl_vulkan.h>
+#include <imgui_impl_glfw.h>
+
 struct UploadContext {
   VkFence uploadFence;
   VkCommandPool commandPool;
@@ -13,11 +16,11 @@ struct UploadContext {
 };
 
 struct GPUSceneData {
-  glm::vec4 fogColor;
-  glm::vec4 fogDistance;
+  //glm::vec4 fogColor;
+  //glm::vec4 fogDistance;
   glm::vec4 ambientColor;
-  glm::vec4 sunlightDirection;
-  glm::vec4 sunlightColor;
+  //glm::vec4 sunlightDirection;
+  //glm::vec4 sunlightColor;
 };
 
 struct GPUCameraData {
@@ -71,7 +74,7 @@ public:
   bool m_IsInitialized{false};
   int m_FrameNumber{0};
 
-  VkExtent2D m_WindowExtent{800, 800};
+  VkExtent2D m_WindowExtent{1600, 900};
 
   struct GLFWwindow *m_Window = nullptr;
 
@@ -82,13 +85,14 @@ public:
 
   VkInstance m_Instance;
   VkDebugUtilsMessengerEXT m_DebugMessenger;
-  VkPhysicalDevice m_ChosenGPU;
+  VkPhysicalDevice m_PhysicalDevice;
   VkDevice m_Device;
-  VkSurfaceKHR m_Surface; // vulkan window
+  VkSurfaceKHR m_Surface;
   VkPhysicalDeviceProperties m_GPUProperties;
 
   VkSwapchainKHR m_Swapchain;
   VkFormat m_SwapchainImageFormat;
+  VkFormat m_DepthFormat;
 
   std::vector<VkImage> m_SwapchainImages;
   std::vector<VkImageView> m_SwapchainImageViews;
@@ -96,14 +100,14 @@ public:
   VkQueue m_GraphicsQueue;
   uint32_t m_GraphicsQueueFamily;
 
-  /* VkCommandPool m_CommandPool; */
-  /* VkCommandBuffer m_MainCommandBuffer; */
-
-  FrameData m_Frames[FRAME_OVERLAP];
-  FrameData &get_current_frame();
+  FrameData m_FrameData;
+  //FrameData &get_current_frame();
 
   VkRenderPass m_RenderPass;
+  VkRenderPass m_ImGuiRenderPass;
+
   std::vector<VkFramebuffer> m_FrameBuffers;
+  std::vector<VkFramebuffer> m_ImGuiFrameBuffers;
 
   /* VkSemaphore m_PresentSemaphore, m_RenderSemaphore; */
   /* VkFence m_RenderFence; */
@@ -120,7 +124,6 @@ public:
   VkImageView m_DepthImageView;
   AllocatedImage m_DepthImage;
 
-  VkFormat m_DepthFormat;
 
   std::vector<RenderObject> m_RenderObjects;
 
@@ -132,7 +135,7 @@ public:
 
   VkDescriptorSetLayout m_GlobalSetLayout;
   VkDescriptorSetLayout m_ObjectSetLayout;
-	VkDescriptorSetLayout m_SingleTextureSetLayout;
+  VkDescriptorSetLayout m_SingleTextureSetLayout;
 
   VkDescriptorPool m_DescriptorPool;
 
@@ -140,6 +143,8 @@ public:
   AllocatedBuffer m_SceneParameterBuffer;
 
   UploadContext m_UploadContext;
+
+  //ImGui_ImplVulkanH_Window m_WindowData;
 
   Material *create_material(VkPipeline pipeline, VkPipelineLayout layout,
                             const std::string &name);

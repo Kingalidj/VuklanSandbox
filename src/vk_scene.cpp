@@ -1,6 +1,43 @@
 #include "vk_scene.h"
 #include <tiny_obj_loader.h>
 
+VertexInputDescription ImGuiVertex::get_vertex_description()
+{
+  VertexInputDescription description;
+
+  VkVertexInputBindingDescription mainBinding{};
+  mainBinding.binding = 0;
+  mainBinding.stride = sizeof(ImGuiVertex);
+  mainBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+  description.bindings.push_back(mainBinding);
+
+  VkVertexInputAttributeDescription posAttribute{};
+  posAttribute.binding = 0;
+  posAttribute.location = 0;
+  posAttribute.format = VK_FORMAT_R32G32_SFLOAT;
+  posAttribute.offset = offsetof(ImGuiVertex, position);
+
+  VkVertexInputAttributeDescription uvAttribute{};
+  uvAttribute.binding = 0;
+  uvAttribute.location = 1;
+  uvAttribute.format = VK_FORMAT_R32G32_SFLOAT;
+  uvAttribute.offset = offsetof(ImGuiVertex, uv);
+
+  VkVertexInputAttributeDescription colorAttribute{};
+  colorAttribute.binding = 0;
+  colorAttribute.location = 2;
+  colorAttribute.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+  colorAttribute.offset = offsetof(Vertex, color);
+
+
+  description.attributes.push_back(posAttribute);
+  description.attributes.push_back(uvAttribute);
+  description.attributes.push_back(colorAttribute);
+
+  return description;
+}
+
 VertexInputDescription Vertex::get_vertex_description() {
   VertexInputDescription description;
 

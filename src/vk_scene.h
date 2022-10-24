@@ -11,11 +11,19 @@ struct VertexInputDescription {
   VkPipelineVertexInputStateCreateFlags flags = 0;
 };
 
+struct ImGuiVertex {
+	glm::vec2 position;
+	glm::vec2 uv;
+	glm::vec4 color;
+
+	static VertexInputDescription get_vertex_description();
+};
+
 struct Vertex {
   glm::vec3 position;
   glm::vec3 normal;
   glm::vec3 color;
-	glm::vec2 uv;
+  glm::vec2 uv;
 
   static VertexInputDescription get_vertex_description();
 };
