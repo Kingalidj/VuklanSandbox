@@ -450,9 +450,7 @@ void VulkanEngine::init_swapchain() {
 	m_SwapchainImages = vkbSwapchain.get_images().value();
 	m_SwapchainImageViews = vkbSwapchain.get_image_views().value();
 
-	m_SwapchainImageFormat = 44;
-	CORE_INFO("format: {}", m_SwapchainImageFormat);
-	//m_SwapchainImageFormat = vkbSwapchain.image_format;
+	m_SwapchainImageFormat = vkbSwapchain.image_format;
 
 	//m_Swapchain = m_WindowData.Swapchain;
 
