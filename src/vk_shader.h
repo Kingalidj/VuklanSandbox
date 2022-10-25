@@ -12,12 +12,12 @@ bool load_spirv_shader_module(const char *filePath,
                               VkShaderModule *outShaderModule,
                               const VkDevice device);
 
-bool load_glsl_shader_module(std::filesystem::path filePath,
+bool load_glsl_shader(std::filesystem::path filePath,
                              ShaderType type,
                              VkShaderModule *outShaderModule,
                              const VkDevice device);
 
-bool load_glsl_shader_module(std::filesystem::path filePath,
+bool load_glsl_shader(std::filesystem::path filePath,
                              VkShaderModule *outShaderModule,
                              const VkDevice device);
 } // namespace vkutil

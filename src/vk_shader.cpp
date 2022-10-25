@@ -1,6 +1,8 @@
 #include "vk_shader.h"
 
+#ifdef NDEBUG
 #include <shaderc/shaderc.hpp>
+#endif
 
 namespace vkutil {
 
@@ -49,12 +51,13 @@ bool load_spirv_shader_module(const char *filePath,
   return true;
 }
 
-bool load_glsl_shader_module(std::filesystem::path filePath,
+bool load_glsl_shader(std::filesystem::path filePath,
                              ShaderType type,
                              VkShaderModule *outShaderModule,
                              const VkDevice device) {
 
-  shaderc_shader_kind kind;
+#ifdef NDEBUG
+   shaderc_shader_kind kind{};
 
   switch (type) {
   case ShaderType::Vertex:
@@ -63,6 +66,9 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   case ShaderType::Fragment:
     kind = shaderc_fragment_shader;
     break;
+  default:
+      CORE_WARN("unknown extension for file: {}", filePath);
+      return false;
   }
 
   std::ifstream file(filePath, std::ios::ate | std::ios::binary);
@@ -73,7 +79,6 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
   }
 
   size_t fileSize = (size_t)file.tellg();
-  /* std::vector<char> buffer(fileSize / sizeof(char)); */
   std::string source;
   source.resize(fileSize / sizeof(char));
 
@@ -108,8 +113,14 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
     return false;
   }
   return true;
+#else
+
+    CORE_ERROR("shaderc is not accessible in debug mode!");
+    return false;
+
+#endif
 }
-bool load_glsl_shader_module(std::filesystem::path filePath,
+bool load_glsl_shader(std::filesystem::path filePath,
                              VkShaderModule *outShaderModule,
                              const VkDevice device) {
   auto ext = filePath.extension();
@@ -124,7 +135,7 @@ bool load_glsl_shader_module(std::filesystem::path filePath,
     return false;
   }
 
-  return load_glsl_shader_module(filePath, type, outShaderModule, device);
+  return load_glsl_shader(filePath, type, outShaderModule, device);
 }
 
 } // namespace vkutil

@@ -4,28 +4,18 @@
 #include "vk_shader.h"
 #include "vk_types.h"
 
-#include "Robot-Regular.h"
+#include "imgui_theme.h"
+#include "robot_regular.embed"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
-
 #include <VkBootstrap.h>
 #include <glm/gtx/transform.hpp>
-#include <shaderc/shaderc.hpp>
 
 #include <cmath>
-
-#define VK_CHECK(x)                                                            \
-  do {                                                                         \
-    VkResult err = x;                                                          \
-    if (err) {                                                                 \
-      CORE_ERROR("at line: {}, in file: {}\nDetected Vulkan error: {}",        \
-                 __LINE__, __FILE__, err);                                     \
-    }                                                                          \
-  } while (0)
 
 void VulkanEngine::init() {
 	glfwInit();
@@ -180,9 +170,11 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject* first,
 				1, 1, &m_FrameData.objectDescriptor, 0, nullptr);
 
 			if (object.material->textureSet != VK_NULL_HANDLE) {
+				//Texture &tex = m_Textures["empire_diffuse"];
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
 					object.material->pipelineLayout, 2, 1,
 					&object.material->textureSet, 0, nullptr);
+					//&tex.descriptorSet, 0, nullptr);
 			}
 		}
 
@@ -276,10 +268,6 @@ void VulkanEngine::draw() {
 
 		vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-		ImGui::ShowDemoWindow();
 		ImGui::Render();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
@@ -328,8 +316,19 @@ void VulkanEngine::run() {
 	while (!glfwWindowShouldClose(m_Window)) {
 		glfwPollEvents();
 
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::ShowDemoWindow();
+		ImGui::Begin("Texture Viewer");
+		Texture& tex = m_Textures["empire_diffuse"];
+		ImGui::Image((ImTextureID)tex.descriptorSet, ImVec2(500, 500));
+		//ImGui::Image((ImTextureID)mat->textureSet, ImVec2(500, 500));
+		ImGui::End();
 
 		draw();
+
 
 		ImGuiIO& io = ImGui::GetIO();
 
@@ -712,7 +711,7 @@ void VulkanEngine::init_pipelines() {
 
 	{
 		VkShaderModule texturedMeshFragShader;
-		if (!vkutil::load_glsl_shader_module("res/shaders/textured_lit.frag",
+		if (!vkutil::load_spirv_shader_module("res/shaders/textured_lit.frag.spv",
 			&texturedMeshFragShader, m_Device)) {
 			return;
 		}
@@ -721,8 +720,7 @@ void VulkanEngine::init_pipelines() {
 		}
 
 		VkShaderModule texturedMeshVertexShader;
-		if (!vkutil::load_glsl_shader_module("res/shaders/textured_mesh.vert",
-			vkutil::ShaderType::Vertex,
+		if (!vkutil::load_spirv_shader_module("res/shaders/textured_mesh.vert.spv",
 			&texturedMeshVertexShader, m_Device)) {
 			return;
 		}
@@ -769,13 +767,11 @@ void VulkanEngine::init_pipelines() {
 			.add_shader_module(texturedMeshFragShader,
 				vkutil::ShaderType::Fragment)
 			.set_viewport({ 0, 0 }, m_WindowExtent, { 0.0f, 1.0f })
-			//.set_scissor({ 0, 0 }, { m_WindowExtent.width / 2,
-			// m_WindowExtent.height })
 			.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL)
 			.build()
 			.value();
 
-		create_material(m_MeshPipeline, m_MeshPipelineLayout, "defaultmesh");
+		create_material(m_MeshPipeline, m_MeshPipelineLayout, "defaultmaterial");
 
 		/* m_MeshPipeline = pipelineBuilder.build(); */
 
@@ -879,12 +875,12 @@ void VulkanEngine::upload_mesh(Mesh& mesh) {
 void VulkanEngine::init_scene() {
 	RenderObject empire;
 	empire.mesh = get_mesh("empire");
-	empire.material = get_material("defaultmesh");
+	empire.material = get_material("defaultmaterial");
 	empire.transformMatrix = glm::translate(glm::vec3{ 5, -10, 0 });
 
 	m_RenderObjects.push_back(empire);
 
-	Material* texturedMat = get_material("defaultmesh");
+	Material* texturedMat = get_material("defaultmaterial");
 
 	VkDescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.pNext = nullptr;
@@ -920,7 +916,7 @@ void VulkanEngine::init_scene() {
 
 	/*     RenderObject tri{}; */
 	/*     tri.mesh = get_mesh("triangle"); */
-	/*     tri.material = get_material("defaultmesh"); */
+	/*     tri.material = get_material("defaultmaterial"); */
 	/*     glm::mat4 translation = */
 	/*         glm::translate(glm::mat4{1.0}, glm::vec3(x, 0, y)); */
 	/*     glm::mat4 scale = glm::scale(glm::mat4{1.0}, glm::vec3(0.2, 0.2, 0.2));
@@ -1182,7 +1178,7 @@ void VulkanEngine::init_imgui()
 	{
 		ImFontConfig fontConfig;
 		fontConfig.FontDataOwnedByAtlas = false;
-		ImFont* robotoFont = io.Fonts->AddFontFromMemoryTTF((void*)g_RobotoRegular, sizeof(g_RobotoRegular), 20.0f, &fontConfig);
+		ImFont* robotoFont = io.Fonts->AddFontFromMemoryTTF((void*)g_RobotoRegular, sizeof(g_RobotoRegular), 23.0f, &fontConfig);
 		io.FontDefault = robotoFont;
 
 		immediate_submit([&](VkCommandBuffer cmd) {
@@ -1193,6 +1189,8 @@ void VulkanEngine::init_imgui()
 
 	//clear font textures from cpu data
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+	ImGui::SetOneDarkTheme();
 
 	//add the destroy the imgui created structures
 	m_MainDeletionQueue.push_function([=]() {
@@ -1237,10 +1235,12 @@ void VulkanEngine::immediate_submit(
 }
 
 void VulkanEngine::load_images() {
+	/*
 	Texture lostEmpire;
 
-	if (!vkutil::load_image_from_file("res/images/lost_empire-RGBA.png", *this,
-		lostEmpire.imageBuffer)) {
+	int w, h, nC;
+	if (!vkutil::load_alloc_image_from_file("res/images/lost_empire-RGBA.png", *this,
+		&lostEmpire.imageBuffer, &w, &h, &nC)) {
 		CORE_WARN("could not load image!");
 		return;
 	}
@@ -1253,11 +1253,11 @@ void VulkanEngine::load_images() {
 		VK_IMAGE_ASPECT_COLOR_BIT);
 
 	vkCreateImageView(m_Device, &imageInfo, nullptr, &lostEmpire.imageView);
+	*/
 
-	m_Textures["empire_diffuse"] = lostEmpire;
+	m_Textures["empire_diffuse"] = vkutil::load_const_texture("res/images/lost_empire-RGBA.png", *this).value();
 
-	m_MainDeletionQueue.push_function([=]() {
-		vkDestroyImageView(m_Device, lostEmpire.imageView, nullptr);
-		;
-		});
+	//m_MainDeletionQueue.push_function([=]() {
+	//	vkDestroyImageView(m_Device, lostEmpire.imageView, nullptr);
+	//	});
 }

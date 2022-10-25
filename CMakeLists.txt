@@ -16,15 +16,14 @@ add_subdirectory(vendor)
 
 set(resources res)
 
+file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB EMBED ${PROJECT_SOURCE_DIR}/src/*.embed)
+file(GLOB HEADERS ${PROJECT_SOURCE_DIR}/src/*.h)
 
 add_executable(${PROJECT_NAME} 
-	src/main.cpp
-	src/vk_engine.cpp
-	src/vk_initializers.cpp
-	src/logger.cpp
-	src/vk_scene.cpp
-	src/vk_textures.cpp
-	src/vk_shader.cpp
+	${SOURCES}
+	${EMBED}
+	${HEADERS}
 	)
 
 target_precompile_headers(${PROJECT_NAME}
