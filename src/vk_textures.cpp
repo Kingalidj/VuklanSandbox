@@ -22,7 +22,7 @@ namespace vkutil {
 		tex.nChannels = static_cast<uint32_t>(nC);
 
 		VkImageViewCreateInfo imageInfo = vkinit::imageview_create_info(
-			VK_FORMAT_R8G8B8A8_SRGB, tex.imageBuffer.image,
+			VK_FORMAT_R8G8B8A8_UNORM, tex.imageBuffer.image,
 			VK_IMAGE_ASPECT_COLOR_BIT);
 
 		vkCreateImageView(engine.m_Device, &imageInfo, nullptr, &tex.imageView);
@@ -51,7 +51,7 @@ namespace vkutil {
 		engine.m_MainDeletionQueue.push_function([=] {
 			vkDestroySampler(engine.m_Device, tex.sampler, nullptr);
 			vmaDestroyImage(engine.m_Allocator, tex.imageBuffer.image, tex.imageBuffer.allocation);
-			});		
+			});
 
 		return std::move(tex);
 	}
@@ -73,7 +73,8 @@ namespace vkutil {
 
 		VkDeviceSize imageSize = width * height * 4;
 
-		VkFormat imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
+		//VkFormat imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
+		VkFormat imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
 		AllocatedBuffer stagingBuffer = engine.create_buffer(
 			imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
