@@ -73,8 +73,7 @@ namespace vkutil {
 
 		VkDeviceSize imageSize = width * height * 4;
 
-		//VkFormat imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
-		VkFormat imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+		VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 		AllocatedBuffer stagingBuffer = engine.create_buffer(
 			imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
