@@ -5,7 +5,11 @@
 #include "vk_types.h"
 
 #include "imgui_theme.h"
-#include "robot_regular.embed"
+
+const uint8_t c_RobotoRegular[] =
+{
+	#include "robot_regular.embed"
+};
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -433,7 +437,8 @@ void VulkanEngine::init_swapchain() {
 		vkb::SwapchainBuilder(m_PhysicalDevice, m_Device, m_Surface)
 		//.use_default_format_selection()
 		//.set_desired_format()
-		.set_desired_format({VK_FORMAT_R8G8B8A8_UNORM ,VK_COLORSPACE_SRGB_NONLINEAR_KHR})
+		//.set_desired_format({VK_FORMAT_R8G8B8A8_UNORM ,VK_COLORSPACE_SRGB_NONLINEAR_KHR})
+		.set_desired_format({VK_FORMAT_B8G8R8A8_UNORM ,VK_COLORSPACE_SRGB_NONLINEAR_KHR})
 		//.set_desired_format({VK_FORMAT_R8G8B8A8_UNORM,VK_COLORSPACE_SRGB_NONLINEAR_KHR})
 		//.add_fallback_format({VK_FORMAT_R8G8B8A8_UNORM,VK_COLORSPACE_SRGB_NONLINEAR_KHR})
 		// set vsync
@@ -450,6 +455,7 @@ void VulkanEngine::init_swapchain() {
 	m_SwapchainImageViews = vkbSwapchain.get_image_views().value();
 
 	m_SwapchainImageFormat = vkbSwapchain.image_format;
+	CORE_INFO("Swachain Format: {}", m_SwapchainImageFormat);
 
 	//m_Swapchain = m_WindowData.Swapchain;
 
@@ -1178,7 +1184,7 @@ void VulkanEngine::init_imgui()
 	{
 		ImFontConfig fontConfig;
 		fontConfig.FontDataOwnedByAtlas = false;
-		ImFont* robotoFont = io.Fonts->AddFontFromMemoryTTF((void*)g_RobotoRegular, sizeof(g_RobotoRegular), 23.0f, &fontConfig);
+		ImFont* robotoFont = io.Fonts->AddFontFromMemoryTTF((void*)c_RobotoRegular, sizeof(c_RobotoRegular), 23.0f, &fontConfig);
 		io.FontDefault = robotoFont;
 
 		immediate_submit([&](VkCommandBuffer cmd) {
