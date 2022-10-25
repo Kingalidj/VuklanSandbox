@@ -38,3 +38,51 @@ private:
 	std::vector<VkDescriptorPool> m_UsedPools;
 	std::vector<VkDescriptorPool> m_FreePools;
 };
+
+class DescriptorLayoutCache {
+public:
+	void init(VkDevice device);
+	void cleanup();
+
+	VkDescriptorSetLayout create_descriptor_layout(VkDescriptorSetLayoutCreateInfo* info);
+
+	struct DescriptorLayoutInfo {
+		std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+		bool operator==(const DescriptorLayoutInfo& other) const;
+
+		size_t hash() const;
+	};
+
+private:
+
+	struct DescriptorLayoutHash {
+		std::size_t operator()(const DescriptorLayoutInfo& k) const {
+			return k.hash();
+		}
+	};
+
+	VkDevice m_Device;
+	std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash> m_LayoutCache;
+};
+
+class DescriptorBuilder {
+public:
+
+	DescriptorBuilder(DescriptorLayoutCache* layoutCache, DescriptorAllocator* allocator)
+		: m_LayoutCache(layoutCache), m_Alloc(allocator) {}
+
+	DescriptorBuilder& bind_buffer(uint32_t binding, VkDescriptorBufferInfo* bufferInof, VkDescriptorType type, VkShaderStageFlags flags);
+	DescriptorBuilder& bind_image(uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
+
+	bool build(VkDescriptorSet& set, VkDescriptorSetLayout& layout);
+	bool build(VkDescriptorSet& set);
+
+private:
+	std::vector<VkWriteDescriptorSet> writes;
+	std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+	DescriptorLayoutCache* m_LayoutCache;
+	DescriptorAllocator* m_Alloc;
+
+};

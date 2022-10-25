@@ -2,7 +2,8 @@
 
 #include "vk_types.h"
 
-struct Texture {
+class Texture {
+public:
 	AllocatedImage imageBuffer;
 	VkImageView imageView;
 
