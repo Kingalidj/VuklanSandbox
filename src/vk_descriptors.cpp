@@ -61,7 +61,7 @@ bool DescriptorAllocator::allocate(VkDescriptorSet* set, VkDescriptorSetLayout l
 		break;
 	default:
 		CORE_WARN("ERROR: {}", allocResult);
-		CORE_WARN("Could not allocate descriptor set with layout: {}", layout);
+		CORE_WARN("Could not allocate descriptor set with layout: {}", (void*)layout);
 		return false;
 	}
 
@@ -75,7 +75,7 @@ bool DescriptorAllocator::allocate(VkDescriptorSet* set, VkDescriptorSetLayout l
 	}
 
 	CORE_WARN("ERROR: {}", allocResult);
-	CORE_WARN("Could not allocate descriptor set with layout: {}", layout);
+	CORE_WARN("Could not allocate descriptor set with layout: {}", (void*)layout);
 	return false;
 }
 
