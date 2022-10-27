@@ -9,25 +9,21 @@
     }                                                                          \
   } while (0)
 
-namespace vkutil {
-
-enum class LogLevel {
-  Trace,
-  Info,
-  Warn,
-  Error,
-};
-
 enum class ShaderType {
-  Fragment,
-  Vertex,
+	Fragment,
+	Vertex,
 };
 
-enum class QueueType {
-  Present,
-  Graphics,
-  Compute,
-  Transfer,
-};
+template<typename T>
+using Scope = std::unique_ptr<T>;
+template<typename T, typename ... Args>
+constexpr Scope<T> CreateScope(Args&& ... args) {
+	return std::make_unique<T>(std::forward<Args>(args)...);
+}
 
-} // namespace Utils
+template<typename T>
+using Ref = std::shared_ptr<T>;
+template<typename T, typename ... Args>
+constexpr Ref<T> CreateRef(Args&& ... args) {
+	return std::make_shared<T>(std::forward<Args>(args)...);
+}

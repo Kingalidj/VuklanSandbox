@@ -30,7 +30,7 @@ namespace vkinit {
 
 	VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags flags = 0);
 
-	VkSubmitInfo submit_info(VkCommandBuffer* cmd);
+	VkSubmitInfo submit_info(VkCommandBuffer *cmd);
 
 	VkPresentInfoKHR present_info();
 
@@ -56,50 +56,6 @@ namespace vkinit {
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info();
 
-	struct PipelineBuilder {
-		std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-		VkPipelineVertexInputStateCreateInfo vertexInputInfo;
-		VkPipelineInputAssemblyStateCreateInfo inputAssembly;
-		VkViewport viewport = {};
-		VkRect2D scissor = {};
-		VkPipelineRasterizationStateCreateInfo rasterizer;
-		VkPipelineColorBlendAttachmentState colorBlendAttachment;
-		VkPipelineMultisampleStateCreateInfo multisampling;
-		VkPipelineLayout pipelineLayout;
-		bool enableDepthStencil = false;
-		VkPipelineDepthStencilStateCreateInfo depthStencil{};
-
-		VkDevice device;
-		VkRenderPass renderPass;
-
-		PipelineBuilder(VkDevice _device, VkRenderPass _renderPass, VkPipelineLayout _layout)
-			: device(_device), renderPass(_renderPass), pipelineLayout(_layout),
-			multisampling(multisampling_state_create_info()),
-			colorBlendAttachment(color_blend_attachment_state()),
-			rasterizer(rasterization_state_create_info(VK_POLYGON_MODE_FILL)),
-			inputAssembly(
-				input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)),
-			vertexInputInfo(vertex_input_state_create_info()) {}
-
-		PipelineBuilder& add_shader_module(VkShaderModule shaderModule,
-			vkutil::ShaderType shaderType);
-		PipelineBuilder& set_viewport(VkViewport viewport);
-		PipelineBuilder& set_viewport(VkOffset2D offset, VkExtent2D size,
-			fVec2D depth);
-		PipelineBuilder& set_scissor(VkRect2D scissor);
-		PipelineBuilder& set_scissor(VkOffset2D offset, VkExtent2D extent);
-		PipelineBuilder& set_depth_stencil(bool depthTest, bool depthWrite,
-			VkCompareOp compareOp);
-		PipelineBuilder& set_vertex_description(
-			VkVertexInputAttributeDescription* pAttributes, uint32_t attributesCount,
-			VkVertexInputBindingDescription* pBindings, uint32_t bindingCount);
-		PipelineBuilder& set_vertex_description(
-			std::vector<VkVertexInputAttributeDescription>& attributes,
-			std::vector<VkVertexInputBindingDescription>& bindings);
-
-		std::optional<VkPipeline> build();
-	};
-
 	VkImageCreateInfo image_create_info(VkFormat format,
 		VkImageUsageFlags usageFlags,
 		VkExtent3D extent);
@@ -116,7 +72,7 @@ namespace vkinit {
 
 	VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type,
 		VkDescriptorSet dstSet,
-		VkDescriptorBufferInfo* bufferInfo,
+		VkDescriptorBufferInfo *bufferInfo,
 		uint32_t binding);
 
 	VkSamplerCreateInfo sampler_create_info(
@@ -125,7 +81,7 @@ namespace vkinit {
 
 	VkWriteDescriptorSet write_descriptor_image(VkDescriptorType type,
 		VkDescriptorSet dstSet,
-		VkDescriptorImageInfo* imageInfo,
+		VkDescriptorImageInfo *imageInfo,
 		uint32_t binding);
 
 } // namespace vkinit

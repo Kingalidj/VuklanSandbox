@@ -11,51 +11,28 @@ class Logger {
 
 public:
 
-  Logger(Logger const &) = delete;
-  void operator=(const Logger &) = delete;
+	Logger(Logger const &) = delete;
+	void operator=(const Logger &) = delete;
 
-  inline static std::shared_ptr<spdlog::logger> &get_core_logger() {
-    if (s_CoreLogger == nullptr)
-      init();
-    return s_CoreLogger;
-  };
-  inline static std::shared_ptr<spdlog::logger> &get_client_logger() {
-    if (s_ClientLogger == nullptr)
-      init();
-    return s_ClientLogger;
-  };
+	inline static std::shared_ptr<spdlog::logger> &get_core_logger() {
+		if (s_CoreLogger == nullptr)
+			init();
+		return s_CoreLogger;
+	};
+	inline static std::shared_ptr<spdlog::logger> &get_client_logger() {
+		if (s_ClientLogger == nullptr)
+			init();
+		return s_ClientLogger;
+	};
 
-  inline static std::ostringstream &get_ostream() { return s_OStream; };
-
-  template <typename... Args>
-  static void log(vkutil::LogLevel level, const Args &...msg) {
-
-    switch (level) {
-    case vkutil::LogLevel::Trace:
-      s_CoreLogger->trace(msg...);
-      break;
-
-    case vkutil::LogLevel::Info:
-      s_CoreLogger->info(msg...);
-      break;
-
-    case vkutil::LogLevel::Warn:
-      s_CoreLogger->warn(msg...);
-      break;
-
-    case vkutil::LogLevel::Error:
-      s_CoreLogger->error(msg...);
-      break;
-    }
-    s_OStream.clear();
-  }
+	inline static std::ostringstream &get_ostream() { return s_OStream; };
 
 private:
-  static void init();
+	static void init();
 
-  static std::shared_ptr<spdlog::logger> s_CoreLogger;
-  static std::shared_ptr<spdlog::logger> s_ClientLogger;
-  static std::ostringstream s_OStream;
+	static std::shared_ptr<spdlog::logger> s_CoreLogger;
+	static std::shared_ptr<spdlog::logger> s_ClientLogger;
+	static std::ostringstream s_OStream;
 };
 
 #define CORE_TRACE(...) ::Logger::get_core_logger()->trace(__VA_ARGS__)

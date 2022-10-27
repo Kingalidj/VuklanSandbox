@@ -7,8 +7,7 @@
 #include <stb_image.h>
 
 namespace vkutil {
-	std::optional<Texture> load_const_texture(const char* file, VulkanEngine& engine)
-	{
+	std::optional<Texture> load_const_texture(const char *file, VulkanEngine &engine) {
 		Texture tex;
 
 		int w, h, nC;
@@ -27,9 +26,9 @@ namespace vkutil {
 
 		vkCreateImageView(engine.m_Device, &imageInfo, nullptr, &tex.imageView);
 
-		engine.m_MainDeletionQueue.push_function([=]() {
-			vkDestroyImageView(engine.m_Device, tex.imageView, nullptr);
-			});
+		engine.m_MainDeletionQueue.push_function([=, device = engine.m_Device]() {
+			vkDestroyImageView(device, tex.imageView, nullptr);
+		});
 
 		{
 			VkSamplerCreateInfo sampler_info{};
@@ -48,18 +47,18 @@ namespace vkutil {
 
 		tex.descriptorSet = ImGui_ImplVulkan_AddTexture(tex.sampler, tex.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		engine.m_MainDeletionQueue.push_function([=] {
-			vkDestroySampler(engine.m_Device, tex.sampler, nullptr);
-			vmaDestroyImage(engine.m_Allocator, tex.imageBuffer.image, tex.imageBuffer.allocation);
+		engine.m_MainDeletionQueue.push_function([=, device = engine.m_Device, allocator = engine.m_Allocator]{
+			vkDestroySampler(device, tex.sampler, nullptr);
+			vmaDestroyImage(allocator, tex.imageBuffer.image, tex.imageBuffer.allocation);
 			});
 
 		return std::move(tex);
 	}
 
-	bool load_alloc_image_from_file(const char* file, VulkanEngine& engine,
-		AllocatedImage* outImage, int* w, int* h, int* nC) {
+	bool load_alloc_image_from_file(const char *file, VulkanEngine &engine,
+		AllocatedImage *outImage, int *w, int *h, int *nC) {
 
-		stbi_uc* pixel_ptr =
+		stbi_uc *pixel_ptr =
 			stbi_load(file, w, h, nC, STBI_rgb_alpha);
 
 		int width = *w;
@@ -78,7 +77,7 @@ namespace vkutil {
 		AllocatedBuffer stagingBuffer = engine.create_buffer(
 			imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
-		void* data;
+		void *data;
 		vmaMapMemory(engine.m_Allocator, stagingBuffer.allocation, &data);
 		memcpy(data, pixel_ptr, static_cast<size_t>(imageSize));
 		vmaUnmapMemory(engine.m_Allocator, stagingBuffer.allocation);

@@ -28,9 +28,11 @@ add_subdirectory(vendor)
 
 
 set(SOURCES
+		src/vk_types.cpp
 		src/imgui_theme.cpp
 		src/logger.cpp
 		src/vk_descriptors.cpp
+		src/vk_pipeline.cpp
 		src/vk_engine.cpp
 		src/vk_initializers.cpp
 		src/vk_scene.cpp
@@ -40,11 +42,12 @@ set(SOURCES
 
 set(HEADERS
 		src/utils.h
-		src/vk_types.h
 
+		src/vk_types.h
 		src/imgui_theme.h
 		src/logger.h
 		src/vk_descriptors.h
+		src/vk_pipeline.h
 		src/vk_engine.h
 		src/vk_initializers.h
 		src/vk_scene.h
@@ -77,6 +80,7 @@ if (WIN32)
 		COMMAND cmd /C if not exist "${RES_DIR}" mklink /J ${RES_DIR} "${target_path}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}
 		)
+
 else()
 	add_custom_command(
 		TARGET ${PROJECT_NAME}
@@ -88,20 +92,62 @@ endif()
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
 
+message(STATUS ${Vulkan_INCLUDE_DIRS})
+
 
 target_include_directories(${PROJECT_NAME}
-	PUBLIC ${VULKAN_INCLUDE_DIRS}
+	PUBLIC ${Vulkan_INCLUDE_DIRS}
 	)
 
 get_filename_component(VULKAN_LIB ${Vulkan_LIBRARY} DIRECTORY)
 
-find_library(SHADERC_LIB shaderc_combined
+find_library(SHADERC shaderc_combined
 	HINTS ${VULKAN_LIB}
 	)
 
+find_library(SHADERC_D shaderc_combinedd
+	HINTS ${VULKAN_LIB}
+	)
+
+find_library(SPIRV_CROSS spirv-cross-core
+	HINTS ${VULKAN_LIB}
+	)
+
+find_library(SPIRV_CROSS_D spirv-cross-cored
+	HINTS ${VULKAN_LIB}
+	)
+
+#find_library(SPIRV_CROSS_GLSL spirv-cross-glsl
+#	HINTS ${VULKAN_LIB}
+#	)
+#
+#find_library(SPIRV_CROSS_GLSL_D spirv-cross-glsld
+#	HINTS ${VULKAN_LIB}
+#	)
+
+if (WIN32)
+
+	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/ignore:4099")
+
+	target_link_libraries(${PROJECT_NAME} 
+		$<$<CONFIG:Release>:${SHADERC}>
+		$<$<CONFIG:Debug>:${SHADERC_D}>
+		$<$<CONFIG:Release>:${SPIRV_CROSS}>
+		$<$<CONFIG:Debug>:${SPIRV_CROSS_D}>
+		)
+
+else()
+
+	message(STATUS ${SPIRV_CROSS})
+
+	target_link_libraries(${PROJECT_NAME} 
+		${SHADERC}
+		${SPIRV_CROSS}
+		)
+endif()
+
 target_link_libraries(${PROJECT_NAME} 
 	Vulkan::Vulkan 
-	${SHADERC_LIB}
 	glfw
 	vk-bootstrap::vk-bootstrap
 	VulkanMemoryAllocator
