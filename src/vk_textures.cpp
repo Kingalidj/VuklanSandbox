@@ -7,49 +7,37 @@
 #include <stb_image.h>
 
 namespace vkutil {
-	std::optional<Texture> load_const_texture(const char *file, VulkanEngine &engine) {
-		Texture tex;
+	std::optional<Ref<Texture>> load_texture(const char *file, VulkanEngine &engine, VkSamplerCreateInfo info) {
+		Ref<Texture> tex = make_ref<Texture>();
 
 		int w, h, nC;
-		if (!load_alloc_image_from_file(file, engine, &tex.imageBuffer, &w, &h, &nC)) {
+		if (!load_alloc_image_from_file(file, engine, &tex->imageBuffer, &w, &h, &nC)) {
 			CORE_WARN("Could not load Texture: {}", file);
 			return std::nullopt;
 		}
 
-		tex.width = static_cast<uint32_t>(w);
-		tex.height = static_cast<uint32_t>(h);
-		tex.nChannels = static_cast<uint32_t>(nC);
+		tex->width = static_cast<uint32_t>(w);
+		tex->height = static_cast<uint32_t>(h);
+		tex->nChannels = static_cast<uint32_t>(nC);
 
 		VkImageViewCreateInfo imageInfo = vkinit::imageview_create_info(
-			VK_FORMAT_R8G8B8A8_UNORM, tex.imageBuffer.image,
+			VK_FORMAT_R8G8B8A8_UNORM, tex->imageBuffer.image,
 			VK_IMAGE_ASPECT_COLOR_BIT);
 
-		vkCreateImageView(engine.m_Device, &imageInfo, nullptr, &tex.imageView);
+		vkCreateImageView(engine.m_Device, &imageInfo, nullptr, &tex->imageView);
 
-		engine.m_MainDeletionQueue.push_function([=, device = engine.m_Device]() {
-			vkDestroyImageView(device, tex.imageView, nullptr);
-		});
+		//engine.m_MainDeletionQueue.push_function([=, device = engine.m_Device]() {
+		//	vkDestroyImageView(device, tex->imageView, nullptr);
+		//});
 
-		{
-			VkSamplerCreateInfo sampler_info{};
-			sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-			sampler_info.magFilter = VK_FILTER_LINEAR;
-			sampler_info.minFilter = VK_FILTER_LINEAR;
-			sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-			sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT; // outside image bounds just use border color
-			sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-			sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-			sampler_info.minLod = -1000;
-			sampler_info.maxLod = 1000;
-			sampler_info.maxAnisotropy = 1.0f;
-			VK_CHECK(vkCreateSampler(engine.m_Device, &sampler_info, nullptr, &tex.sampler));
-		}
+		VkSampler sampler;
+		VK_CHECK(vkCreateSampler(engine.m_Device, &info, nullptr, &sampler));
 
-		tex.descriptorSet = ImGui_ImplVulkan_AddTexture(tex.sampler, tex.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		tex->ImGuiTexID = ImGui_ImplVulkan_AddTexture(sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		engine.m_MainDeletionQueue.push_function([=, device = engine.m_Device, allocator = engine.m_Allocator]{
-			vkDestroySampler(device, tex.sampler, nullptr);
-			vmaDestroyImage(allocator, tex.imageBuffer.image, tex.imageBuffer.allocation);
+			vkDestroySampler(device, sampler, nullptr);
+		//vmaDestroyImage(allocator, tex->imageBuffer.image, tex->imageBuffer.allocation);
 			});
 
 		return std::move(tex);

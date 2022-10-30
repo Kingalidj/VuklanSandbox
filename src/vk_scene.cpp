@@ -1,6 +1,8 @@
 #include "vk_scene.h"
 #include <tiny_obj_loader.h>
 
+namespace vkutil {}
+
 VertexInputDescription Vertex::get_vertex_description() {
 	VertexInputDescription description;
 
@@ -41,9 +43,9 @@ VertexInputDescription Vertex::get_vertex_description() {
 	description.attributes.push_back(uvAttribute);
 	return description;
 }
-std::optional<Mesh> load_mesh_from_obj(const char *filename) {
+std::optional<Ref<Mesh>> load_mesh_from_obj(const char *filename) {
 
-	Mesh mesh;
+	Ref<Mesh> mesh = make_ref<Mesh>();
 
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -54,10 +56,6 @@ std::optional<Mesh> load_mesh_from_obj(const char *filename) {
 
 	tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename,
 		nullptr);
-
-	if (!warn.empty()) {
-		CORE_WARN(warn);
-	}
 
 	if (!err.empty()) {
 		CORE_ERROR(err);
@@ -106,13 +104,11 @@ std::optional<Mesh> load_mesh_from_obj(const char *filename) {
 				// for display purposes
 				newVert.color = newVert.normal;
 
-				mesh.vertices.push_back(newVert);
+				mesh->vertices.push_back(newVert);
 			}
 			index_offset += fv;
 		}
 	}
-
-	CORE_TRACE("loaded mesh: {} with buffer vk_handle: {}", filename, (void *)mesh.vertexBuffer.buffer);
 
 	return mesh;
 }

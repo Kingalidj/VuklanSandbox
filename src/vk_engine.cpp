@@ -53,30 +53,6 @@ void VulkanEngine::init() {
 	m_IsInitialized = true;
 }
 
-Material *VulkanEngine::create_material(VkPipeline pipeline,
-	VkPipelineLayout layout,
-	const std::string &name) {
-	Material mat;
-	mat.pipeline = pipeline;
-	mat.pipelineLayout = layout;
-	m_Materials[name] = mat;
-	return &m_Materials[name];
-}
-
-Material *VulkanEngine::get_material(const std::string &name) {
-	auto it = m_Materials.find(name);
-	if (it == m_Materials.end())
-		return nullptr;
-	return &(*it).second;
-}
-
-Mesh *VulkanEngine::get_mesh(const std::string &name) {
-	auto it = m_Meshes.find(name);
-	if (it == m_Meshes.end())
-		return nullptr;
-	return &(*it).second;
-}
-
 AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize,
 	VkBufferUsageFlags usage,
 	VmaMemoryUsage memoryUsage) {
@@ -145,8 +121,8 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first,
 
 	vmaUnmapMemory(m_Allocator, m_FrameData.objectBuffer.allocation);
 
-	Mesh *lastMesh = nullptr;
-	Material *lastMaterial = nullptr;
+	Ref<Mesh> lastMesh = nullptr;
+	Ref<Material> lastMaterial = nullptr;
 	for (int i = 0; i < count; i++) {
 		RenderObject &object = first[i];
 
@@ -164,6 +140,7 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first,
 			//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			//	object.material->pipelineLayout, 0, 1,
 			//	&m_FrameData.globalDescriptor, 1, &uniformOffset);
+
 			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
 				object.material->pipelineLayout, 0, 1,
 				&m_FrameData.globalDescriptor, 0, nullptr);
@@ -173,7 +150,7 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first,
 				&m_FrameData.objectDescriptor, 0, nullptr);
 
 			if (object.material->textureSet != VK_NULL_HANDLE) {
-				// Texture &tex = m_Textures["empire_diffuse"];
+
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
 					object.material->pipelineLayout, 2, 1,
 					&object.material->textureSet, 0, nullptr);
@@ -211,6 +188,7 @@ void VulkanEngine::cleanup() {
 
 		VK_CHECK(vkDeviceWaitIdle(m_Device));
 
+		m_ResourceManager.cleanup();
 		m_MainDeletionQueue.flush();
 
 		glfwDestroyWindow(m_Window);
@@ -221,7 +199,7 @@ void VulkanEngine::cleanup() {
 void VulkanEngine::draw() {
 	// wait for last frame to finish. Timeout of 1 second
 	VK_CHECK(
-		vkWaitForFences(m_Device, 1, &m_FrameData.renderFence, true, 1000000000));
+		vkWaitForFences(m_Device, 1, &m_FrameData.renderFence, true, UINT64_MAX));
 	VK_CHECK(vkResetFences(m_Device, 1, &m_FrameData.renderFence));
 
 	// since we waited the buffer is empty
@@ -329,8 +307,8 @@ void VulkanEngine::run() {
 
 		ImGui::ShowDemoWindow();
 		ImGui::Begin("Texture Viewer");
-		Texture &tex = m_Textures["empire_diffuse"];
-		ImGui::Image((ImTextureID)tex.descriptorSet, ImVec2(500, 500));
+		Ref<Texture> tex = m_ResourceManager.get_texture("empire_diffuse").value();
+		ImGui::Image(tex->ImGuiTexID, ImVec2(500, 500));
 		// ImGui::Image((ImTextureID)mat->textureSet, ImVec2(500, 500));
 		ImGui::End();
 
@@ -420,6 +398,8 @@ void VulkanEngine::init_vulkan() {
 	allocatorInfo.instance = m_Instance;
 	vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
+	m_ResourceManager.init(m_Device, m_Allocator);
+
 	m_MainDeletionQueue.push_function([=]() {
 		vmaDestroyAllocator(m_Allocator);
 		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
@@ -433,18 +413,9 @@ void VulkanEngine::init_swapchain() {
 
 	vkb::Swapchain vkbSwapchain =
 		vkb::SwapchainBuilder(m_PhysicalDevice, m_Device, m_Surface)
-		//.use_default_format_selection()
-		//.set_desired_format()
-		//.set_desired_format({VK_FORMAT_R8G8B8A8_UNORM
-		//,VK_COLORSPACE_SRGB_NONLINEAR_KHR})
 		.set_desired_format(
 			{ VK_FORMAT_B8G8R8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR })
-		//.set_desired_format({VK_FORMAT_R8G8B8A8_UNORM,VK_COLORSPACE_SRGB_NONLINEAR_KHR})
-		//.add_fallback_format({VK_FORMAT_R8G8B8A8_UNORM,VK_COLORSPACE_SRGB_NONLINEAR_KHR})
-		// set vsync
-		//.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR)
 		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-		//.set_desired_present_mode(VK_PRESENT_MODE_FIFO_RELAXED_KHR)
 		.set_desired_extent(m_WindowExtent.width, m_WindowExtent.height)
 		.build()
 		.value();
@@ -488,10 +459,10 @@ void VulkanEngine::init_swapchain() {
 }
 
 void VulkanEngine::init_commands() {
-	VkCommandPoolCreateInfo cmdPoolInfo = vkinit::command_pool_create_info(
-		m_GraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-
 	{
+		VkCommandPoolCreateInfo cmdPoolInfo = vkinit::command_pool_create_info(
+			m_GraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
 		VK_CHECK(vkCreateCommandPool(m_Device, &cmdPoolInfo, nullptr,
 			&m_FrameData.commandPool));
 
@@ -506,21 +477,23 @@ void VulkanEngine::init_commands() {
 			});
 	}
 
-	VkCommandPoolCreateInfo uploadCommandPoolInfo =
-		vkinit::command_pool_create_info(m_GraphicsQueueFamily);
+	{
+		VkCommandPoolCreateInfo uploadCommandPoolInfo =
+			vkinit::command_pool_create_info(m_GraphicsQueueFamily);
 
-	VK_CHECK(vkCreateCommandPool(m_Device, &uploadCommandPoolInfo, nullptr,
-		&m_UploadContext.commandPool));
+		VK_CHECK(vkCreateCommandPool(m_Device, &uploadCommandPoolInfo, nullptr,
+			&m_UploadContext.commandPool));
 
-	VkCommandBufferAllocateInfo cmdAllocInfo =
-		vkinit::command_buffer_allocate_info(m_UploadContext.commandPool, 1);
+		VkCommandBufferAllocateInfo cmdAllocInfo =
+			vkinit::command_buffer_allocate_info(m_UploadContext.commandPool, 1);
 
-	VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo,
-		&m_UploadContext.commandBuffer));
+		VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo,
+			&m_UploadContext.commandBuffer));
 
-	m_MainDeletionQueue.push_function([=]() {
-		vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
-		});
+		m_MainDeletionQueue.push_function([=]() {
+			vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
+			});
+	}
 }
 
 void VulkanEngine::init_default_renderpass() {
@@ -720,7 +693,7 @@ void VulkanEngine::init_pipelines() {
 
 	{
 		VkShaderModule texturedMeshFragShader;
-		if (!vkutil::load_spirv_shader_module("res/shaders/textured_lit.frag.spv",
+		if (!vkutil::load_glsl_shader("res/shaders/textured_lit.frag",
 			&texturedMeshFragShader, m_Device)) {
 			return;
 		}
@@ -729,7 +702,7 @@ void VulkanEngine::init_pipelines() {
 		}
 
 		VkShaderModule texturedMeshVertexShader;
-		if (!vkutil::load_spirv_shader_module("res/shaders/textured_mesh.vert.spv",
+		if (!vkutil::load_glsl_shader("res/shaders/textured_lit.vert",
 			&texturedMeshVertexShader,
 			m_Device)) {
 			return;
@@ -775,7 +748,7 @@ void VulkanEngine::init_pipelines() {
 			.build()
 			.value();
 
-		create_material(m_MeshPipeline, m_MeshPipelineLayout, "defaultmaterial");
+		m_ResourceManager.create_material("defaultmaterial", m_MeshPipeline, m_MeshPipelineLayout);
 
 		/* m_MeshPipeline = pipelineBuilder.build(); */
 
@@ -791,100 +764,47 @@ void VulkanEngine::init_pipelines() {
 }
 
 void VulkanEngine::load_meshes() {
-	m_MonkeyMesh = load_mesh_from_obj("res/models/lost_empire.obj").value();
+	Ref<Mesh> empire = load_mesh_from_obj("res/models/lost_empire.obj").value();
 
-	m_TriangleMesh.vertices.resize(3);
-	m_TriangleMesh.vertices[0].position = { 0.5f, 0.5f, 0.0f };
-	m_TriangleMesh.vertices[1].position = { -0.5f, 0.5f, 0.0f };
-	m_TriangleMesh.vertices[2].position = { 0.f, -0.5f, 0.0f };
+	Ref<Mesh> triangle = make_ref<Mesh>();
+	triangle->vertices.resize(3);
+	triangle->vertices[0].position = { 0.5f, 0.5f, 0.0f };
+	triangle->vertices[1].position = { -0.5f, 0.5f, 0.0f };
+	triangle->vertices[2].position = { 0.f, -0.5f, 0.0f };
 
-	m_TriangleMesh.vertices[0].color = { 1.f, 0.f, 0.0f };
-	m_TriangleMesh.vertices[1].color = { 0.f, 1.f, 0.0f };
-	m_TriangleMesh.vertices[2].color = { 0.f, 0.f, 1.0f };
+	triangle->vertices[0].color = { 1.f, 0.f, 0.0f };
+	triangle->vertices[1].color = { 0.f, 1.f, 0.0f };
+	triangle->vertices[2].color = { 0.f, 0.f, 1.0f };
 
-	upload_mesh(m_MonkeyMesh);
-	upload_mesh(m_TriangleMesh);
+	upload_mesh(empire);
+	upload_mesh(triangle);
 
-	m_Meshes["empire"] = m_MonkeyMesh;
-	m_Meshes["triangle"] = m_TriangleMesh;
+	m_ResourceManager.set_mesh("empire", empire);
+	m_ResourceManager.set_mesh("triangle", triangle);
+	//m_Meshes["triangle"] = triangle;
 }
 
-void VulkanEngine::upload_mesh(Mesh &mesh) {
+void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
 
-	const size_t bufferSize = mesh.vertices.size() * sizeof(Vertex);
-
-	VkBufferCreateInfo stagingBufferInfo{};
-	stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	stagingBufferInfo.pNext = nullptr;
-	stagingBufferInfo.size = bufferSize;
-	stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	/* stagingBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; */
-
-	VmaAllocationCreateInfo vmaAllocInfo{};
-	vmaAllocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-	/* vmaAllocInfo.usage = VMA_MEMORY_USAGE_AUTO; */
-	/* vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-	 * | */
-	 /*                      VMA_ALLOCATION_CREATE_MAPPED_BIT; */
-
-	 /* VK_CHECK(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo, */
-	 /*                          &mesh.vertexBuffer.buffer, */
-	 /*                          &mesh.vertexBuffer.allocation, nullptr)); */
-
-	 /* m_MainDeletionQueue.push_function([=]() { */
-	 /*   vmaDestroyBuffer(m_Allocator, mesh.vertexBuffer.buffer, */
-	 /*                    mesh.vertexBuffer.allocation); */
-	 /* }); */
-
-	AllocatedBuffer stagingBuffer;
-
-	VK_CHECK(vmaCreateBuffer(m_Allocator, &stagingBufferInfo, &vmaAllocInfo,
-		&stagingBuffer.buffer, &stagingBuffer.allocation,
-		nullptr));
-	void *data;
-	vmaMapMemory(m_Allocator, stagingBuffer.allocation, &data);
-	memcpy(data, mesh.vertices.data(), bufferSize);
-	vmaUnmapMemory(m_Allocator, stagingBuffer.allocation);
-
-	VkBufferCreateInfo vertexBufferInfo{};
-	vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	vertexBufferInfo.pNext = nullptr;
-	vertexBufferInfo.size = bufferSize;
-	vertexBufferInfo.usage =
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-	vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-	VK_CHECK(vmaCreateBuffer(m_Allocator, &vertexBufferInfo, &vmaAllocInfo,
-		&mesh.vertexBuffer.buffer,
-		&mesh.vertexBuffer.allocation, nullptr));
-
-	immediate_submit([=](VkCommandBuffer cmd) {
-		VkBufferCopy copy;
-		copy.dstOffset = 0;
-		copy.srcOffset = 0;
-		copy.size = bufferSize;
-		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, mesh.vertexBuffer.buffer, 1,
-			&copy);
-		});
+	upload_to_gpu(mesh->vertices.data(), mesh->vertices.size() * sizeof(Vertex), mesh->vertexBuffer,
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
 	m_MainDeletionQueue.push_function([=]() {
-		vmaDestroyBuffer(m_Allocator, mesh.vertexBuffer.buffer,
-			mesh.vertexBuffer.allocation);
+		vmaDestroyBuffer(m_Allocator, mesh->vertexBuffer.buffer,
+			mesh->vertexBuffer.allocation);
 		});
 
-	vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 }
 
 void VulkanEngine::init_scene() {
 	RenderObject empire;
-	empire.mesh = get_mesh("empire");
-	empire.material = get_material("defaultmaterial");
+	empire.mesh = m_ResourceManager.get_mesh("empire").value();
+	empire.material = m_ResourceManager.get_material("defaultmaterial").value();
 	empire.transformMatrix = glm::translate(glm::vec3{ 5, -10, 0 });
 
 	m_RenderObjects.push_back(empire);
 
-	Material *texturedMat = get_material("defaultmaterial");
+	Ref<Material> texturedMat = m_ResourceManager.get_material("defaultmaterial").value();
 
 	VkDescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.pNext = nullptr;
@@ -895,8 +815,7 @@ void VulkanEngine::init_scene() {
 
 	vkAllocateDescriptorSets(m_Device, &allocInfo, &texturedMat->textureSet);
 
-	VkSamplerCreateInfo samplerInfo =
-		vkinit::sampler_create_info(VK_FILTER_NEAREST);
+	VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(VK_FILTER_NEAREST);
 
 	VkSampler blockySampler;
 	vkCreateSampler(m_Device, &samplerInfo, nullptr, &blockySampler);
@@ -906,7 +825,7 @@ void VulkanEngine::init_scene() {
 
 	VkDescriptorImageInfo imageBufferInfo;
 	imageBufferInfo.sampler = blockySampler;
-	imageBufferInfo.imageView = m_Textures["empire_diffuse"].imageView;
+	imageBufferInfo.imageView = m_ResourceManager.get_texture("empire_diffuse").value()->imageView;
 	imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkWriteDescriptorSet texture1 = vkinit::write_descriptor_image(
@@ -1129,10 +1048,55 @@ void VulkanEngine::immediate_submit(
 	VK_CHECK(
 		vkQueueSubmit(m_GraphicsQueue, 1, &submit, m_UploadContext.uploadFence));
 
-	vkWaitForFences(m_Device, 1, &m_UploadContext.uploadFence, true, 9999999999);
+	vkWaitForFences(m_Device, 1, &m_UploadContext.uploadFence, true, UINT64_MAX);
 	vkResetFences(m_Device, 1, &m_UploadContext.uploadFence);
 
 	vkResetCommandPool(m_Device, m_UploadContext.commandPool, 0);
+}
+
+void VulkanEngine::upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags) {
+
+	VkBufferCreateInfo stagingBufferInfo{};
+	stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	stagingBufferInfo.pNext = nullptr;
+	stagingBufferInfo.size = size;
+	stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+	VmaAllocationCreateInfo vmaAllocInfo{};
+	vmaAllocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+
+	AllocatedBuffer stagingBuffer;
+
+	VK_CHECK(vmaCreateBuffer(m_Allocator, &stagingBufferInfo, &vmaAllocInfo,
+		&stagingBuffer.buffer, &stagingBuffer.allocation,
+		nullptr));
+	void *data;
+	vmaMapMemory(m_Allocator, stagingBuffer.allocation, &data);
+	memcpy(data, copyData, size);
+	vmaUnmapMemory(m_Allocator, stagingBuffer.allocation);
+
+	VkBufferCreateInfo vertexBufferInfo{};
+	vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	vertexBufferInfo.pNext = nullptr;
+	vertexBufferInfo.size = size;
+	vertexBufferInfo.usage = flags;
+
+	vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+	VK_CHECK(vmaCreateBuffer(m_Allocator, &vertexBufferInfo, &vmaAllocInfo,
+		&buffer.buffer,
+		&buffer.allocation, nullptr));
+
+	immediate_submit([=](VkCommandBuffer cmd) {
+		VkBufferCopy copy;
+		copy.dstOffset = 0;
+		copy.srcOffset = 0;
+		copy.size = size;
+		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1,
+			&copy);
+		});
+
+	vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 }
 
 void VulkanEngine::load_images() {
@@ -1155,9 +1119,16 @@ void VulkanEngine::load_images() {
 	vkCreateImageView(m_Device, &imageInfo, nullptr, &lostEmpire.imageView);
 	*/
 
-	m_Textures["empire_diffuse"] =
-		vkutil::load_const_texture("res/images/lost_empire-RGBA.png", *this)
+	Ref<Texture> texture =
+		vkutil::load_texture("res/images/lost_empire-RGBA.png", *this, vkinit::sampler_create_info(VK_FILTER_NEAREST))
 		.value();
+
+	m_ResourceManager.set_texture("empire_diffuse", texture);
+
+	m_ResourceManager.delete_func([=]() {
+		vkDestroyImageView(m_Device, texture->imageView, nullptr);
+		vmaDestroyImage(m_Allocator, texture->imageBuffer.image, texture->imageBuffer.allocation);
+		});
 
 	// m_MainDeletionQueue.push_function([=]() {
 	//	vkDestroyImageView(m_Device, lostEmpire.imageView, nullptr);

@@ -25,7 +25,7 @@ struct Mesh {
 	AllocatedBuffer vertexBuffer;
 };
 
-std::optional<Mesh> load_mesh_from_obj(const char *filename);
+std::optional<Ref<Mesh>> load_mesh_from_obj(const char *filename);
 
 struct Material {
 	VkPipeline pipeline;
@@ -35,7 +35,7 @@ struct Material {
 };
 
 struct RenderObject {
-	Mesh *mesh;
-	Material *material;
+	Ref<Mesh> mesh;
+	Ref<Material> material;
 	glm::mat4 transformMatrix;
 };

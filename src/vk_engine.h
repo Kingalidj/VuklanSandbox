@@ -4,17 +4,12 @@
 #include "vk_types.h"
 #include "vk_descriptors.h"
 #include "vk_textures.h"
+#include "vk_resources.h"
 
 #include <glm/glm.hpp>
 
 #include <imgui_impl_vulkan.h>
 #include <imgui_impl_glfw.h>
-
-struct UploadContext {
-	VkFence uploadFence;
-	VkCommandPool commandPool;
-	VkCommandBuffer commandBuffer;
-};
 
 struct GPUSceneData {
 	//glm::vec4 fogColor;
@@ -52,22 +47,6 @@ struct FrameData {
 /*   glm::vec4 data; */
 /*   glm::mat4 renderMatrix; */
 /* }; */
-
-struct DeletionQueue {
-
-	std::deque<std::function<void()>> deletors;
-
-	void push_function(std::function<void()> &&func) { deletors.push_back(func); }
-
-	void flush() {
-		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
-			(*it)();
-		}
-
-		deletors.clear();
-	}
-};
-
 //constexpr uint32_t FRAME_OVERLAP = 2;
 
 class  VulkanEngine {
@@ -83,6 +62,19 @@ public:
 	void cleanup();
 	void draw();
 	void run();
+
+	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage,
+		VmaMemoryUsage memoryUsage);
+
+	void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
+
+	size_t pad_uniform_buffer_size(size_t originalSize);
+
+	void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
+
+	void upload_to_gpu(void *data, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
+
+
 
 	VkInstance m_Instance;
 	VkDebugUtilsMessengerEXT m_DebugMessenger;
@@ -119,18 +111,13 @@ public:
 
 	DeletionQueue m_MainDeletionQueue;
 
-	Mesh m_MonkeyMesh;
-	Mesh m_TriangleMesh;
-
 	VkImageView m_DepthImageView;
 	AllocatedImage m_DepthImage;
 
 
 	std::vector<RenderObject> m_RenderObjects;
 
-	std::unordered_map<std::string, Material> m_Materials;
-	std::unordered_map<std::string, Mesh> m_Meshes;
-	std::unordered_map<std::string, Texture> m_Textures;
+	VulkanResourceManager m_ResourceManager;
 
 	VmaAllocator m_Allocator;
 
@@ -147,22 +134,6 @@ public:
 
 	vkutil::DescriptorAllocator m_DescriptorAllocator;
 	vkutil::DescriptorLayoutCache m_DescriptorLayoutCache;
-
-	Material *create_material(VkPipeline pipeline, VkPipelineLayout layout,
-		const std::string &name);
-
-	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage,
-		VmaMemoryUsage memoryUsage);
-
-	Material *get_material(const std::string &name);
-	Mesh *get_mesh(const std::string &name);
-
-	void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
-
-	size_t pad_uniform_buffer_size(size_t originalSize);
-
-	void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
-
 private:
 	void init_vulkan();
 	void init_swapchain();
@@ -177,5 +148,5 @@ private:
 
 	void load_meshes();
 	void load_images();
-	void upload_mesh(Mesh &mesh);
+	void upload_mesh(Ref<Mesh> mesh);
 };
