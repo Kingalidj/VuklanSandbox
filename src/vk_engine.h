@@ -4,7 +4,7 @@
 #include "vk_types.h"
 #include "vk_descriptors.h"
 #include "vk_textures.h"
-#include "vk_resources.h"
+#include "vk_manager.h"
 
 #include <glm/glm.hpp>
 
@@ -59,9 +59,11 @@ public:
 	struct GLFWwindow *m_Window = nullptr;
 
 	void init();
-	void cleanup();
 	void draw();
 	void run();
+	void cleanup();
+	void cleanup_swapchain();
+	void rebuild_swapchain();
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage,
 		VmaMemoryUsage memoryUsage);
@@ -70,9 +72,9 @@ public:
 
 	size_t pad_uniform_buffer_size(size_t originalSize);
 
-	void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
+	//void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
 
-	void upload_to_gpu(void *data, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
+	//void upload_to_gpu(void *data, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
 
 
 
@@ -117,7 +119,7 @@ public:
 
 	std::vector<RenderObject> m_RenderObjects;
 
-	VulkanResourceManager m_ResourceManager;
+	VulkanManager m_VkManager;
 
 	VmaAllocator m_Allocator;
 
@@ -130,10 +132,13 @@ public:
 	GPUSceneData m_SceneParameters;
 	AllocatedBuffer m_SceneParameterBuffer;
 
-	UploadContext m_UploadContext;
+	//UploadContext m_UploadContext;
 
 	vkutil::DescriptorAllocator m_DescriptorAllocator;
 	vkutil::DescriptorLayoutCache m_DescriptorLayoutCache;
+
+	bool m_FrameBufferResized = false;
+
 private:
 	void init_vulkan();
 	void init_swapchain();

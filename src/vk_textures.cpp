@@ -1,17 +1,17 @@
 #include "vk_textures.h"
 
-#include "vk_engine.h"
+#include "vk_manager.h"
 #include "vk_initializers.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 namespace vkutil {
-	std::optional<Ref<Texture>> load_texture(const char *file, VulkanEngine &engine, VkSamplerCreateInfo info) {
+	std::optional<Ref<Texture>> load_texture(const char *file, VulkanManager &manager, VkSamplerCreateInfo info) {
 		Ref<Texture> tex = make_ref<Texture>();
 
 		int w, h, nC;
-		if (!load_alloc_image_from_file(file, engine, &tex->imageBuffer, &w, &h, &nC)) {
+		if (!load_alloc_image_from_file(file, manager, &tex->imageBuffer, &w, &h, &nC)) {
 			CORE_WARN("Could not load Texture: {}", file);
 			return std::nullopt;
 		}
@@ -24,18 +24,18 @@ namespace vkutil {
 			VK_FORMAT_R8G8B8A8_UNORM, tex->imageBuffer.image,
 			VK_IMAGE_ASPECT_COLOR_BIT);
 
-		vkCreateImageView(engine.m_Device, &imageInfo, nullptr, &tex->imageView);
+		vkCreateImageView(manager.get_device(), &imageInfo, nullptr, &tex->imageView);
 
 		//engine.m_MainDeletionQueue.push_function([=, device = engine.m_Device]() {
 		//	vkDestroyImageView(device, tex->imageView, nullptr);
 		//});
 
 		VkSampler sampler;
-		VK_CHECK(vkCreateSampler(engine.m_Device, &info, nullptr, &sampler));
+		VK_CHECK(vkCreateSampler(manager.get_device(), &info, nullptr, &sampler));
 
 		tex->ImGuiTexID = ImGui_ImplVulkan_AddTexture(sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		engine.m_MainDeletionQueue.push_function([=, device = engine.m_Device, allocator = engine.m_Allocator]{
+		manager.delete_func([=, device = manager.get_device(), allocator = manager.get_allocator()]{
 			vkDestroySampler(device, sampler, nullptr);
 		//vmaDestroyImage(allocator, tex->imageBuffer.image, tex->imageBuffer.allocation);
 			});
@@ -43,7 +43,7 @@ namespace vkutil {
 		return std::move(tex);
 	}
 
-	bool load_alloc_image_from_file(const char *file, VulkanEngine &engine,
+	bool load_alloc_image_from_file(const char *file, VulkanManager &manager,
 		AllocatedImage *outImage, int *w, int *h, int *nC) {
 
 		stbi_uc *pixel_ptr =
@@ -62,13 +62,13 @@ namespace vkutil {
 
 		VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-		AllocatedBuffer stagingBuffer = engine.create_buffer(
-			imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		AllocatedBuffer stagingBuffer;
+		manager.create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, &stagingBuffer);
 
 		void *data;
-		vmaMapMemory(engine.m_Allocator, stagingBuffer.allocation, &data);
+		vmaMapMemory(manager.get_allocator(), stagingBuffer.allocation, &data);
 		memcpy(data, pixel_ptr, static_cast<size_t>(imageSize));
-		vmaUnmapMemory(engine.m_Allocator, stagingBuffer.allocation);
+		vmaUnmapMemory(manager.get_allocator(), stagingBuffer.allocation);
 
 		stbi_image_free(pixel_ptr);
 
@@ -81,15 +81,15 @@ namespace vkutil {
 			imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
 			imageExtent);
 
-		AllocatedImage newImage;
+		AllocatedImage img;
 
 		VmaAllocationCreateInfo dimgAllocInfo{};
 		dimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-		vmaCreateImage(engine.m_Allocator, &dimgInfo, &dimgAllocInfo, &newImage.image,
-			&newImage.allocation, nullptr);
+		vmaCreateImage(manager.get_allocator(), &dimgInfo, &dimgAllocInfo, &img.image,
+			&img.allocation, nullptr);
 
-		engine.immediate_submit([&](VkCommandBuffer cmd) {
+		manager.immediate_submit([&](VkCommandBuffer cmd) {
 			VkImageSubresourceRange range;
 			range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			range.baseMipLevel = 0;
@@ -102,7 +102,7 @@ namespace vkutil {
 
 			imageBarrierToTransfer.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			imageBarrierToTransfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			imageBarrierToTransfer.image = newImage.image;
+			imageBarrierToTransfer.image = img.image;
 			imageBarrierToTransfer.subresourceRange = range;
 
 			imageBarrierToTransfer.srcAccessMask = 0;
@@ -123,7 +123,7 @@ namespace vkutil {
 			copyRegion.imageSubresource.layerCount = 1;
 			copyRegion.imageExtent = imageExtent;
 
-			vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, newImage.image,
+			vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, img.image,
 				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
 				&copyRegion);
 
@@ -140,11 +140,10 @@ namespace vkutil {
 				0, nullptr, 1, &imageBarrierToReadable);
 			});
 
-		vmaDestroyBuffer(engine.m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 
-		*outImage = newImage;
+		*outImage = img;
 
 		return true;
 	}
 } // namespace vkutil
-

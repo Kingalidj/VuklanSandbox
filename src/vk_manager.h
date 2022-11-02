@@ -25,12 +25,21 @@ struct DeletionQueue {
 	}
 };
 
-class VulkanResourceManager {
+class VulkanManager {
 public:
 
-	VulkanResourceManager() = default;
+	VulkanManager() = default;
+
+	VkDevice get_device();
+	VmaAllocator get_allocator();
 
 	void init(VkDevice device, VmaAllocator allocator);
+	void init_commands(VkQueue queue, uint32_t queueFamilyIndex);
+	void init_sync_structures();
+
+	void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func);
+	void create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, AllocatedBuffer *buffer);
+	void upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
 
 	void set_texture(const std::string &name, Ref<Texture> tex);
 	void set_mesh(const std::string &name, Ref<Mesh> mesh);
@@ -46,15 +55,16 @@ public:
 
 	void delete_func(std::function<void()> &&func);
 
-	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-
-	inline VkDevice get_device();
-	inline VmaAllocator get_allocator();
 
 private:
 
 	VkDevice m_Device{ VK_NULL_HANDLE };
 	VmaAllocator m_Allocator{ VK_NULL_HANDLE };
+
+	VkQueue m_Queue{ VK_NULL_HANDLE };
+	uint32_t m_QueueFamilyIndex;
+
+	UploadContext m_UploadContext;
 
 	DeletionQueue m_DeletionQueue;
 

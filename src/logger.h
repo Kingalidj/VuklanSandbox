@@ -39,10 +39,22 @@ private:
 #define CORE_INFO(...) ::Logger::get_core_logger()->info(__VA_ARGS__)
 #define CORE_WARN(...) ::Logger::get_core_logger()->warn(__VA_ARGS__)
 #define CORE_ERROR(...) ::Logger::get_core_logger()->error(__VA_ARGS__)
-#define CORE_ASSERT(x, ...) { if(!(x)) { CORE_ERROR("Assertion Failed: {0}", __VA_ARGS__); abort(); }}
 
 #define TRACE(...) ::Logger::get_client_logger()->trace(__VA_ARGS__)
 #define INFO(...) ::Logger::get_client_logger()->info(__VA_ARGS__)
 #define WARN(...) ::Logger::get_client_logger()->warn(__VA_ARGS__)
 #define ERROR(...) ::Logger::get_client_logger()->error(__VA_ARGS__)
-#define ASSERT(x, ...) { if(!(x)) { ERROR("Assertion Failed: {0}", __VA_ARGS__); abort(); }}
+
+#ifdef WIN32
+#define DBREAK() __debugbreak()
+#else
+#define DBREAK() abort()
+#endif
+
+#ifdef NDEBUG
+#define CORE_ASSERT(x, ...)
+#define ASSERT(x, ...)
+#else
+#define CORE_ASSERT(x, ...) { if(!(x)) { CORE_ERROR("Assertion Failed: {0}", __VA_ARGS__); DBREAK(); }}
+#define ASSERT(x, ...) { if(!(x)) { ERROR("Assertion Failed: {0}", __VA_ARGS__); DBREAK(); }}
+#endif

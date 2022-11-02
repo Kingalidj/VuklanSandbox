@@ -95,6 +95,15 @@ namespace vkutil {
 		if (enableDepthStencil)
 			pipelineInfo.pDepthStencilState = &depthStencil;
 
+		VkPipelineDynamicStateCreateInfo dynStateInfo{};
+		VkDynamicState dynStates[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+		dynStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+		dynStateInfo.pNext = nullptr;
+		dynStateInfo.pDynamicStates = dynStates;
+		dynStateInfo.dynamicStateCount = 2;
+
+		pipelineInfo.pDynamicState = &dynStateInfo;
+
 		VkPipeline pipeLine;
 
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,

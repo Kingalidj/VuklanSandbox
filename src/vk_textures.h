@@ -6,6 +6,7 @@
 
 class Texture {
 public:
+
 	AllocatedImage imageBuffer;
 	VkImageView imageView;
 
@@ -14,12 +15,12 @@ public:
 	ImTextureID ImGuiTexID;
 };
 
-class VulkanEngine;
+class VulkanManager;
 
 namespace vkutil {
 
-	std::optional<Ref<Texture>> load_texture(const char *file, VulkanEngine &engine, VkSamplerCreateInfo info);
+	std::optional<Ref<Texture>> load_texture(const char *file, VulkanManager &manager, VkSamplerCreateInfo info);
 
-	bool load_alloc_image_from_file(const char *file, VulkanEngine &engine,
+	bool load_alloc_image_from_file(const char *file, VulkanManager &manager,
 		AllocatedImage *outImage, int *width, int *height, int *nChannels);
 }
