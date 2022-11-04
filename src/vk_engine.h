@@ -89,9 +89,6 @@ public:
 	VkFormat m_SwapchainImageFormat;
 	VkFormat m_DepthFormat;
 
-	std::vector<VkImage> m_SwapchainImages;
-	std::vector<VkImageView> m_SwapchainImageViews;
-
 	VkQueue m_GraphicsQueue;
 	uint32_t m_GraphicsQueueFamily;
 
@@ -100,6 +97,13 @@ public:
 
 	VkRenderPass m_RenderPass;
 	VkRenderPass m_ImGuiRenderPass;
+	VkRenderPass m_ViewportRenderPass;
+
+	Texture m_ViewportTexture;
+	VkFramebuffer m_ViewportFrameBuffer;
+
+	std::vector<VkImage> m_SwapchainImages;
+	std::vector<VkImageView> m_SwapchainImageViews;
 
 	std::vector<VkFramebuffer> m_FrameBuffers;
 	std::vector<VkFramebuffer> m_ImGuiFrameBuffers;
@@ -144,6 +148,7 @@ private:
 	void init_swapchain();
 	void init_commands();
 	void init_default_renderpass();
+	void init_viewport_renderpass();
 	void init_framebuffers();
 	void init_sync_structures();
 	void init_pipelines();

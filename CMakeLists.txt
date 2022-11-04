@@ -43,6 +43,7 @@ set(SOURCES
 
 set(HEADERS
 		src/utils.h
+		src/pch.h
 
 		src/vk_manager.h
 		src/vk_types.h

@@ -30,8 +30,8 @@ public:
 
 	VulkanManager() = default;
 
-	VkDevice get_device();
-	VmaAllocator get_allocator();
+	const VkDevice get_device();
+	const VmaAllocator get_allocator();
 
 	void init(VkDevice device, VmaAllocator allocator);
 	void init_commands(VkQueue queue, uint32_t queueFamilyIndex);
@@ -39,6 +39,7 @@ public:
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func);
 	void create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, AllocatedBuffer *buffer);
+	void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img);
 	void upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
 
 	void set_texture(const std::string &name, Ref<Texture> tex);

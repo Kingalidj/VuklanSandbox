@@ -79,8 +79,8 @@ void VulkanManager::delete_func(std::function<void()> &&func) {
 }
 
 void VulkanManager::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, AllocatedBuffer *buffer) {
-
 	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+
 	VkBufferCreateInfo bufferInfo{};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	bufferInfo.pNext = nullptr;
@@ -93,6 +93,23 @@ void VulkanManager::create_buffer(size_t allocSize, VkBufferUsageFlags usage, Vm
 
 	VK_CHECK(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo,
 		&buffer->buffer, &buffer->allocation, nullptr));
+}
+
+void VulkanManager::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img) {
+	CORE_ASSERT(m_Allocator, "ResourceManager not initialized");
+
+	VkExtent3D imageExtent;
+	imageExtent.width = width;
+	imageExtent.height = height;
+	imageExtent.depth = 1;
+
+	VkImageCreateInfo dimgInfo = vkinit::image_create_info(format, flags, imageExtent);
+
+	VmaAllocationCreateInfo dimgAllocInfo{};
+	dimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+	vmaCreateImage(m_Allocator, &dimgInfo, &dimgAllocInfo, &img->image,
+		&img->allocation, nullptr);
 }
 
 void VulkanManager::upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags) {
@@ -138,12 +155,12 @@ void VulkanManager::upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer
 	vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 }
 
-VkDevice VulkanManager::get_device() {
+const VkDevice VulkanManager::get_device() {
 	CORE_ASSERT(m_Device, "ResourceManager not initialized");
 	return m_Device;
 }
 
-VmaAllocator VulkanManager::get_allocator() {
+const VmaAllocator VulkanManager::get_allocator() {
 	CORE_ASSERT(m_Device, "ResourceManager not initialized");
 	return m_Allocator;
 }

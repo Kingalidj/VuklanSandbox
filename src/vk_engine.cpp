@@ -42,10 +42,12 @@ void VulkanEngine::init() {
 	init_default_renderpass();
 	init_framebuffers();
 	init_sync_structures();
+	init_imgui();
+	init_viewport_renderpass();
+
 	init_descriptors();
 	init_pipelines();
 
-	init_imgui();
 
 	load_images();
 	load_meshes();
@@ -235,9 +237,12 @@ void VulkanEngine::draw() {
 	depthClear.depthStencil.depth = 1.f;
 
 	{
+		//VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(
+		//	m_RenderPass, m_WindowExtent,
+		//	m_FrameBuffers[swapchainImageIndex] /*fd->Framebuffer*/);
 		VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(
-			m_RenderPass, m_WindowExtent,
-			m_FrameBuffers[swapchainImageIndex] /*fd->Framebuffer*/);
+			m_ViewportRenderPass, m_WindowExtent,
+			m_ViewportFrameBuffer /*fd->Framebuffer*/);
 
 		rpInfo.clearValueCount = 2;
 		VkClearValue clearValues[] = { clearValue, depthClear };
@@ -282,9 +287,14 @@ void VulkanEngine::draw() {
 		ImGui::NewFrame();
 
 		ImGui::ShowDemoWindow();
+
 		ImGui::Begin("Texture Viewer");
 		Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
 		ImGui::Image(tex->ImGuiTexID, ImVec2(500, 500));
+		ImGui::End();
+
+		ImGui::Begin("Viewport");
+		ImGui::Image(m_ViewportTexture.ImGuiTexID, ImVec2(500, 500));
 		ImGui::End();
 
 		ImGui::Render();
@@ -674,6 +684,139 @@ void VulkanEngine::init_default_renderpass() {
 		});
 }
 
+uint32_t ConvertToRGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+	uint32_t result = (a << 24) | (b << 16) | (g << 8) | r;
+	return result;
+}
+
+void print_rgb(uint32_t color) {
+	uint8_t a = (color & 0xff000000) >> 24;
+	uint8_t b = (color & 0x00ff0000) >> 16;
+	uint8_t g = (color & 0x0000ff00) >> 8;
+	uint8_t r = color & 0x000000ff;
+
+	CORE_INFO("(r, g, b, a): {}, {}, {}, {}", r, g, b, a);
+}
+
+#include <stb_image.h>
+
+void VulkanEngine::init_viewport_renderpass() {
+
+	{
+		int w = m_WindowExtent.width;
+		int h = m_WindowExtent.height;
+		//int w, h, nC;
+		//uint8_t *pixel_ptr =
+		//	stbi_load("res/images/rgb_test.png", &w, &h, &nC, STBI_rgb_alpha);
+
+
+		uint32_t *pixel_ptr = new uint32_t[w * h];
+
+		for (int i = 0; i < w * h; i++) {
+			uint32_t *col = ((uint32_t *)pixel_ptr) + i;
+			*col = ConvertToRGBA(0, 0, 255, 255);
+		}
+
+		VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+		vkutil::alloc_texture(w, h, samplerInfo, VK_FORMAT_B8G8R8A8_UNORM, m_VkManager, &m_ViewportTexture, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+		//vkutil::set_texture_data(m_ViewportTexture, (void *)pixel_ptr, m_VkManager);
+
+		//stbi_image_free(pixel_ptr);
+		delete[] pixel_ptr;
+
+		vkutil::queue_destroy_texture(m_VkManager, m_ViewportTexture);
+	}
+	{
+		VkAttachmentDescription colorAttachment{};
+		colorAttachment.format = m_SwapchainImageFormat;
+		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		VkAttachmentReference colorAttachmentRef{};
+		// attachment number will index into the pAttachments array in the
+		// parent renderpass
+		colorAttachmentRef.attachment = 0;
+		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentDescription depthAttachment{};
+		depthAttachment.flags = 0;
+		depthAttachment.format = m_DepthFormat;
+		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachmentRef = {};
+		depthAttachmentRef.attachment = 1;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpass{};
+		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpass.colorAttachmentCount = 1;
+		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+		VkSubpassDependency dependency{};
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.srcAccessMask = 0;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+		VkSubpassDependency depthDependency = {};
+		depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		depthDependency.dstSubpass = 0;
+		depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depthDependency.srcAccessMask = 0;
+		depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
+		VkSubpassDependency dependencies[2] = { dependency, depthDependency };
+
+		VkRenderPassCreateInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		renderPassInfo.attachmentCount = 2;
+		renderPassInfo.pAttachments = &attachments[0];
+		renderPassInfo.subpassCount = 1;
+		renderPassInfo.pSubpasses = &subpass;
+
+		renderPassInfo.dependencyCount = 2;
+		renderPassInfo.pDependencies = &dependencies[0];
+
+		VK_CHECK(vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_ViewportRenderPass));
+	}
+
+	m_MainDeletionQueue.push_function([=]() {
+		vkDestroyRenderPass(m_Device, m_ViewportRenderPass, nullptr);
+		});
+
+	{
+		VkFramebufferCreateInfo fbInfo =
+			vkinit::framebuffer_create_info(m_ViewportRenderPass, m_WindowExtent);
+
+		VkImageView attachments[2];
+		attachments[0] = m_ViewportTexture.imageView;
+		attachments[1] = m_DepthImageView;
+
+		fbInfo.pAttachments = attachments;
+		fbInfo.attachmentCount = 2;
+
+		VK_CHECK(vkCreateFramebuffer(m_Device, &fbInfo, nullptr, &m_ViewportFrameBuffer));
+
+	}
+}
+
 void VulkanEngine::init_framebuffers() {
 	VkFramebufferCreateInfo fbInfo =
 		vkinit::framebuffer_create_info(m_RenderPass, m_WindowExtent);
@@ -795,7 +938,7 @@ void VulkanEngine::init_pipelines() {
 		VertexInputDescription vertexDescription = Vertex::get_vertex_description();
 
 		m_MeshPipeline =
-			vkutil::PipelineBuilder(m_Device, m_RenderPass, m_MeshPipelineLayout)
+			vkutil::PipelineBuilder(m_Device, m_ViewportRenderPass, m_MeshPipelineLayout)
 			.set_vertex_description(vertexDescription.attributes,
 				vertexDescription.bindings)
 			.add_shader_module(texturedMeshVertexShader, ShaderType::Vertex)
@@ -1202,11 +1345,12 @@ void VulkanEngine::load_images() {
 
 	m_VkManager.set_texture("empire_diffuse", texture);
 
-	m_VkManager.delete_func([=]() {
-		vkDestroyImageView(m_Device, texture->imageView, nullptr);
-		vmaDestroyImage(m_Allocator, texture->imageBuffer.image,
-			texture->imageBuffer.allocation);
-		});
+	vkutil::queue_destroy_texture(m_VkManager, *texture);
+	//m_VkManager.delete_func([=]() {
+	//	vkDestroyImageView(m_Device, texture->imageView, nullptr);
+	//	vmaDestroyImage(m_Allocator, texture->imageAllocation.image,
+	//		texture->imageAllocation.allocation);
+	//	});
 
 	// m_MainDeletionQueue.push_function([=]() {
 	//	vkDestroyImageView(m_Device, lostEmpire.imageView, nullptr);
