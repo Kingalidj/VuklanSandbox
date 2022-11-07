@@ -642,11 +642,11 @@ void VulkanEngine::init_default_renderpass() {
 		VkAttachmentDescription attachment = {};
 		attachment.format = m_SwapchainImageFormat;
 		attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		// attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
@@ -813,6 +813,10 @@ void VulkanEngine::init_viewport_renderpass() {
 		fbInfo.attachmentCount = 2;
 
 		VK_CHECK(vkCreateFramebuffer(m_Device, &fbInfo, nullptr, &m_ViewportFrameBuffer));
+
+		m_MainDeletionQueue.push_function([=]() {
+			vkDestroyFramebuffer(m_Device, m_ViewportFrameBuffer, nullptr);
+			});
 
 	}
 }
