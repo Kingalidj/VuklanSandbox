@@ -78,6 +78,8 @@ namespace vkutil {
 		std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash> m_LayoutCache;
 	};
 
+	//TODO DescriptorWriter
+
 	class DescriptorBuilder {
 	public:
 

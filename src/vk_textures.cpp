@@ -184,26 +184,6 @@ namespace vkutil {
 		AllocatedImage img;
 		manager.create_image(imageExtent.width, imageExtent.height, imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &img);
 
-
-		/*
-		VkExtent3D imageExtent;
-		imageExtent.width = static_cast<uint32_t>(width);
-		imageExtent.height = static_cast<uint32_t>(height);
-		imageExtent.depth = 1;
-
-		VkImageCreateInfo dimgInfo = vkinit::image_create_info(
-			imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-			imageExtent);
-
-		AllocatedImage img;
-
-		VmaAllocationCreateInfo dimgAllocInfo{};
-		dimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-		vmaCreateImage(manager.get_allocator(), &dimgInfo, &dimgAllocInfo, &img.image,
-			&img.allocation, nullptr);
-			*/
-
 		manager.immediate_submit([&](VkCommandBuffer cmd) {
 			VkImageSubresourceRange range;
 			range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
