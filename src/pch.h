@@ -13,6 +13,7 @@
 #include <functional>
 
 #include <optional>
+#include <variant>
 
 #include "utils.h"
 #include "logger.h"

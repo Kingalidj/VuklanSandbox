@@ -50,15 +50,17 @@ void Window::init(const WindowInfo &props) {
 			data.width = width;
 			data.height = height;
 
-			WindowResizeEvent event(width, height);
-			data.eventCallback(event);
+			WindowResizedEvent event{ width, height };
+			Event e(event);
+			data.eventCallback(e);
 		});
 
 	glfwSetWindowCloseCallback(m_Window, [](GLFWwindow *window)
 		{
 			WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
-			WindowCloseEvent event;
-			data.eventCallback(event);
+			WindowClosedEvent event;
+			Event e(event);
+			data.eventCallback(e);
 		});
 
 
@@ -69,20 +71,23 @@ void Window::init(const WindowInfo &props) {
 			switch (action) {
 			case GLFW_PRESS:
 			{
-				KeyPressedEvent event(key, 0);
-				data.eventCallback(event);
+				KeyPressedEvent event{ key, 0 };
+				Event e(event);
+				data.eventCallback(e);
 				break;
 			}
 			case GLFW_RELEASE:
 			{
-				KeyReleasedEvent event(key);
-				data.eventCallback(event);
+				KeyReleasedEvent event{ key };
+				Event e(event);
+				data.eventCallback(e);
 				break;
 			}
 			case GLFW_REPEAT:
 			{
-				KeyPressedEvent event(key, 1);
-				data.eventCallback(event);
+				KeyPressedEvent event{ key, 1 };
+				Event e(event);
+				data.eventCallback(e);
 				break;
 			}
 			}
@@ -91,8 +96,9 @@ void Window::init(const WindowInfo &props) {
 	glfwSetCharCallback(m_Window, [](GLFWwindow *window, unsigned int keyCode)
 		{
 			WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
-			KeyTypedEvent event(keyCode);
-			data.eventCallback(event);
+			KeyTypedEvent event{ keyCode };
+			Event e(event);
+			data.eventCallback(e);
 		});
 
 	glfwSetMouseButtonCallback(m_Window, [](GLFWwindow *window, int button, int action, int mods)
@@ -102,14 +108,16 @@ void Window::init(const WindowInfo &props) {
 			switch (action) {
 			case GLFW_PRESS:
 			{
-				MouseButtonPressedEvent event(button);
-				data.eventCallback(event);
+				MouseButtonPressedEvent event{ button };
+				Event e(event);
+				data.eventCallback(e);
 				break;
 			}
 			case GLFW_RELEASE:
 			{
-				MouseButtonReleasedEvent event(button);
-				data.eventCallback(event);
+				MouseButtonReleasedEvent event{ button };
+				Event e(event);
+				data.eventCallback(e);
 				break;
 			}
 			}
@@ -119,16 +127,18 @@ void Window::init(const WindowInfo &props) {
 		{
 			WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
 
-			MouseScrolledEvent event((float)xOffset, (float)yOffset);
-			data.eventCallback(event);
+			MouseScrolledEvent event{ (float)xOffset, (float)yOffset };
+			Event e(event);
+			data.eventCallback(e);
 		});
 
 	glfwSetCursorPosCallback(m_Window, [](GLFWwindow *window, double xPos, double yPos)
 		{
 			WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
 
-			MouseMovedEvent event((float)xPos, (float)yPos);
-			data.eventCallback(event);
+			MouseMovedEvent event{ (float)xPos, (float)yPos };
+			Event e(event);
+			data.eventCallback(e);
 		});
 
 }

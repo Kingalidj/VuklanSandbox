@@ -201,6 +201,7 @@ void VulkanEngine::cleanup() {
 
 		VK_CHECK(vkDeviceWaitIdle(m_Device));
 
+		cleanup_vp_swapchain();
 		cleanup_swapchain();
 
 		m_VkManager.cleanup();
@@ -216,23 +217,30 @@ void VulkanEngine::draw() {
 	// wait for last frame to finish. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(m_Device, 1, &m_FrameData.renderFence, true, UINT64_MAX));
 
+	if (m_ViewportbufferResized) {
+		m_ViewportbufferResized = false;
+		rebuild_vp_swapchain();
+		return;
+	}
+
 	// we will write to this image index (framebuffer)
 	uint32_t swapchainImageIndex;
 	VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX,
 		m_FrameData.presentSemaphore, nullptr,
 		&swapchainImageIndex);
 
-	if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+	if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR || m_FramebufferResized) {
+		m_FramebufferResized = false;
 		rebuild_swapchain();
 		return;
 	}
 	VK_CHECK(res);
 
+
 	VK_CHECK(vkResetFences(m_Device, 1, &m_FrameData.renderFence));
 
 	// since we waited the buffer is empty
 	VK_CHECK(vkResetCommandBuffer(m_FrameData.mainCommandBuffer, 0));
-
 
 	VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
 
@@ -268,8 +276,8 @@ void VulkanEngine::draw() {
 		VkViewport viewport{};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.height = m_ViewportExtent.height;
-		viewport.width = m_ViewportExtent.width;
+		viewport.height = (float)m_ViewportExtent.height;
+		viewport.width = (float)m_ViewportExtent.width;
 		viewport.minDepth = 0;
 		viewport.maxDepth = 1;
 
@@ -297,21 +305,43 @@ void VulkanEngine::draw() {
 
 		vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+
 		ImGui::ShowDemoWindow();
 
-		ImGui::Begin("Texture Viewer");
-		Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
-		ImGui::Image(tex->ImGuiTexID, ImVec2(500, 500));
-		ImGui::End();
+		//ImGui::Begin("Texture Viewer");
+		//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
+		//ImGui::Image(tex->ImGuiTexID, ImVec2(500, 500));
+		//ImGui::End();
 
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::Begin("Viewport");
-		ImGui::Image(m_ViewportTextures[swapchainImageIndex].ImGuiTexID, ImVec2(500, 500));
+		ImGui::PopStyleVar();
+
+		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
+		auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
+		auto viewportOffset = ImGui::GetWindowPos();
+		glm::vec2 viewportBounds[2];
+		viewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
+		viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
+		auto viewportSize = viewportBounds[1] - viewportBounds[0];
+
+		//CORE_TRACE("viewport: {}, {}", viewportSize.x, viewportSize.y);
+
+		//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
+		//ImGui::Image(tex->ImGuiTexID, { (float)m_ViewportExtent.width, (float)m_ViewportExtent.height });
+		ImGui::Image(m_ViewportTextures[swapchainImageIndex].ImGuiTexID, { viewportSize.x, viewportSize.y });
 		ImGui::End();
 
 		ImGui::Render();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
 		vkCmdEndRenderPass(cmd);
+
+		if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
+			m_ViewportbufferResized = true;
+			m_ViewportExtent = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
+		}
 	}
 
 	VK_CHECK(vkEndCommandBuffer(cmd));
@@ -426,7 +456,7 @@ void VulkanEngine::init_vulkan() {
 		.value();
 
 	m_GPUProperties = vkbDevice.physical_device.properties;
-	CORE_INFO("The GPU has a minimum buffer alignment of {}",
+	CORE_TRACE("The GPU has a minimum buffer alignment of {}",
 		m_GPUProperties.limits.minUniformBufferOffsetAlignment);
 
 	m_Device = vkbDevice.device;
@@ -521,26 +551,6 @@ void VulkanEngine::init_commands() {
 			});
 	}
 
-	/*
-	{
-		VkCommandPoolCreateInfo uploadCommandPoolInfo =
-			vkinit::command_pool_create_info(m_GraphicsQueueFamily);
-
-		VK_CHECK(vkCreateCommandPool(m_Device, &uploadCommandPoolInfo, nullptr,
-			&m_UploadContext.commandPool));
-
-		VkCommandBufferAllocateInfo cmdAllocInfo =
-			vkinit::command_buffer_allocate_info(m_UploadContext.commandPool, 1);
-
-		VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo,
-			&m_UploadContext.commandBuffer));
-
-		m_MainDeletionQueue.push_function([=]() {
-			vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
-			});
-	}
-	*/
-
 	{
 		m_VkManager.init_commands(m_GraphicsQueue, m_GraphicsQueueFamily);
 	}
@@ -612,8 +622,7 @@ void VulkanEngine::init_vp_swapchain() {
 	const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
 
 	{
-		VkExtent3D depthImageExtent = { m_ViewportExtent.width, m_ViewportExtent.height,
-									   1 };
+		VkExtent3D depthImageExtent = { m_ViewportExtent.width, m_ViewportExtent.height, 1 };
 
 		m_DepthFormat = VK_FORMAT_D32_SFLOAT;
 
@@ -634,15 +643,15 @@ void VulkanEngine::init_vp_swapchain() {
 
 		VK_CHECK(vkCreateImageView(m_Device, &dviewInfo, nullptr, &m_DepthImageView));
 
-		m_VkManager.delete_func([=]() {
-			vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
-			vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
-			});
+		//m_VkManager.delete_func([=]() {
+		//	vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
+		//	vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
+		//	});
 	}
 
 	{
-		const int w = m_ViewportExtent.width;
-		const int h = m_ViewportExtent.height;
+		const int w = (int)m_ViewportExtent.width;
+		const int h = (int)m_ViewportExtent.height;
 
 		VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(VK_FILTER_NEAREST);
 
@@ -650,7 +659,7 @@ void VulkanEngine::init_vp_swapchain() {
 
 		for (uint32_t i = 0; i < swapchainImageCount; i++) {
 			vkutil::alloc_texture(w, h, samplerInfo, VK_FORMAT_B8G8R8A8_UNORM, m_VkManager, &m_ViewportTextures.at(i), VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-			vkutil::queue_destroy_texture(m_VkManager, m_ViewportTextures[i]);
+			//vkutil::queue_destroy_texture(m_VkManager, m_ViewportTextures[i]);
 		}
 	}
 }
@@ -737,7 +746,7 @@ void VulkanEngine::init_vp_framebuffers() {
 	const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
 
 	VkFramebufferCreateInfo fbInfo =
-		vkinit::framebuffer_create_info(m_ViewportRenderPass, m_ViewportExtent);
+		vkinit::framebuffer_create_info(m_ViewportRenderPass, { m_ViewportExtent.width, m_ViewportExtent.height });
 
 	m_ViewportFrameBuffers = std::vector<VkFramebuffer>(swapchainImageCount);
 
@@ -753,11 +762,34 @@ void VulkanEngine::init_vp_framebuffers() {
 
 		CORE_TRACE("created framebuffer: ViewportFB[{}] {}", i, (void *)m_ViewportFrameBuffers[i]);
 
-		m_MainDeletionQueue.push_function([=]() {
-			vkDestroyFramebuffer(m_Device, m_ViewportFrameBuffers[i], nullptr);
-			});
+		//m_MainDeletionQueue.push_function([=]() {
+		//	vkDestroyFramebuffer(m_Device, m_ViewportFrameBuffers[i], nullptr);
+		//	});
 	}
 
+}
+
+void VulkanEngine::cleanup_vp_swapchain() {
+	vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
+	vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
+
+	for (uint32_t i = 0; i < m_SwapchainImageViews.size(); i++) {
+		vkDestroyFramebuffer(m_Device, m_ViewportFrameBuffers[i], nullptr);
+
+		vkutil::destroy_texture(m_VkManager, m_ViewportTextures[i]);
+		//vkDestroyImageView(m_Device, m_ViewportTextures[i].imageView, nullptr);
+		//vmaDestroyImage(m_Allocator, m_ViewportTextures[i].imageAllocation.image, m_ViewportTextures[i].imageAllocation.allocation);
+	}
+}
+
+void VulkanEngine::rebuild_vp_swapchain() {
+	CORE_TRACE("rebuild vp swapchain: {}, {}", m_ViewportExtent.width, m_ViewportExtent.height);
+
+	vkDeviceWaitIdle(m_Device);
+
+	cleanup_vp_swapchain();
+	init_vp_swapchain();
+	init_vp_framebuffers();
 }
 
 void VulkanEngine::init_framebuffers() {
@@ -906,7 +938,7 @@ void VulkanEngine::load_meshes() {
 
 void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
 
-	m_VkManager.upload_to_gpu(mesh->vertices.data(), mesh->vertices.size() * sizeof(Vertex),
+	m_VkManager.upload_to_gpu(mesh->vertices.data(), (uint32_t)mesh->vertices.size() * sizeof(Vertex),
 		mesh->vertexBuffer,
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT);
@@ -918,23 +950,16 @@ void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
 }
 
 void VulkanEngine::on_event(Atlas::Event &e) {
-	CORE_TRACE("Event: {}", e);
+	if (!e.in_category(Atlas::EventCategoryMouse)) TRACE(e);
 
-	Atlas::EventDispatcher(e).dispatch<Atlas::WindowResizeEvent>(BIND_EVENT_FN(VulkanEngine::on_window_resize));
+	Atlas::EventDispatcher(e).dispatch<Atlas::WindowResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_window_resize));
 
 }
 
-bool VulkanEngine::on_window_resize(Atlas::WindowResizeEvent &e) {
-	rebuild_swapchain();
-
+bool VulkanEngine::on_window_resize(Atlas::WindowResizedEvent &e) {
+	m_FramebufferResized = true;
 	return true;
 }
-
-//static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {
-//	VulkanEngine *handler = reinterpret_cast<VulkanEngine *>(glfwGetWindowUserPointer(window));
-//
-//	handler->m_FrameBufferResized = true;
-//}
 
 void VulkanEngine::init_scene() {
 	RenderObject empire;
@@ -1094,7 +1119,7 @@ void VulkanEngine::init_imgui() {
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = std::size(pool_sizes);
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
 
 	VkDescriptorPool imguiPool;
@@ -1183,6 +1208,9 @@ void VulkanEngine::load_images() {
 
 		m_VkManager.set_texture("empire_diffuse", texture);
 
-		vkutil::queue_destroy_texture(m_VkManager, *texture);
+		//vkutil::queue_destroy_texture(m_VkManager, *texture);
+		m_MainDeletionQueue.push_function([=] {
+			vkutil::destroy_texture(m_VkManager, *texture);
+			});
 	}
 }

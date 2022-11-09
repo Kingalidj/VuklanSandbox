@@ -77,11 +77,12 @@ namespace vkutil {
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 	}
 
-	void queue_destroy_texture(VulkanManager &manager, Texture &tex) {
-		manager.delete_func([&] {
-			vkDestroyImageView(manager.get_device(), tex.imageView, nullptr);
-			vmaDestroyImage(manager.get_allocator(), tex.imageAllocation.image, tex.imageAllocation.allocation);
-			});
+	void destroy_texture(VulkanManager &manager, Texture &tex) {
+		//manager.delete_func([&] {
+		vkDestroyImageView(manager.get_device(), tex.imageView, nullptr);
+		vmaDestroyImage(manager.get_allocator(), tex.imageAllocation.image, tex.imageAllocation.allocation);
+		ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)tex.ImGuiTexID);
+		//});
 	}
 
 	void alloc_texture(uint32_t w, uint32_t h, VkSamplerCreateInfo &info, VkFormat imageFormat, VulkanManager &manager, Texture *tex, VkImageUsageFlags flags) {

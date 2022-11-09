@@ -57,7 +57,7 @@ public:
 	int m_FrameNumber{ 0 };
 
 	VkExtent2D m_WindowExtent{ 1600, 900 };
-	VkExtent2D m_ViewportExtent{ 500, 500 };
+	VkExtent2D m_ViewportExtent{ 1600, 900 };
 
 	//struct GLFWwindow *m_Window = nullptr;
 
@@ -67,8 +67,6 @@ public:
 	void draw();
 	void run();
 	void cleanup();
-	void cleanup_swapchain();
-	void rebuild_swapchain();
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage,
 		VmaMemoryUsage memoryUsage);
@@ -142,7 +140,8 @@ public:
 	vkutil::DescriptorAllocator m_DescriptorAllocator;
 	vkutil::DescriptorLayoutCache m_DescriptorLayoutCache;
 
-	bool m_ViewportResized = false;
+	bool m_FramebufferResized = false;
+	bool m_ViewportbufferResized = false;
 
 private:
 	void init_vulkan();
@@ -156,15 +155,19 @@ private:
 	void init_swapchain();
 	void init_renderpass();
 	void init_framebuffers();
+	void cleanup_swapchain();
+	void rebuild_swapchain();
 
 	void init_vp_swapchain();
 	void init_vp_renderpass();
 	void init_vp_framebuffers();
+	void cleanup_vp_swapchain();
+	void rebuild_vp_swapchain();
 
 	void load_meshes();
 	void load_images();
 	void upload_mesh(Ref<Mesh> mesh);
 
 	void on_event(Atlas::Event &e);
-	bool on_window_resize(Atlas::WindowResizeEvent &e);
+	bool on_window_resize(Atlas::WindowResizedEvent &e);
 };
