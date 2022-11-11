@@ -28,6 +28,7 @@ add_subdirectory(vendor)
 
 
 set(SOURCES
+		src/window.cpp
 		src/vk_manager.cpp
 		src/vk_types.cpp
 		src/imgui_theme.cpp
@@ -43,7 +44,10 @@ set(SOURCES
 
 set(HEADERS
 		src/utils.h
+		src/pch.h
+		src/event.h
 
+		src/window.h
 		src/vk_manager.h
 		src/vk_types.h
 		src/imgui_theme.h

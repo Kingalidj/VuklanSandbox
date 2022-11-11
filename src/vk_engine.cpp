@@ -11,8 +11,8 @@ const uint8_t c_RobotoRegular[] = {
 #include "robot_regular.embed"
 };
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+//#define GLFW_INCLUDE_VULKAN
+//#include <GLFW/glfw3.h>
 
 #include <VkBootstrap.h>
 #include <glm/gtx/transform.hpp>
@@ -20,32 +20,45 @@ const uint8_t c_RobotoRegular[] = {
 #include <cmath>
 
 void VulkanEngine::init() {
-	glfwInit();
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
-	m_Window = glfwCreateWindow(m_WindowExtent.width, m_WindowExtent.height,
-		"Vulkan Engine", nullptr, nullptr);
-	glfwSetWindowUserPointer(m_Window, reinterpret_cast<void *>(this));
-	//glfwSetFramebufferSizeCallback(m_Window, framebuffer_resize_callback);
 
 	{
-		int w, h;
-		glfwGetFramebufferSize(m_Window, &w, &h);
-		m_WindowExtent.width = static_cast<uint32_t>(w);
-		m_WindowExtent.height = static_cast<uint32_t>(h);
+		WindowInfo info = { "Vulkan Engine", m_WindowExtent.width, m_WindowExtent.height };
+		m_Window = new Window(info);
+		m_Window->set_event_callback(BIND_EVENT_FN(VulkanEngine::on_event));
 	}
+	//glfwInit();
+	//glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+
+	//m_Window = glfwCreateWindow(m_WindowExtent.width, m_WindowExtent.height,
+	//	"Vulkan Engine", nullptr, nullptr);
+	//glfwSetWindowUserPointer(m_Window, reinterpret_cast<void *>(this));
+	////glfwSetFramebufferSizeCallback(m_Window, framebuffer_resize_callback);
+
+	//{
+	//	int w, h;
+	//	glfwGetFramebufferSize(m_Window, &w, &h);
+	//	m_WindowExtent.width = static_cast<uint32_t>(w);
+	//	m_WindowExtent.height = static_cast<uint32_t>(h);
+	//}
 
 	init_vulkan();
 	init_swapchain();
 	init_commands();
-	init_default_renderpass();
+	init_renderpass();
 	init_framebuffers();
 	init_sync_structures();
+
+	init_imgui();
+
+	init_vp_swapchain();
+	init_vp_renderpass();
+	init_vp_framebuffers();
+
 	init_descriptors();
 	init_pipelines();
 
-	init_imgui();
 
 	load_images();
 	load_meshes();
@@ -81,7 +94,7 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first,
 	glm::vec3 camPos = { 0.f, -3.f, -9.f };
 
 	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
-	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)m_WindowExtent.width / m_WindowExtent.height, 0.1f, 200.0f);
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)m_ViewportExtent.width / m_ViewportExtent.height, 0.1f, 200.0f);
 	projection[1][1] *= -1;
 
 	glm::mat4 rotMat =
@@ -188,13 +201,15 @@ void VulkanEngine::cleanup() {
 
 		VK_CHECK(vkDeviceWaitIdle(m_Device));
 
+		cleanup_vp_swapchain();
 		cleanup_swapchain();
 
 		m_VkManager.cleanup();
 		m_MainDeletionQueue.flush();
 
-		glfwDestroyWindow(m_Window);
-		glfwTerminate();
+		//glfwDestroyWindow(m_Window);
+		m_Window->cleanup();
+		//glfwTerminate();
 	}
 }
 
@@ -202,24 +217,30 @@ void VulkanEngine::draw() {
 	// wait for last frame to finish. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(m_Device, 1, &m_FrameData.renderFence, true, UINT64_MAX));
 
+	if (m_ViewportbufferResized) {
+		m_ViewportbufferResized = false;
+		rebuild_vp_swapchain();
+		return;
+	}
+
 	// we will write to this image index (framebuffer)
 	uint32_t swapchainImageIndex;
 	VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX,
 		m_FrameData.presentSemaphore, nullptr,
 		&swapchainImageIndex);
 
-	if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR || m_FrameBufferResized) {
-		m_FrameBufferResized = false;
+	if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR || m_FramebufferResized) {
+		m_FramebufferResized = false;
 		rebuild_swapchain();
 		return;
 	}
 	VK_CHECK(res);
 
+
 	VK_CHECK(vkResetFences(m_Device, 1, &m_FrameData.renderFence));
 
 	// since we waited the buffer is empty
 	VK_CHECK(vkResetCommandBuffer(m_FrameData.mainCommandBuffer, 0));
-
 
 	VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
 
@@ -235,26 +256,34 @@ void VulkanEngine::draw() {
 	depthClear.depthStencil.depth = 1.f;
 
 	{
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+	}
+
+	{
+		//VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(
+		//	m_RenderPass, m_WindowExtent,
+		//	m_FrameBuffers[swapchainImageIndex]);
 		VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(
-			m_RenderPass, m_WindowExtent,
-			m_FrameBuffers[swapchainImageIndex] /*fd->Framebuffer*/);
+			m_ViewportRenderPass, m_ViewportExtent,
+			m_ViewportFrameBuffers[swapchainImageIndex]);
 
 		rpInfo.clearValueCount = 2;
 		VkClearValue clearValues[] = { clearValue, depthClear };
-		/* VkClearValue clearValues[] = {clearValue, depthClear}; */
 		rpInfo.pClearValues = clearValues;
 
 		VkViewport viewport{};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.height = m_WindowExtent.height;
-		viewport.width = m_WindowExtent.width;
+		viewport.height = (float)m_ViewportExtent.height;
+		viewport.width = (float)m_ViewportExtent.width;
 		viewport.minDepth = 0;
 		viewport.maxDepth = 1;
 
 		VkRect2D scissor;
 		scissor.offset = { 0, 0 };
-		scissor.extent = m_WindowExtent;
+		scissor.extent = m_ViewportExtent;
 
 		vkCmdSetViewport(cmd, 0, 1, &viewport);
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
@@ -276,21 +305,43 @@ void VulkanEngine::draw() {
 
 		vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
+		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
 		ImGui::ShowDemoWindow();
-		ImGui::Begin("Texture Viewer");
-		Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
-		ImGui::Image(tex->ImGuiTexID, ImVec2(500, 500));
+
+		//ImGui::Begin("Texture Viewer");
+		//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
+		//ImGui::Image(tex->ImGuiTexID, ImVec2(500, 500));
+		//ImGui::End();
+
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::Begin("Viewport");
+		ImGui::PopStyleVar();
+
+		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
+		auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
+		auto viewportOffset = ImGui::GetWindowPos();
+		glm::vec2 viewportBounds[2];
+		viewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
+		viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
+		auto viewportSize = viewportBounds[1] - viewportBounds[0];
+
+		//CORE_TRACE("viewport: {}, {}", viewportSize.x, viewportSize.y);
+
+		//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
+		//ImGui::Image(tex->ImGuiTexID, { (float)m_ViewportExtent.width, (float)m_ViewportExtent.height });
+		ImGui::Image(m_ViewportTextures[swapchainImageIndex].ImGuiTexID, { viewportSize.x, viewportSize.y });
 		ImGui::End();
 
 		ImGui::Render();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
 		vkCmdEndRenderPass(cmd);
+
+		if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
+			Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
+			on_event(Atlas::Event(event));
+		}
 	}
 
 	VK_CHECK(vkEndCommandBuffer(cmd));
@@ -340,12 +391,12 @@ void VulkanEngine::draw() {
 
 void VulkanEngine::run() {
 
-	while (!glfwWindowShouldClose(m_Window)) {
-		glfwPollEvents();
+	while (!m_Window->should_close()) {
 
-
-		draw();
-
+		if (!m_WindowMinimized) {
+			m_Window->on_update();
+			draw();
+		}
 	}
 }
 
@@ -387,7 +438,8 @@ void VulkanEngine::init_vulkan() {
 	m_Instance = vkb_inst.instance;
 	m_DebugMessenger = vkb_inst.debug_messenger;
 
-	VK_CHECK(glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface));
+	//VK_CHECK(glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface));
+	VK_CHECK(m_Window->create_window_surface(m_Instance, &m_Surface));
 
 	vkb::PhysicalDevice physicalDevice = vkb::PhysicalDeviceSelector(vkb_inst)
 		.set_minimum_version(1, 1)
@@ -406,8 +458,6 @@ void VulkanEngine::init_vulkan() {
 		.value();
 
 	m_GPUProperties = vkbDevice.physical_device.properties;
-	CORE_INFO("The GPU has a minimum buffer alignment of {}",
-		m_GPUProperties.limits.minUniformBufferOffsetAlignment);
 
 	m_Device = vkbDevice.device;
 	m_PhysicalDevice = physicalDevice.physical_device;
@@ -448,31 +498,8 @@ void VulkanEngine::init_swapchain() {
 	m_SwapchainImageViews = vkbSwapchain.get_image_views().value();
 
 	m_SwapchainImageFormat = vkbSwapchain.image_format;
-	CORE_INFO("Swachain Format: {}", m_SwapchainImageFormat);
 
 	// m_Swapchain = m_WindowData.Swapchain;
-
-	VkExtent3D depthImageExtent = { m_WindowExtent.width, m_WindowExtent.height,
-								   1 };
-
-	m_DepthFormat = VK_FORMAT_D32_SFLOAT;
-
-	VkImageCreateInfo dimgInfo = vkinit::image_create_info(
-		m_DepthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-		depthImageExtent);
-
-	VmaAllocationCreateInfo dimgAllocinfo{};
-	dimgAllocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	dimgAllocinfo.requiredFlags =
-		VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT); // TODO:
-
-	vmaCreateImage(m_Allocator, &dimgInfo, &dimgAllocinfo, &m_DepthImage.image,
-		&m_DepthImage.allocation, nullptr);
-
-	VkImageViewCreateInfo dviewInfo = vkinit::imageview_create_info(
-		m_DepthFormat, m_DepthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-	VK_CHECK(vkCreateImageView(m_Device, &dviewInfo, nullptr, &m_DepthImageView));
 
 	//m_MainDeletionQueue.push_function([=]() {
 	//	vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
@@ -482,24 +509,16 @@ void VulkanEngine::init_swapchain() {
 }
 
 void VulkanEngine::cleanup_swapchain() {
-	vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
-	vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
 	vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
 
 	for (uint32_t i = 0; i < m_SwapchainImageViews.size(); i++) {
 
-		vkDestroyFramebuffer(m_Device, m_FrameBuffers[i], nullptr);
 		vkDestroyFramebuffer(m_Device, m_ImGuiFrameBuffers[i], nullptr);
 		vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
 	}
 }
 
 void VulkanEngine::rebuild_swapchain() {
-
-	int w = 0, h = 0;
-	glfwGetFramebufferSize(m_Window, &w, &h);
-	m_WindowExtent.width = static_cast<uint32_t>(w);
-	m_WindowExtent.height = static_cast<uint32_t>(h);
 
 	vkDeviceWaitIdle(m_Device);
 	cleanup_swapchain();
@@ -526,117 +545,21 @@ void VulkanEngine::init_commands() {
 			});
 	}
 
-	/*
-	{
-		VkCommandPoolCreateInfo uploadCommandPoolInfo =
-			vkinit::command_pool_create_info(m_GraphicsQueueFamily);
-
-		VK_CHECK(vkCreateCommandPool(m_Device, &uploadCommandPoolInfo, nullptr,
-			&m_UploadContext.commandPool));
-
-		VkCommandBufferAllocateInfo cmdAllocInfo =
-			vkinit::command_buffer_allocate_info(m_UploadContext.commandPool, 1);
-
-		VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo,
-			&m_UploadContext.commandBuffer));
-
-		m_MainDeletionQueue.push_function([=]() {
-			vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
-			});
-	}
-	*/
-
 	{
 		m_VkManager.init_commands(m_GraphicsQueue, m_GraphicsQueueFamily);
 	}
 }
 
-void VulkanEngine::init_default_renderpass() {
-	{
-		VkAttachmentDescription colorAttachment{};
-		colorAttachment.format = m_SwapchainImageFormat;
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-		VkAttachmentReference colorAttachmentRef{};
-		// attachment number will index into the pAttachments array in the
-		// parent renderpass
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentDescription depthAttachment{};
-		depthAttachment.flags = 0;
-		depthAttachment.format = m_DepthFormat;
-		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		depthAttachment.finalLayout =
-			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference depthAttachmentRef = {};
-		depthAttachmentRef.attachment = 1;
-		depthAttachmentRef.layout =
-			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkSubpassDescription subpass{};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
-		subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-		VkSubpassDependency dependency{};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependency.dstSubpass = 0;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.srcAccessMask = 0;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-		VkSubpassDependency depthDependency = {};
-		depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		depthDependency.dstSubpass = 0;
-		depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-		depthDependency.srcAccessMask = 0;
-		depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-		depthDependency.dstAccessMask =
-			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-		VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
-		VkSubpassDependency dependencies[2] = { dependency, depthDependency };
-
-		VkRenderPassCreateInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = 2;
-		renderPassInfo.pAttachments = &attachments[0];
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpass;
-
-		renderPassInfo.dependencyCount = 2;
-		renderPassInfo.pDependencies = &dependencies[0];
-
-		VK_CHECK(
-			vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass));
-	}
-
+void VulkanEngine::init_renderpass() {
 	{
 		VkAttachmentDescription attachment = {};
 		attachment.format = m_SwapchainImageFormat;
 		attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		// attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
@@ -669,20 +592,199 @@ void VulkanEngine::init_default_renderpass() {
 	}
 
 	m_MainDeletionQueue.push_function([=]() {
-		vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
 		vkDestroyRenderPass(m_Device, m_ImGuiRenderPass, nullptr);
 		});
 }
 
-void VulkanEngine::init_framebuffers() {
-	VkFramebufferCreateInfo fbInfo =
-		vkinit::framebuffer_create_info(m_RenderPass, m_WindowExtent);
+uint32_t to_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+	uint32_t result = (a << 24) | (b << 16) | (g << 8) | r;
+	return result;
+}
 
+void print_rgb(uint32_t color) {
+	uint8_t a = (color & 0xff000000) >> 24;
+	uint8_t b = (color & 0x00ff0000) >> 16;
+	uint8_t g = (color & 0x0000ff00) >> 8;
+	uint8_t r = color & 0x000000ff;
+
+	CORE_INFO("(r, g, b, a): {}, {}, {}, {}", r, g, b, a);
+}
+
+
+void VulkanEngine::init_vp_swapchain() {
+	const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
+
+	{
+		VkExtent3D depthImageExtent = { m_ViewportExtent.width, m_ViewportExtent.height, 1 };
+
+		m_DepthFormat = VK_FORMAT_D32_SFLOAT;
+
+		VkImageCreateInfo dimgInfo = vkinit::image_create_info(
+			m_DepthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+			depthImageExtent);
+
+		VmaAllocationCreateInfo dimgAllocinfo{};
+		dimgAllocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		dimgAllocinfo.requiredFlags =
+			VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT); // TODO:
+
+		vmaCreateImage(m_Allocator, &dimgInfo, &dimgAllocinfo, &m_DepthImage.image,
+			&m_DepthImage.allocation, nullptr);
+
+		VkImageViewCreateInfo dviewInfo = vkinit::imageview_create_info(
+			m_DepthFormat, m_DepthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+		VK_CHECK(vkCreateImageView(m_Device, &dviewInfo, nullptr, &m_DepthImageView));
+
+		//m_VkManager.delete_func([=]() {
+		//	vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
+		//	vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
+		//	});
+	}
+
+	{
+		const int w = (int)m_ViewportExtent.width;
+		const int h = (int)m_ViewportExtent.height;
+
+		VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+
+		m_ViewportTextures = std::vector<Texture>(swapchainImageCount);
+
+		for (uint32_t i = 0; i < swapchainImageCount; i++) {
+			vkutil::alloc_texture(w, h, samplerInfo, VK_FORMAT_B8G8R8A8_UNORM, m_VkManager, &m_ViewportTextures.at(i), VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+			//vkutil::queue_destroy_texture(m_VkManager, m_ViewportTextures[i]);
+		}
+	}
+}
+
+void VulkanEngine::init_vp_renderpass() {
+	const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
+
+	{
+		VkAttachmentDescription colorAttachment{};
+		colorAttachment.format = m_SwapchainImageFormat;
+		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		VkAttachmentReference colorAttachmentRef{};
+		colorAttachmentRef.attachment = 0;
+		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentDescription depthAttachment{};
+		depthAttachment.flags = 0;
+		depthAttachment.format = m_DepthFormat;
+		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachmentRef = {};
+		depthAttachmentRef.attachment = 1;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpass{};
+		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpass.colorAttachmentCount = 1;
+		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+		VkSubpassDependency dependency{};
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.srcAccessMask = 0;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+		VkSubpassDependency depthDependency = {};
+		depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		depthDependency.dstSubpass = 0;
+		depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depthDependency.srcAccessMask = 0;
+		depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
+		VkSubpassDependency dependencies[2] = { dependency, depthDependency };
+
+		VkRenderPassCreateInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		renderPassInfo.attachmentCount = 2;
+		renderPassInfo.pAttachments = &attachments[0];
+		renderPassInfo.subpassCount = 1;
+		renderPassInfo.pSubpasses = &subpass;
+
+		renderPassInfo.dependencyCount = 2;
+		renderPassInfo.pDependencies = &dependencies[0];
+
+		VK_CHECK(vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_ViewportRenderPass));
+	}
+
+	m_MainDeletionQueue.push_function([=]() {
+		vkDestroyRenderPass(m_Device, m_ViewportRenderPass, nullptr);
+		});
+
+}
+
+void VulkanEngine::init_vp_framebuffers() {
+	const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
+
+	VkFramebufferCreateInfo fbInfo =
+		vkinit::framebuffer_create_info(m_ViewportRenderPass, { m_ViewportExtent.width, m_ViewportExtent.height });
+
+	m_ViewportFrameBuffers = std::vector<VkFramebuffer>(swapchainImageCount);
+
+	for (uint32_t i = 0; i < swapchainImageCount; i++) {
+		VkImageView attachments[2];
+		attachments[0] = m_ViewportTextures[i].imageView;
+		attachments[1] = m_DepthImageView;
+
+		fbInfo.pAttachments = attachments;
+		fbInfo.attachmentCount = 2;
+
+		VK_CHECK(vkCreateFramebuffer(m_Device, &fbInfo, nullptr, &m_ViewportFrameBuffers[i]));
+
+		//m_MainDeletionQueue.push_function([=]() {
+		//	vkDestroyFramebuffer(m_Device, m_ViewportFrameBuffers[i], nullptr);
+		//	});
+	}
+
+}
+
+void VulkanEngine::cleanup_vp_swapchain() {
+	vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
+	vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
+
+	for (uint32_t i = 0; i < m_SwapchainImageViews.size(); i++) {
+		vkDestroyFramebuffer(m_Device, m_ViewportFrameBuffers[i], nullptr);
+
+		vkutil::destroy_texture(m_VkManager, m_ViewportTextures[i]);
+		//vkDestroyImageView(m_Device, m_ViewportTextures[i].imageView, nullptr);
+		//vmaDestroyImage(m_Allocator, m_ViewportTextures[i].imageAllocation.image, m_ViewportTextures[i].imageAllocation.allocation);
+	}
+}
+
+void VulkanEngine::rebuild_vp_swapchain() {
+	vkDeviceWaitIdle(m_Device);
+
+	cleanup_vp_swapchain();
+	init_vp_swapchain();
+	init_vp_framebuffers();
+}
+
+void VulkanEngine::init_framebuffers() {
 	VkFramebufferCreateInfo imguiFbInfo =
 		vkinit::framebuffer_create_info(m_ImGuiRenderPass, m_WindowExtent);
 
 	const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
-	m_FrameBuffers = std::vector<VkFramebuffer>(swapchainImageCount);
 	m_ImGuiFrameBuffers = std::vector<VkFramebuffer>(swapchainImageCount);
 
 	// create framebuffers for each of the swapchain image views
@@ -691,37 +793,17 @@ void VulkanEngine::init_framebuffers() {
 		attachments[0] = m_SwapchainImageViews[i];
 		attachments[1] = m_DepthImageView;
 
-		fbInfo.pAttachments = attachments;
-		fbInfo.attachmentCount = 2;
-
 		imguiFbInfo.pAttachments = attachments;
 		imguiFbInfo.attachmentCount = 1;
-
-		VK_CHECK(
-			vkCreateFramebuffer(m_Device, &fbInfo, nullptr, &m_FrameBuffers[i]));
 
 		VK_CHECK(vkCreateFramebuffer(m_Device, &imguiFbInfo, nullptr,
 			&m_ImGuiFrameBuffers[i]));
 
-		//m_MainDeletionQueue.push_function([=]() {
-		//	vkDestroyFramebuffer(m_Device, m_FrameBuffers[i], nullptr);
-		//	vkDestroyFramebuffer(m_Device, m_ImGuiFrameBuffers[i], nullptr);
-
-		//	vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
-		//	});
 	}
 }
 
 void VulkanEngine::init_sync_structures() {
-	/*
-	VkFenceCreateInfo uploadFenceCreateInfo = vkinit::fence_create_info();
 
-	VK_CHECK(vkCreateFence(m_Device, &uploadFenceCreateInfo, nullptr,
-		&m_UploadContext.uploadFence));
-	m_MainDeletionQueue.push_function([=]() {
-		vkDestroyFence(m_Device, m_UploadContext.uploadFence, nullptr);
-		});
-		*/
 	m_VkManager.init_sync_structures();
 
 	VkFenceCreateInfo fenceCreateInfo =
@@ -795,12 +877,10 @@ void VulkanEngine::init_pipelines() {
 		VertexInputDescription vertexDescription = Vertex::get_vertex_description();
 
 		m_MeshPipeline =
-			vkutil::PipelineBuilder(m_Device, m_RenderPass, m_MeshPipelineLayout)
-			.set_vertex_description(vertexDescription.attributes,
-				vertexDescription.bindings)
+			vkutil::PipelineBuilder(m_Device, m_ViewportRenderPass, m_MeshPipelineLayout)
+			.set_vertex_description(vertexDescription.attributes, vertexDescription.bindings)
 			.add_shader_module(texturedMeshVertexShader, ShaderType::Vertex)
 			.add_shader_module(texturedMeshFragShader, ShaderType::Fragment)
-			.set_viewport({ 0, 0 }, m_WindowExtent, { 0.0f, 1.0f })
 			.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL)
 			.build()
 			.value();
@@ -844,7 +924,7 @@ void VulkanEngine::load_meshes() {
 
 void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
 
-	m_VkManager.upload_to_gpu(mesh->vertices.data(), mesh->vertices.size() * sizeof(Vertex),
+	m_VkManager.upload_to_gpu(mesh->vertices.data(), (uint32_t)mesh->vertices.size() * sizeof(Vertex),
 		mesh->vertexBuffer,
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT);
@@ -855,10 +935,33 @@ void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
 		});
 }
 
-static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {
-	VulkanEngine *handler = reinterpret_cast<VulkanEngine *>(glfwGetWindowUserPointer(window));
+void VulkanEngine::on_event(Atlas::Event &e) {
+	using namespace Atlas;
+	if (!e.in_category(EventCategoryMouse)) CORE_TRACE(e);
 
-	handler->m_FrameBufferResized = true;
+
+	EventDispatcher ed(e);
+	ed.dispatch<WindowResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_window_resize));
+	ed.dispatch<ViewportResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_viewport_resize));
+
+}
+
+bool VulkanEngine::on_window_resize(Atlas::WindowResizedEvent &e) {
+	m_FramebufferResized = true;
+
+	m_WindowExtent.width = e.width;
+	m_WindowExtent.height = e.height;
+
+	if (e.width == 0 || e.height == 0) m_WindowMinimized = true;
+	else m_WindowMinimized = false;
+
+	return false;
+}
+
+bool VulkanEngine::on_viewport_resize(Atlas::ViewportResizedEvent &e) {
+	m_ViewportExtent = { e.width, e.height };
+	m_ViewportbufferResized = true;
+	return false;
 }
 
 void VulkanEngine::init_scene() {
@@ -972,15 +1075,12 @@ void VulkanEngine::init_descriptors() {
 	objectBufferInfo.range = sizeof(GPUObjectData) * MAX_OBJECTS;
 
 	vkutil::DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator)
-		.bind_buffer(0, &cameraInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			VK_SHADER_STAGE_VERTEX_BIT)
-		.bind_buffer(1, &sceneInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+		.bind_buffer(0, &cameraInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+		.bind_buffer(1, &sceneInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
 		.build(&m_FrameData.globalDescriptor, &m_GlobalSetLayout);
 
 	vkutil::DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator)
-		.bind_buffer(0, &objectBufferInfo, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			VK_SHADER_STAGE_VERTEX_BIT)
+		.bind_buffer(0, &objectBufferInfo, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 		.build(&m_FrameData.objectDescriptor, &m_ObjectSetLayout);
 
 	m_MainDeletionQueue.push_function([&]() {
@@ -1019,7 +1119,7 @@ void VulkanEngine::init_imgui() {
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = std::size(pool_sizes);
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
 
 	VkDescriptorPool imguiPool;
@@ -1051,7 +1151,7 @@ void VulkanEngine::init_imgui() {
 		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 	}
 
-	ImGui_ImplGlfw_InitForVulkan(m_Window, true);
+	ImGui_ImplGlfw_InitForVulkan(m_Window->get_native_window(), true);
 
 	// this initializes imgui for Vulkan
 	{
@@ -1074,8 +1174,6 @@ void VulkanEngine::init_imgui() {
 			(void *)c_RobotoRegular, sizeof(c_RobotoRegular), 23.0f, &fontConfig);
 		io.FontDefault = robotoFont;
 
-		//immediate_submit(
-		//	[&](VkCommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
 		m_VkManager.immediate_submit(
 			[&](VkCommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
 	}
@@ -1102,113 +1200,17 @@ size_t VulkanEngine::pad_uniform_buffer_size(size_t originalSize) {
 	return alignedSize;
 }
 
-/*
-void VulkanEngine::immediate_submit(
-	std::function<void(VkCommandBuffer cmd)> &&function) {
-	VkCommandBuffer cmd = m_UploadContext.commandBuffer;
-
-	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(
-		VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
-	function(cmd);
-
-	VK_CHECK(vkEndCommandBuffer(cmd));
-
-	VkSubmitInfo submit = vkinit::submit_info(&cmd);
-
-	VK_CHECK(
-		vkQueueSubmit(m_GraphicsQueue, 1, &submit, m_UploadContext.uploadFence));
-
-	vkWaitForFences(m_Device, 1, &m_UploadContext.uploadFence, true, UINT64_MAX);
-	vkResetFences(m_Device, 1, &m_UploadContext.uploadFence);
-
-	vkResetCommandPool(m_Device, m_UploadContext.commandPool, 0);
-}
-*/
-
-/*
-void VulkanEngine::upload_to_gpu(void *copyData, uint32_t size,
-	AllocatedBuffer &buffer,
-	VkBufferUsageFlags flags) {
-
-	VkBufferCreateInfo stagingBufferInfo{};
-	stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	stagingBufferInfo.pNext = nullptr;
-	stagingBufferInfo.size = size;
-	stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
-	VmaAllocationCreateInfo vmaAllocInfo{};
-	vmaAllocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-
-	AllocatedBuffer stagingBuffer;
-
-	VK_CHECK(vmaCreateBuffer(m_Allocator, &stagingBufferInfo, &vmaAllocInfo,
-		&stagingBuffer.buffer, &stagingBuffer.allocation,
-		nullptr));
-	void *data;
-	vmaMapMemory(m_Allocator, stagingBuffer.allocation, &data);
-	memcpy(data, copyData, size);
-	vmaUnmapMemory(m_Allocator, stagingBuffer.allocation);
-
-	VkBufferCreateInfo vertexBufferInfo{};
-	vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	vertexBufferInfo.pNext = nullptr;
-	vertexBufferInfo.size = size;
-	vertexBufferInfo.usage = flags;
-
-	vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-	VK_CHECK(vmaCreateBuffer(m_Allocator, &vertexBufferInfo, &vmaAllocInfo,
-		&buffer.buffer, &buffer.allocation, nullptr));
-
-	immediate_submit([=](VkCommandBuffer cmd) {
-		VkBufferCopy copy;
-		copy.dstOffset = 0;
-		copy.srcOffset = 0;
-		copy.size = size;
-		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
-		});
-
-	vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
-}
-*/
-
 void VulkanEngine::load_images() {
-	/*
-	Texture lostEmpire;
+	{
+		auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+		Ref<Texture> texture =
+			vkutil::load_texture("res/images/lost_empire-RGBA.png", m_VkManager, info).value();
 
-	int w, h, nC;
-	if (!vkutil::load_alloc_image_from_file("res/images/lost_empire-RGBA.png",
-	*this, &lostEmpire.imageBuffer, &w, &h, &nC)) { CORE_WARN("could not load
-	image!"); return;
+		m_VkManager.set_texture("empire_diffuse", texture);
+
+		//vkutil::queue_destroy_texture(m_VkManager, *texture);
+		m_MainDeletionQueue.push_function([=] {
+			vkutil::destroy_texture(m_VkManager, *texture);
+			});
 	}
-	else {
-					CORE_INFO("successfully loaded image: lost_empire-RGBA.png");
-	}
-
-	VkImageViewCreateInfo imageInfo = vkinit::imageview_create_info(
-					VK_FORMAT_R8G8B8A8_SRGB, lostEmpire.imageBuffer.image,
-					VK_IMAGE_ASPECT_COLOR_BIT);
-
-	vkCreateImageView(m_Device, &imageInfo, nullptr, &lostEmpire.imageView);
-	*/
-
-	Ref<Texture> texture =
-		vkutil::load_texture("res/images/lost_empire-RGBA.png", m_VkManager,
-			vkinit::sampler_create_info(VK_FILTER_NEAREST))
-		.value();
-
-	m_VkManager.set_texture("empire_diffuse", texture);
-
-	m_VkManager.delete_func([=]() {
-		vkDestroyImageView(m_Device, texture->imageView, nullptr);
-		vmaDestroyImage(m_Allocator, texture->imageBuffer.image,
-			texture->imageBuffer.allocation);
-		});
-
-	// m_MainDeletionQueue.push_function([=]() {
-	//	vkDestroyImageView(m_Device, lostEmpire.imageView, nullptr);
-	//	});
 }

@@ -6,12 +6,14 @@
 #include <sstream>
 
 #include <vector>
+#include <array>
 #include <deque>
 #include <unordered_map>
 
 #include <functional>
 
 #include <optional>
+#include <variant>
 
 #include "utils.h"
 #include "logger.h"

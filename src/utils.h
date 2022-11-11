@@ -9,10 +9,13 @@
     }                                                                          \
   } while (0)
 
+#define BIND_EVENT_FN(x) std::bind(&x, this, std::placeholders::_1)
+
 enum class ShaderType {
 	Fragment,
 	Vertex,
 };
+
 
 template<typename T>
 using Scope = std::unique_ptr<T>;

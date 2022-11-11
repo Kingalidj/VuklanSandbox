@@ -1,13 +1,12 @@
 #include "imgui_theme.h"
 
-void ImGui::SetOneDarkTheme()
-{
+void ImGui::SetOneDarkTheme() {
 	auto ACCENT = RED_COL;
 	auto ACCENT_HOVER = ORANGE_COL;
 
 	ImGui::StyleColorsDark();
 
-	ImGuiStyle& style = ImGui::GetStyle();
+	ImGuiStyle &style = ImGui::GetStyle();
 
 	style.WindowBorderSize = 0;
 	style.PopupBorderSize = 0;
@@ -15,7 +14,7 @@ void ImGui::SetOneDarkTheme()
 	style.FrameRounding = 6;
 	style.GrabRounding = 2;
 
-	auto& colors = style.Colors;
+	auto &colors = style.Colors;
 	colors[ImGuiCol_WindowBg] = BLACK_COL;
 
 	// Headers
@@ -48,7 +47,7 @@ void ImGui::SetOneDarkTheme()
 
 	// Docking
 	colors[ImGuiCol_DockingPreview] = ACCENT;
-	colors[ImGuiCol_DockingEmptyBg] = WHITE_COL;
+	colors[ImGuiCol_DockingEmptyBg] = DARK_GREY_COL;
 
 
 	// NavWindow
