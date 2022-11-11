@@ -50,7 +50,7 @@ void Window::init(const WindowInfo &props) {
 			data.width = width;
 			data.height = height;
 
-			WindowResizedEvent event{ width, height };
+			WindowResizedEvent event{ (uint32_t)width, (uint32_t)height };
 			Event e(event);
 			data.eventCallback(e);
 		});

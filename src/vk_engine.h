@@ -142,6 +142,7 @@ public:
 
 	bool m_FramebufferResized = false;
 	bool m_ViewportbufferResized = false;
+	bool m_WindowMinimized = false;
 
 private:
 	void init_vulkan();
@@ -170,4 +171,5 @@ private:
 
 	void on_event(Atlas::Event &e);
 	bool on_window_resize(Atlas::WindowResizedEvent &e);
+	bool on_viewport_resize(Atlas::ViewportResizedEvent &e);
 };

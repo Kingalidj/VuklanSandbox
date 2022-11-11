@@ -23,6 +23,17 @@ namespace Atlas {
 		}
 	};
 
+	struct ViewportResizedEvent {
+		uint32_t width, height;
+
+		std::string to_string() const {
+			std::stringstream ss;
+			ss << "ViewportResized: "
+				<< width << ", " << height;
+			return ss.str();
+		}
+	};
+
 	struct KeyPressedEvent {
 		int keyCode, repeatCount;
 
@@ -111,6 +122,7 @@ namespace Atlas {
 #define EVENT_LIST													\
 	A(WindowClosed, EventCategoryApplication)						\
 	A(WindowResized, EventCategoryApplication)						\
+	A(ViewportResized, EventCategoryApplication)					\
 	A(KeyPressed, EventCategoryInput | EventCategoryKeyboard)		\
 	A(KeyReleased, EventCategoryInput | EventCategoryKeyboard)		\
 	A(KeyTyped, EventCategoryInput | EventCategoryKeyboard)			\
@@ -120,7 +132,7 @@ namespace Atlas {
 	A(MouseScrolled, EventCategoryInput | EventCategoryMouse)		\
 
 	//Create Enum
-#define A(x, _1) x,
+#define A(x, _) x,
 	enum class EventType : int {
 		NONE = -1,
 		EVENT_LIST
@@ -128,7 +140,7 @@ namespace Atlas {
 #undef A
 
 	//Create variant
-#define A(x, _1) x##Event,
+#define A(x, _) x##Event,
 	using EventVariant = std::variant<
 		EVENT_LIST
 		std::monostate
@@ -140,7 +152,7 @@ namespace Atlas {
 	inline EventType get_event_type() {
 		CORE_ASSERT(false, "get_event_type not defined for this type");
 	}
-#define A(x, _1) \
+#define A(x, _) \
 template<> \
 inline EventType get_event_type< x##Event>() { \
 	return EventType::x; \
@@ -168,19 +180,21 @@ inline int get_event_category_flags< x##Event >() { \
 
 			EventVariant event;
 
-#define A(x, _1) Event(x##Event e) :event(e) {}
+#define A(x, _) Event(x##Event e) :event(e) {}
 			EVENT_LIST
 #undef A
 
 				EventType get_type() const {
 				size_t indx = event.index();
 
-#define A(x, _1) if (indx == (int) get_event_type< x##Event >()) \
+#define A(x, _) if (indx == (int) get_event_type< x##Event >()) \
 { return EventType::x; }
 				EVENT_LIST
 #undef A
 
 					assert(false);
+
+				return EventType::NONE;
 			}
 
 			template<typename T>
@@ -189,8 +203,8 @@ inline int get_event_category_flags< x##Event >() { \
 					return std::get<T>(event);
 				}
 
-				CORE_ASSERT(false, "called get on unknown type");
 				assert(false);
+				return std::get<T>(event);
 			}
 
 			template<typename T>
@@ -199,41 +213,43 @@ inline int get_event_category_flags< x##Event >() { \
 					return std::get<T>(event);
 				}
 
-				CORE_ASSERT(false, "called get on unknown type");
 				assert(false);
+				return std::get<T>(event);
 			}
 
 			const char *get_name() {
 				size_t indx = event.index();
 
-#define A(x, _1) if (indx == (int) get_event_type< x##Event >()) \
+#define A(x, _) if (indx == (int) get_event_type< x##Event >()) \
 													 { return #x; }
 				EVENT_LIST
 #undef A
 
 					assert(false);
-
+				return "NONE";
 			}
 
 			int get_category_flags() {
 				size_t indx = event.index();
 
-#define A(x, _1) if (indx == (int) get_event_type< x##Event >()) \
+#define A(x, _) if (indx == (int) get_event_type< x##Event >()) \
 					{ return get_event_category_flags< x##Event >(); }
 				EVENT_LIST
 #undef A
 
 					assert(false);
+				return 0;
 			}
 
 			const std::string to_string() const {
 				size_t indx = event.index();
 
-#define A(x, _1) if (indx == (int) get_event_type< x##Event >()) \
+#define A(x, _) if (indx == (int) get_event_type< x##Event >()) \
 					{ return get< x##Event >().to_string(); }
 				EVENT_LIST
 #undef A
 					assert(false);
+				return "NONE";
 			}
 
 			inline bool in_category(EventCategory category) {

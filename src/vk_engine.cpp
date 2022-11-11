@@ -339,8 +339,8 @@ void VulkanEngine::draw() {
 		vkCmdEndRenderPass(cmd);
 
 		if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
-			m_ViewportbufferResized = true;
-			m_ViewportExtent = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
+			Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
+			on_event(Atlas::Event(event));
 		}
 	}
 
@@ -392,9 +392,11 @@ void VulkanEngine::draw() {
 void VulkanEngine::run() {
 
 	while (!m_Window->should_close()) {
-		//while (!glfwWindowShouldClose(m_Window)) {
-		m_Window->on_update();
-		draw();
+
+		if (!m_WindowMinimized) {
+			m_Window->on_update();
+			draw();
+		}
 	}
 }
 
@@ -456,8 +458,6 @@ void VulkanEngine::init_vulkan() {
 		.value();
 
 	m_GPUProperties = vkbDevice.physical_device.properties;
-	CORE_TRACE("The GPU has a minimum buffer alignment of {}",
-		m_GPUProperties.limits.minUniformBufferOffsetAlignment);
 
 	m_Device = vkbDevice.device;
 	m_PhysicalDevice = physicalDevice.physical_device;
@@ -498,7 +498,6 @@ void VulkanEngine::init_swapchain() {
 	m_SwapchainImageViews = vkbSwapchain.get_image_views().value();
 
 	m_SwapchainImageFormat = vkbSwapchain.image_format;
-	CORE_TRACE("Swachain Format: {}", m_SwapchainImageFormat);
 
 	// m_Swapchain = m_WindowData.Swapchain;
 
@@ -520,11 +519,6 @@ void VulkanEngine::cleanup_swapchain() {
 }
 
 void VulkanEngine::rebuild_swapchain() {
-
-	CORE_TRACE("rebuild swapchain");
-
-	m_WindowExtent.width = m_Window->get_width();
-	m_WindowExtent.height = m_Window->get_height();
 
 	vkDeviceWaitIdle(m_Device);
 	cleanup_swapchain();
@@ -595,7 +589,6 @@ void VulkanEngine::init_renderpass() {
 		info.dependencyCount = 1;
 		info.pDependencies = &dependency;
 		VK_CHECK(vkCreateRenderPass(m_Device, &info, nullptr, &m_ImGuiRenderPass));
-		CORE_TRACE("created renderpass: imguiRP {}", (void *)m_ImGuiRenderPass);
 	}
 
 	m_MainDeletionQueue.push_function([=]() {
@@ -733,7 +726,6 @@ void VulkanEngine::init_vp_renderpass() {
 		renderPassInfo.pDependencies = &dependencies[0];
 
 		VK_CHECK(vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_ViewportRenderPass));
-		CORE_TRACE("created renderpass: viewportRP {}", (void *)m_ViewportRenderPass);
 	}
 
 	m_MainDeletionQueue.push_function([=]() {
@@ -760,8 +752,6 @@ void VulkanEngine::init_vp_framebuffers() {
 
 		VK_CHECK(vkCreateFramebuffer(m_Device, &fbInfo, nullptr, &m_ViewportFrameBuffers[i]));
 
-		CORE_TRACE("created framebuffer: ViewportFB[{}] {}", i, (void *)m_ViewportFrameBuffers[i]);
-
 		//m_MainDeletionQueue.push_function([=]() {
 		//	vkDestroyFramebuffer(m_Device, m_ViewportFrameBuffers[i], nullptr);
 		//	});
@@ -783,8 +773,6 @@ void VulkanEngine::cleanup_vp_swapchain() {
 }
 
 void VulkanEngine::rebuild_vp_swapchain() {
-	CORE_TRACE("rebuild vp swapchain: {}, {}", m_ViewportExtent.width, m_ViewportExtent.height);
-
 	vkDeviceWaitIdle(m_Device);
 
 	cleanup_vp_swapchain();
@@ -810,8 +798,6 @@ void VulkanEngine::init_framebuffers() {
 
 		VK_CHECK(vkCreateFramebuffer(m_Device, &imguiFbInfo, nullptr,
 			&m_ImGuiFrameBuffers[i]));
-
-		CORE_TRACE("created framebuffer: ImGuiFB[{}] {}", i, (void *)m_ImGuiFrameBuffers[i]);
 
 	}
 }
@@ -950,15 +936,32 @@ void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
 }
 
 void VulkanEngine::on_event(Atlas::Event &e) {
-	if (!e.in_category(Atlas::EventCategoryMouse)) TRACE(e);
+	using namespace Atlas;
+	if (!e.in_category(EventCategoryMouse)) CORE_TRACE(e);
 
-	Atlas::EventDispatcher(e).dispatch<Atlas::WindowResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_window_resize));
+
+	EventDispatcher ed(e);
+	ed.dispatch<WindowResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_window_resize));
+	ed.dispatch<ViewportResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_viewport_resize));
 
 }
 
 bool VulkanEngine::on_window_resize(Atlas::WindowResizedEvent &e) {
 	m_FramebufferResized = true;
-	return true;
+
+	m_WindowExtent.width = e.width;
+	m_WindowExtent.height = e.height;
+
+	if (e.width == 0 || e.height == 0) m_WindowMinimized = true;
+	else m_WindowMinimized = false;
+
+	return false;
+}
+
+bool VulkanEngine::on_viewport_resize(Atlas::ViewportResizedEvent &e) {
+	m_ViewportExtent = { e.width, e.height };
+	m_ViewportbufferResized = true;
+	return false;
 }
 
 void VulkanEngine::init_scene() {
@@ -1072,15 +1075,12 @@ void VulkanEngine::init_descriptors() {
 	objectBufferInfo.range = sizeof(GPUObjectData) * MAX_OBJECTS;
 
 	vkutil::DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator)
-		.bind_buffer(0, &cameraInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			VK_SHADER_STAGE_VERTEX_BIT)
-		.bind_buffer(1, &sceneInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+		.bind_buffer(0, &cameraInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+		.bind_buffer(1, &sceneInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
 		.build(&m_FrameData.globalDescriptor, &m_GlobalSetLayout);
 
 	vkutil::DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator)
-		.bind_buffer(0, &objectBufferInfo, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			VK_SHADER_STAGE_VERTEX_BIT)
+		.bind_buffer(0, &objectBufferInfo, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 		.build(&m_FrameData.objectDescriptor, &m_ObjectSetLayout);
 
 	m_MainDeletionQueue.push_function([&]() {
