@@ -50,6 +50,8 @@ public:
 	inline uint32_t get_width() const { return m_Data.width; }
 	inline uint32_t get_height() const { return m_Data.height; }
 
+	std::pair<float, float> get_mouse_pos() const;
+
 	VkResult create_window_surface(VkInstance instance, VkSurfaceKHR *surface);
 
 	bool should_close() const;

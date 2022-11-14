@@ -58,10 +58,11 @@ public:
 
 	VkExtent2D m_WindowExtent{ 1600, 900 };
 	VkExtent2D m_ViewportExtent{ 1600, 900 };
+	float m_RenderResolution = 1.0f;
 
 	//struct GLFWwindow *m_Window = nullptr;
 
-	Window *m_Window = nullptr;
+	Scope<Window> m_Window = nullptr;
 
 	void init();
 	void draw();
@@ -101,8 +102,9 @@ public:
 	VkRenderPass m_ImGuiRenderPass;
 	VkRenderPass m_ViewportRenderPass;
 
-	std::vector<Texture> m_ViewportTextures;
-	std::vector<VkFramebuffer> m_ViewportFrameBuffers;
+	Texture m_DepthTexture;
+	Texture m_ViewportTexture;
+	VkFramebuffer m_ViewportFrameBuffer;
 
 	std::vector<VkImage> m_SwapchainImages;
 	std::vector<VkImageView> m_SwapchainImageViews;
@@ -118,8 +120,8 @@ public:
 
 	DeletionQueue m_MainDeletionQueue;
 
-	VkImageView m_DepthImageView;
-	AllocatedImage m_DepthImage;
+	//VkImageView m_DepthImageView;
+	//AllocatedImage m_DepthImage;
 
 
 	std::vector<RenderObject> m_RenderObjects;
@@ -142,7 +144,9 @@ public:
 
 	bool m_FramebufferResized = false;
 	bool m_ViewportbufferResized = false;
+
 	bool m_WindowMinimized = false;
+	bool m_ViewportMinimized = false;
 
 private:
 	void init_vulkan();

@@ -1,8 +1,5 @@
 #pragma once
 
-#define BIT(x) (1 << x)
-
-
 
 namespace Atlas {
 
@@ -62,7 +59,7 @@ namespace Atlas {
 		std::string to_string() const {
 			std::stringstream ss;
 			ss << "KeyTyped: "
-				<< keyCode;
+				<< (char)keyCode;
 			return ss.str();
 		}
 	};
@@ -113,10 +110,10 @@ namespace Atlas {
 
 
 	enum EventCategory {
-		EventCategoryApplication = BIT(0),
-		EventCategoryInput = BIT(1),
-		EventCategoryKeyboard = BIT(2),
-		EventCategoryMouse = BIT(3),
+		EventCategoryApplication = 1 << 0,
+		EventCategoryInput = 1 << 1,
+		EventCategoryKeyboard = 1 << 2,
+		EventCategoryMouse = 1 << 3,
 	};
 
 #define EVENT_LIST													\

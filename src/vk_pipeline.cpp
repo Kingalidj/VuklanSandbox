@@ -80,7 +80,7 @@ namespace vkutil {
 		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 		pipelineInfo.pNext = nullptr;
 
-		pipelineInfo.stageCount = shaderStages.size();
+		pipelineInfo.stageCount = (uint32_t)shaderStages.size();
 		pipelineInfo.pStages = shaderStages.data();
 		pipelineInfo.pVertexInputState = &vertexInputInfo;
 		pipelineInfo.pInputAssemblyState = &inputAssembly;
@@ -117,10 +117,10 @@ namespace vkutil {
 
 	PipelineBuilder &PipelineBuilder::set_viewport(VkOffset2D offset,
 		VkExtent2D size, glm::vec2 depth) {
-		viewport.x = offset.x;
-		viewport.y = offset.y;
-		viewport.width = size.width;
-		viewport.height = size.height;
+		viewport.x = (float)offset.x;
+		viewport.y = (float)offset.y;
+		viewport.width = (float)size.width;
+		viewport.height = (float)size.height;
 		viewport.minDepth = depth.x;
 		viewport.maxDepth = depth.y;
 
@@ -132,9 +132,9 @@ namespace vkutil {
 		std::vector<VkVertexInputAttributeDescription> &attributes,
 		std::vector<VkVertexInputBindingDescription> &bindings) {
 		vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
-		vertexInputInfo.vertexAttributeDescriptionCount = attributes.size();
+		vertexInputInfo.vertexAttributeDescriptionCount = (uint32_t)attributes.size();
 		vertexInputInfo.pVertexBindingDescriptions = bindings.data();
-		vertexInputInfo.vertexBindingDescriptionCount = bindings.size();
+		vertexInputInfo.vertexBindingDescriptionCount = (uint32_t)bindings.size();
 		return *this;
 	}
 

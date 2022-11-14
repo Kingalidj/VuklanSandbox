@@ -113,10 +113,10 @@ namespace vkutil {
 		bool isSorted = true;
 		int lastBinding = -1;
 
-		for (int i = 0; i < info.bindingCount; i++) {
+		for (uint32_t i = 0; i < info.bindingCount; i++) {
 			layoutInfo.bindings.push_back(info.pBindings[i]);
 
-			if (info.pBindings[i].binding > lastBinding) {
+			if (info.pBindings[i].binding > (uint32_t)lastBinding) {
 				lastBinding = info.pBindings[i].binding;
 			}
 			else {
@@ -224,7 +224,7 @@ namespace vkutil {
 		layoutInfo.pNext = nullptr;
 
 		layoutInfo.pBindings = m_Bindings.data();
-		layoutInfo.bindingCount = m_Bindings.size();
+		layoutInfo.bindingCount = (uint32_t)m_Bindings.size();
 
 		*layout = m_LayoutCache->create_descriptor_layout(layoutInfo);
 
@@ -235,7 +235,7 @@ namespace vkutil {
 			w.dstSet = *set;
 		}
 
-		vkUpdateDescriptorSets(m_Alloc->m_Device, m_Writes.size(), m_Writes.data(), 0, nullptr);
+		vkUpdateDescriptorSets(m_Alloc->m_Device, (uint32_t)m_Writes.size(), m_Writes.data(), 0, nullptr);
 
 		return true;
 	}
@@ -246,7 +246,7 @@ namespace vkutil {
 		layoutInfo.pNext = nullptr;
 
 		layoutInfo.pBindings = m_Bindings.data();
-		layoutInfo.bindingCount = m_Bindings.size();
+		layoutInfo.bindingCount = (uint32_t)m_Bindings.size();
 
 		VkDescriptorSetLayout layout = m_LayoutCache->create_descriptor_layout(layoutInfo);
 
@@ -257,7 +257,7 @@ namespace vkutil {
 			w.dstSet = *set;
 		}
 
-		vkUpdateDescriptorSets(m_Alloc->m_Device, m_Writes.size(), m_Writes.data(), 0, nullptr);
+		vkUpdateDescriptorSets(m_Alloc->m_Device, (uint32_t)m_Writes.size(), m_Writes.data(), 0, nullptr);
 
 		return true;
 	}

@@ -7,6 +7,36 @@
 #include <stb_image.h>
 
 namespace vkutil {
+
+	TextureCreateInfo color_texture_create_info(uint32_t w, uint32_t h, VkFormat format)
+	{
+		TextureCreateInfo info;
+		info.width = w;
+		info.height = h;
+		info.format = format;
+		info.createImguiDescriptor = true;
+		info.aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+		info.filter = VK_FILTER_LINEAR;
+		info.usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+		return info;
+	}
+
+	TextureCreateInfo depth_texture_create_info(uint32_t w, uint32_t h, VkFormat format)
+	{
+		vkutil::TextureCreateInfo info{};
+		info.width = w;
+		info.height = h;
+		info.format = format;
+		info.filter = VK_FILTER_LINEAR;
+		info.aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+		info.usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		info.createImguiDescriptor = false;
+
+		return info;
+	}
+
+
 	void set_texture_data(Texture &tex, const void *data, VulkanManager &manager) {
 		VkDeviceSize imageSize = tex.width * tex.height * 4;
 
@@ -78,43 +108,45 @@ namespace vkutil {
 	}
 
 	void destroy_texture(VulkanManager &manager, Texture &tex) {
-		//manager.delete_func([&] {
 		vkDestroyImageView(manager.get_device(), tex.imageView, nullptr);
 		vmaDestroyImage(manager.get_allocator(), tex.imageAllocation.image, tex.imageAllocation.allocation);
-		ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)tex.ImGuiTexID);
-		//});
+
+		if (tex.imguiCompatible) {
+			ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)tex.imGuiTexID);
+			vkDestroySampler(manager.get_device(), tex.imGuiSampler, nullptr);
+		}
 	}
 
-	void alloc_texture(uint32_t w, uint32_t h, VkSamplerCreateInfo &info, VkFormat imageFormat, VulkanManager &manager, Texture *tex, VkImageUsageFlags flags) {
-		tex->width = w;
-		tex->height = h;
-		tex->nChannels = 4;
+	void alloc_texture(VulkanManager& manager, TextureCreateInfo &info, Texture* tex)
+	{
+		tex->width = info.width;
+		tex->height = info.height;
+		tex->format = info.format;
 
-		VkDeviceSize imageSize = w * h * sizeof(uint32_t);
-		//VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-
-		manager.create_image(w, h, imageFormat, flags, &tex->imageAllocation);
+		manager.create_image(info.width, info.height, info.format, info.usageFlags, &tex->imageAllocation);
 
 		VkImageViewCreateInfo imageInfo = vkinit::imageview_create_info(
-			imageFormat, tex->imageAllocation.image,
-			VK_IMAGE_ASPECT_COLOR_BIT);
+			info.format, tex->imageAllocation.image,
+			info.aspectFlags);
 
 		vkCreateImageView(manager.get_device(), &imageInfo, nullptr, &tex->imageView);
 
-		VkSampler sampler;
-		VK_CHECK(vkCreateSampler(manager.get_device(), &info, nullptr, &sampler));
+		tex->imguiCompatible = false;
 
-		tex->ImGuiTexID = ImGui_ImplVulkan_AddTexture(sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		if (info.createImguiDescriptor) {
+			tex->imguiCompatible = true;
 
-		manager.delete_func([=, device = manager.get_device(), allocator = manager.get_allocator()]{
-			vkDestroySampler(device, sampler, nullptr);
-			});
+			VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(info.filter);
+			VK_CHECK(vkCreateSampler(manager.get_device(), &samplerInfo, nullptr, &tex->imGuiSampler));
+			tex->imGuiTexID = ImGui_ImplVulkan_AddTexture(tex->imGuiSampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}
 	}
 
 	std::optional<Ref<Texture>> load_texture(const char *file, VulkanManager &manager, VkSamplerCreateInfo &info) {
 		Ref<Texture> tex = make_ref<Texture>();
 
-		VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		//VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		tex->format = VK_FORMAT_R8G8B8A8_UNORM;
 
 		int w, h, nC;
 		if (!load_alloc_image_from_file(file, manager, &tex->imageAllocation, &w, &h, &nC)) {
@@ -124,26 +156,17 @@ namespace vkutil {
 
 		tex->width = static_cast<uint32_t>(w);
 		tex->height = static_cast<uint32_t>(h);
-		tex->nChannels = static_cast<uint32_t>(nC);
 
 		VkImageViewCreateInfo imageInfo = vkinit::imageview_create_info(
-			imageFormat, tex->imageAllocation.image,
+			tex->format, tex->imageAllocation.image,
 			VK_IMAGE_ASPECT_COLOR_BIT);
 
 		vkCreateImageView(manager.get_device(), &imageInfo, nullptr, &tex->imageView);
 
-		//engine.m_MainDeletionQueue.push_function([=, device = engine.m_Device]() {
-		//	vkDestroyImageView(device, tex->imageView, nullptr);
-		//});
+		VK_CHECK(vkCreateSampler(manager.get_device(), &info, nullptr, &tex->imGuiSampler));
 
-		VkSampler sampler;
-		VK_CHECK(vkCreateSampler(manager.get_device(), &info, nullptr, &sampler));
-
-		tex->ImGuiTexID = ImGui_ImplVulkan_AddTexture(sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-		manager.delete_func([=, device = manager.get_device(), allocator = manager.get_allocator()]{
-			vkDestroySampler(device, sampler, nullptr);
-			});
+		tex->imGuiTexID = ImGui_ImplVulkan_AddTexture(tex->imGuiSampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		tex->imguiCompatible = true;
 
 		return std::move(tex);
 	}

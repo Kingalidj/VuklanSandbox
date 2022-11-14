@@ -87,6 +87,9 @@ if (WIN32)
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}
 		)
 
+	set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
+	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+
 else()
 	add_custom_command(
 		TARGET ${PROJECT_NAME}
@@ -95,11 +98,6 @@ else()
 		${CMAKE_SOURCE_DIR}/${RES_DIR} $<TARGET_FILE_DIR:${PROJECT_NAME}>/${RES_DIR}
 		)
 endif()
-
-set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
-
-message(STATUS ${Vulkan_INCLUDE_DIRS})
-
 
 target_include_directories(${PROJECT_NAME}
 	PUBLIC ${Vulkan_INCLUDE_DIRS}
@@ -136,10 +134,14 @@ if (WIN32)
 	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/ignore:4099")
 
 	target_link_libraries(${PROJECT_NAME} 
-		$<$<CONFIG:Release>:${SHADERC}>
 		$<$<CONFIG:Debug>:${SHADERC_D}>
-		$<$<CONFIG:Release>:${SPIRV_CROSS}>
 		$<$<CONFIG:Debug>:${SPIRV_CROSS_D}>
+
+		$<$<CONFIG:Release>:${SHADERC}>
+		$<$<CONFIG:Release>:${SPIRV_CROSS}>
+
+		$<$<CONFIG:RelWithDebInfo>:${SHADERC}>
+		$<$<CONFIG:RelWithDebInfo>:${SPIRV_CROSS}>
 		)
 
 else()

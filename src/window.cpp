@@ -96,7 +96,7 @@ void Window::init(const WindowInfo &props) {
 	glfwSetCharCallback(m_Window, [](GLFWwindow *window, unsigned int keyCode)
 		{
 			WindowData &data = *(WindowData *)glfwGetWindowUserPointer(window);
-			KeyTypedEvent event{ keyCode };
+			KeyTypedEvent event{ (int)keyCode };
 			Event e(event);
 			data.eventCallback(e);
 		});
@@ -151,6 +151,12 @@ void Window::cleanup() {
 void Window::on_update() {
 
 	glfwPollEvents();
+}
+
+std::pair<float, float> Window::get_mouse_pos() const {
+	double mouseX, mouseY;
+	glfwGetCursorPos(m_Window, &mouseX, &mouseY);
+	return { (float)mouseX, (float)mouseY };
 }
 
 VkResult Window::create_window_surface(VkInstance instance, VkSurfaceKHR *surface) {
