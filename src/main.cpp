@@ -2,7 +2,7 @@
 
 int main() {
 
-	VulkanEngine app;
+	vkutil::VulkanEngine app;
 
 	app.init();
 	app.run();

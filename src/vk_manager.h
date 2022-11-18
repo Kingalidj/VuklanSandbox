@@ -3,6 +3,9 @@
 #include "vk_types.h"
 #include "vk_textures.h"
 #include "vk_scene.h"
+#include "vk_descriptors.h"
+
+namespace vkutil {
 
 struct UploadContext {
 	VkFence uploadFence;
@@ -32,6 +35,8 @@ public:
 
 	const VkDevice get_device();
 	const VmaAllocator get_allocator();
+	DescriptorAllocator &get_descriptor_allocator();
+	DescriptorLayoutCache &get_descriptor_layoutcache();
 
 	void init(VkDevice device, VmaAllocator allocator);
 	void init_commands(VkQueue queue, uint32_t queueFamilyIndex);
@@ -41,6 +46,7 @@ public:
 	void create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, AllocatedBuffer *buffer);
 	void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img);
 	void upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
+	DescriptorBuilder descriptor_builder();
 
 	void set_texture(const std::string &name, Ref<Texture> tex);
 	void set_mesh(const std::string &name, Ref<Mesh> mesh);
@@ -69,8 +75,13 @@ private:
 
 	DeletionQueue m_DeletionQueue;
 
+	DescriptorAllocator m_DescriptorAllocator;
+	DescriptorLayoutCache m_DescriptorLayoutCache;
+
 	std::unordered_map<std::string, Ref<Texture>> m_Textures;
 	std::unordered_map<std::string, Ref<Mesh>> m_Meshes;
 	std::unordered_map<std::string, Ref<Material>> m_Materials;
 
 };
+
+}

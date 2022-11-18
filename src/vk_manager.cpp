@@ -2,9 +2,14 @@
 
 #include "vk_initializers.h"
 
+namespace vkutil {
+
 void VulkanManager::init(VkDevice device, VmaAllocator allocator) {
 	m_Device = device;
 	m_Allocator = allocator;
+
+	m_DescriptorAllocator = DescriptorAllocator(m_Device);
+	m_DescriptorLayoutCache = DescriptorLayoutCache(m_Device);
 }
 
 void VulkanManager::set_texture(const std::string &name, Ref<Texture> tex) {
@@ -24,6 +29,8 @@ void VulkanManager::set_material(const std::string &name, Ref<Material> material
 
 void VulkanManager::cleanup() {
 	m_DeletionQueue.flush();
+	m_DescriptorLayoutCache.cleanup();
+	m_DescriptorAllocator.cleanup();
 }
 
 std::optional<Ref<Texture>> VulkanManager::get_texture(const std::string &name) {
@@ -69,7 +76,7 @@ std::optional<Ref<Material>> VulkanManager::create_material(const std::string &n
 	Ref<Material> mat = make_ref<Material>();
 	mat->pipeline = pipeline;
 	mat->pipelineLayout = layout;
-	set_material(std::move(name), mat);
+	set_material(name, mat);
 
 	return mat;
 }
@@ -146,13 +153,18 @@ void VulkanManager::upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer
 
 	immediate_submit([=](VkCommandBuffer cmd) {
 		VkBufferCopy copy;
-		copy.dstOffset = 0;
-		copy.srcOffset = 0;
-		copy.size = size;
-		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
+	copy.dstOffset = 0;
+	copy.srcOffset = 0;
+	copy.size = size;
+	vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
 		});
 
 	vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+}
+
+DescriptorBuilder VulkanManager::descriptor_builder() {
+	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	return DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator);
 }
 
 const VkDevice VulkanManager::get_device() {
@@ -163,6 +175,16 @@ const VkDevice VulkanManager::get_device() {
 const VmaAllocator VulkanManager::get_allocator() {
 	CORE_ASSERT(m_Device, "ResourceManager not initialized");
 	return m_Allocator;
+}
+
+DescriptorAllocator &VulkanManager::get_descriptor_allocator() {
+	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	return m_DescriptorAllocator;
+}
+
+DescriptorLayoutCache &VulkanManager::get_descriptor_layoutcache() {
+	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	return m_DescriptorLayoutCache;
 }
 
 void VulkanManager::init_commands(VkQueue queue, uint32_t queueFamilyIndex) {
@@ -223,3 +245,5 @@ void VulkanManager::immediate_submit(std::function<void(VkCommandBuffer cmd)> &&
 	vkResetCommandPool(m_Device, m_UploadContext.commandPool, 0);
 }
 
+
+}

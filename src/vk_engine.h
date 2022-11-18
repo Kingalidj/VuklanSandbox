@@ -5,6 +5,7 @@
 #include "vk_descriptors.h"
 #include "vk_textures.h"
 #include "vk_manager.h"
+#include "vk_framebuffer.h"
 
 #include "window.h"
 
@@ -12,6 +13,8 @@
 
 #include <imgui_impl_vulkan.h>
 #include <imgui_impl_glfw.h>
+
+namespace vkutil {
 
 struct GPUSceneData {
 	//glm::vec4 fogColor;
@@ -102,9 +105,10 @@ public:
 	VkRenderPass m_ImGuiRenderPass;
 	VkRenderPass m_ViewportRenderPass;
 
-	Texture m_DepthTexture;
-	Texture m_ViewportTexture;
-	VkFramebuffer m_ViewportFrameBuffer;
+	Framebuffer m_ViewportFramebuffer;
+	//Texture m_DepthTexture;
+	//Texture m_ViewportTexture;
+	//VkFramebuffer m_ViewportFrameBuffer;
 
 	std::vector<VkImage> m_SwapchainImages;
 	std::vector<VkImageView> m_SwapchainImageViews;
@@ -117,6 +121,7 @@ public:
 	VkPipelineLayout m_TrianglePipelineLayout;
 	VkPipelineLayout m_MeshPipelineLayout;
 	VkPipeline m_MeshPipeline;
+	VkPipeline m_DebugPipeline;
 
 	DeletionQueue m_MainDeletionQueue;
 
@@ -139,9 +144,6 @@ public:
 	GPUSceneData m_SceneParameters;
 	AllocatedBuffer m_SceneParameterBuffer;
 
-	vkutil::DescriptorAllocator m_DescriptorAllocator;
-	vkutil::DescriptorLayoutCache m_DescriptorLayoutCache;
-
 	bool m_FramebufferResized = false;
 	bool m_ViewportbufferResized = false;
 
@@ -163,10 +165,8 @@ private:
 	void cleanup_swapchain();
 	void rebuild_swapchain();
 
-	void init_vp_swapchain();
 	void init_vp_renderpass();
 	void init_vp_framebuffers();
-	void cleanup_vp_swapchain();
 	void rebuild_vp_swapchain();
 
 	void load_meshes();
@@ -177,3 +177,5 @@ private:
 	bool on_window_resize(Atlas::WindowResizedEvent &e);
 	bool on_viewport_resize(Atlas::ViewportResizedEvent &e);
 };
+
+}

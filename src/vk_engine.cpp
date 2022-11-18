@@ -16,6 +16,8 @@ const uint8_t c_RobotoRegular[] = {
 
 #include <cmath>
 
+namespace vkutil {
+
 void VulkanEngine::init() {
 
 	{
@@ -35,7 +37,6 @@ void VulkanEngine::init() {
 
 	init_imgui();
 
-	init_vp_swapchain();
 	init_vp_renderpass();
 	init_vp_framebuffers();
 
@@ -72,7 +73,7 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize,
 	return newBuffer;
 }
 
-void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject* first,
+void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first,
 	int count) {
 	glm::vec3 camPos = { 0.f, -3.f, -9.f };
 
@@ -80,16 +81,14 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject* first,
 	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)m_ViewportExtent.width / m_ViewportExtent.height, 0.1f, 200.0f);
 	projection[1][1] *= -1;
 
-	glm::mat4 rotMat =
-		glm::rotate(glm::mat4(1), glm::radians((float)m_FrameNumber * 2.0f),
-			glm::vec3(0, 1, 0));
+	glm::mat4 rotMat = glm::rotate(glm::mat4(1), glm::radians((float)m_FrameNumber * 2.0f), glm::vec3(0, 1, 0));
 
 	GPUCameraData camData;
 	camData.proj = projection;
 	camData.view = view;
 	camData.viewProj = projection * view;
 
-	void* data;
+	void *data;
 	vmaMapMemory(m_Allocator, m_FrameData.cameraBuffer.allocation, &data);
 	memcpy(data, &camData, sizeof(GPUCameraData));
 	vmaUnmapMemory(m_Allocator, m_FrameData.cameraBuffer.allocation);
@@ -97,21 +96,21 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject* first,
 	float framed = (m_FrameNumber / 120.f);
 	// m_SceneParameters.ambientColor = { sin(framed), 0, cos(framed), 1 };
 
-	char* sceneData;
+	char *sceneData;
 	vmaMapMemory(m_Allocator, m_SceneParameterBuffer.allocation,
-		(void**)&sceneData);
+		(void **)&sceneData);
 
 	// sceneData += pad_uniform_buffer_size(sizeof(GPUSceneData));
 	memcpy(sceneData, &m_SceneParameters, sizeof(GPUSceneData));
 	vmaUnmapMemory(m_Allocator, m_SceneParameterBuffer.allocation);
 
-	void* objectData;
+	void *objectData;
 	vmaMapMemory(m_Allocator, m_FrameData.objectBuffer.allocation, &objectData);
 
-	GPUObjectData* objectSSBO = (GPUObjectData*)objectData;
+	GPUObjectData *objectSSBO = (GPUObjectData *)objectData;
 
 	for (int i = 0; i < count; i++) {
-		RenderObject& object = first[i];
+		RenderObject &object = first[i];
 		objectSSBO[i].modelMatrix = object.transformMatrix * rotMat;
 	}
 
@@ -120,7 +119,7 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject* first,
 	Ref<Mesh> lastMesh = nullptr;
 	Ref<Material> lastMaterial = nullptr;
 	for (int i = 0; i < count; i++) {
-		RenderObject& object = first[i];
+		RenderObject &object = first[i];
 
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			object.material->pipeline);
@@ -183,7 +182,7 @@ void VulkanEngine::cleanup() {
 
 		VK_CHECK(vkDeviceWaitIdle(m_Device));
 
-		cleanup_vp_swapchain();
+		destroy_framebuffer(m_VkManager, m_ViewportFramebuffer);
 		cleanup_swapchain();
 
 		m_VkManager.cleanup();
@@ -247,7 +246,7 @@ void VulkanEngine::draw() {
 		VkExtent2D scaledViewport = { m_ViewportExtent.width * m_RenderResolution, m_ViewportExtent.height * m_RenderResolution };
 		VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(
 			m_ViewportRenderPass, scaledViewport,
-			m_ViewportFrameBuffer);
+			m_ViewportFramebuffer.framebuffer);
 
 		rpInfo.clearValueCount = 2;
 		VkClearValue clearValues[] = { clearValue, depthClear };
@@ -291,7 +290,7 @@ void VulkanEngine::draw() {
 
 		ImGui::Begin("Texture Viewer");
 		Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
-		ImGui::Image(tex->imGuiTexID, ImVec2(1200, 1200));
+		ImGui::Image(tex->descriptor, ImVec2(1200, 1200));
 		ImGui::End();
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -309,8 +308,8 @@ void VulkanEngine::draw() {
 		//CORE_TRACE("viewport: {}, {}", viewportSize.x, viewportSize.y);
 
 		//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
-		//ImGui::Image(tex->imGuiTexID, { (float)m_ViewportExtent.width, (float)m_ViewportExtent.height });
-		ImGui::Image(m_ViewportTexture.imGuiTexID, { viewportSize.x, viewportSize.y });
+		//ImGui::Image(tex->descriptor, { (float)m_ViewportExtent.width, (float)m_ViewportExtent.height });
+		ImGui::Image(m_ViewportFramebuffer.renderTarget[0].descriptor, { viewportSize.x, viewportSize.y });
 		ImGui::End();
 
 		ImGui::Begin("Settings");
@@ -364,10 +363,10 @@ void VulkanEngine::draw() {
 
 	m_FrameNumber++;
 
-	ImGuiIO& io = ImGui::GetIO();
+	ImGuiIO &io = ImGui::GetIO();
 
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-		GLFWwindow* backup_current_context = glfwGetCurrentContext();
+		GLFWwindow *backup_current_context = glfwGetCurrentContext();
 		ImGui::UpdatePlatformWindows();
 		ImGui::RenderPlatformWindowsDefault();
 		glfwMakeContextCurrent(backup_current_context);
@@ -388,8 +387,8 @@ void VulkanEngine::run() {
 VkBool32
 spdlog_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT msgType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void*) {
+	const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+	void *) {
 	auto mt = vkb::to_string_message_type(msgType);
 
 	switch (msgSeverity) {
@@ -483,6 +482,7 @@ void VulkanEngine::init_swapchain() {
 	m_SwapchainImageViews = vkbSwapchain.get_image_views().value();
 
 	m_SwapchainImageFormat = vkbSwapchain.image_format;
+	m_DepthFormat = VK_FORMAT_D32_SFLOAT;
 }
 
 void VulkanEngine::cleanup_swapchain() {
@@ -537,7 +537,6 @@ void VulkanEngine::init_renderpass() {
 		attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		// attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 		VkAttachmentReference color_attachment = {};
@@ -587,18 +586,6 @@ void print_rgb(uint32_t color) {
 	CORE_INFO("(r, g, b, a): {}, {}, {}, {}", r, g, b, a);
 }
 
-
-void VulkanEngine::init_vp_swapchain() {
-	const int w = (int)m_ViewportExtent.width * m_RenderResolution;
-	const int h = (int)m_ViewportExtent.height * m_RenderResolution;
-	m_DepthFormat = VK_FORMAT_D32_SFLOAT;
-
-	vkutil::TextureCreateInfo depthInfo = vkutil::depth_texture_create_info(w, h, m_DepthFormat);
-	vkutil::alloc_texture(m_VkManager, depthInfo, &m_DepthTexture);
-	
-	vkutil::TextureCreateInfo texInfo = vkutil::color_texture_create_info(w, h, m_SwapchainImageFormat);
-	vkutil::alloc_texture(m_VkManager, texInfo, &m_ViewportTexture);
-}
 
 void VulkanEngine::init_vp_renderpass() {
 	const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
@@ -678,23 +665,16 @@ void VulkanEngine::init_vp_renderpass() {
 }
 
 void VulkanEngine::init_vp_framebuffers() {
-	VkFramebufferCreateInfo fbInfo =
-		vkinit::framebuffer_create_info(m_ViewportRenderPass, { (uint32_t)(m_ViewportExtent.width * m_RenderResolution), (uint32_t)(m_ViewportExtent.height * m_RenderResolution) });
 
-	VkImageView attachments[2];
-	attachments[0] = m_ViewportTexture.imageView;
-	attachments[1] = m_DepthTexture.imageView;
+	const int w = (int)m_ViewportExtent.width * m_RenderResolution;
+	const int h = (int)m_ViewportExtent.height * m_RenderResolution;
 
-	fbInfo.pAttachments = attachments;
-	fbInfo.attachmentCount = 2;
+	vkutil::TextureCreateInfo depthInfo = vkutil::depth_texture_create_info(w, h, m_DepthFormat);
+	vkutil::TextureCreateInfo texInfo = vkutil::color_texture_create_info(w, h, m_SwapchainImageFormat);
 
-	VK_CHECK(vkCreateFramebuffer(m_Device, &fbInfo, nullptr, &m_ViewportFrameBuffer));
-}
-
-void VulkanEngine::cleanup_vp_swapchain() {
-	vkDestroyFramebuffer(m_Device, m_ViewportFrameBuffer, nullptr);
-	vkutil::destroy_texture(m_VkManager, m_DepthTexture);
-	vkutil::destroy_texture(m_VkManager, m_ViewportTexture);
+	m_ViewportFramebuffer = FramebufferBuilder(w, h, m_ViewportRenderPass)
+		.push_attachment(texInfo)
+		.push_attachment(depthInfo).build(m_VkManager);
 }
 
 void VulkanEngine::rebuild_vp_swapchain() {
@@ -702,8 +682,7 @@ void VulkanEngine::rebuild_vp_swapchain() {
 
 	vkDeviceWaitIdle(m_Device);
 
-	cleanup_vp_swapchain();
-	init_vp_swapchain();
+	destroy_framebuffer(m_VkManager, m_ViewportFramebuffer);
 	init_vp_framebuffers();
 }
 
@@ -716,11 +695,9 @@ void VulkanEngine::init_framebuffers() {
 
 	// create framebuffers for each of the swapchain image views
 	for (uint32_t i = 0; i < swapchainImageCount; i++) {
-		VkImageView attachments[2];
-		attachments[0] = m_SwapchainImageViews[i];
-		attachments[1] = m_DepthTexture.imageView;
+		VkImageView attachments = m_SwapchainImageViews[i];
 
-		imguiFbInfo.pAttachments = attachments;
+		imguiFbInfo.pAttachments = &attachments;
 		imguiFbInfo.attachmentCount = 1;
 
 		VK_CHECK(vkCreateFramebuffer(m_Device, &imguiFbInfo, nullptr,
@@ -812,7 +789,7 @@ void VulkanEngine::init_pipelines() {
 			.build()
 			.value();
 
-		m_VkManager.create_material("defaultmaterial", m_MeshPipeline,
+		m_VkManager.create_material("textured_mat", m_MeshPipeline,
 			m_MeshPipelineLayout);
 
 		/* m_MeshPipeline = pipelineBuilder.build(); */
@@ -821,10 +798,49 @@ void VulkanEngine::init_pipelines() {
 		vkDestroyShaderModule(m_Device, texturedMeshVertexShader, nullptr);
 	}
 
+	{
+		VkShaderModule debugFrag;
+		if (!vkutil::load_glsl_shader("res/shaders/debug.frag",
+			&debugFrag, m_Device)) {
+			return;
+		}
+		else {
+			CORE_INFO("textured_mesh fragment shader successfully loaded");
+		}
+
+		VkShaderModule debugVert;
+		if (!vkutil::load_glsl_shader("res/shaders/debug.vert",
+			&debugVert, m_Device)) {
+			return;
+		}
+		else {
+			CORE_INFO("textured_mesh vertex shader successfully loaded");
+		}
+
+		VertexInputDescription vertexDescription = Vertex::get_vertex_description();
+
+		m_DebugPipeline =
+			vkutil::PipelineBuilder(m_Device, m_ViewportRenderPass, m_MeshPipelineLayout)
+			.set_vertex_description(vertexDescription.attributes, vertexDescription.bindings)
+			.add_shader_module(debugVert, ShaderType::Vertex)
+			.add_shader_module(debugFrag, ShaderType::Fragment)
+			.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL)
+			.build()
+			.value();
+
+		m_VkManager.create_material("debug_mat", m_DebugPipeline,
+			m_MeshPipelineLayout);
+
+		vkDestroyShaderModule(m_Device, debugFrag, nullptr);
+		vkDestroyShaderModule(m_Device, debugVert, nullptr);
+	}
+
 	m_MainDeletionQueue.push_function([=]() {
 		vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
 	vkDestroyPipelineLayout(m_Device, m_TrianglePipelineLayout, nullptr);
 	vkDestroyPipelineLayout(m_Device, m_MeshPipelineLayout, nullptr);
+
+	vkDestroyPipeline(m_Device, m_DebugPipeline, nullptr);
 		});
 }
 
@@ -861,7 +877,7 @@ void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
 		});
 }
 
-void VulkanEngine::on_event(Atlas::Event& e) {
+void VulkanEngine::on_event(Atlas::Event &e) {
 	using namespace Atlas;
 	if (!e.in_category(EventCategoryMouse)) CORE_TRACE(e);
 
@@ -871,7 +887,7 @@ void VulkanEngine::on_event(Atlas::Event& e) {
 	ed.dispatch<ViewportResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_viewport_resize));
 }
 
-bool VulkanEngine::on_window_resize(Atlas::WindowResizedEvent& e) {
+bool VulkanEngine::on_window_resize(Atlas::WindowResizedEvent &e) {
 	m_FramebufferResized = true;
 
 	m_WindowExtent.width = e.width;
@@ -883,7 +899,7 @@ bool VulkanEngine::on_window_resize(Atlas::WindowResizedEvent& e) {
 	return false;
 }
 
-bool VulkanEngine::on_viewport_resize(Atlas::ViewportResizedEvent& e) {
+bool VulkanEngine::on_viewport_resize(Atlas::ViewportResizedEvent &e) {
 	m_ViewportExtent = { e.width, e.height };
 	m_ViewportbufferResized = true;
 
@@ -896,49 +912,42 @@ bool VulkanEngine::on_viewport_resize(Atlas::ViewportResizedEvent& e) {
 void VulkanEngine::init_scene() {
 	RenderObject empire;
 	empire.mesh = m_VkManager.get_mesh("empire").value();
-	empire.material = m_VkManager.get_material("defaultmaterial").value();
+	empire.material = m_VkManager.get_material("textured_mat").value();
 	empire.transformMatrix = glm::translate(glm::vec3{ 5, -10, 0 });
 
 	m_RenderObjects.push_back(empire);
 
 	Ref<Material> texturedMat =
-		m_VkManager.get_material("defaultmaterial").value();
+		m_VkManager.get_material("textured_mat").value();
 
-	VkDescriptorSetAllocateInfo allocInfo = {};
-	allocInfo.pNext = nullptr;
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfo.descriptorPool = m_DescriptorPool;
-	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &m_SingleTextureSetLayout;
+	Ref<Texture> texture = m_VkManager.get_texture("empire_diffuse").value();
 
-	texturedMat->textureSet = (VkDescriptorSet)m_VkManager.get_texture("empire_diffuse").value()->imGuiTexID;
-	vkAllocateDescriptorSets(m_Device, &allocInfo, &texturedMat->textureSet);
-
-	VkSamplerCreateInfo samplerInfo =
-		vkinit::sampler_create_info(VK_FILTER_NEAREST);
-
-	VkSampler blockySampler;
-	vkCreateSampler(m_Device, &samplerInfo, nullptr, &blockySampler);
-
-	m_MainDeletionQueue.push_function(
-		[=]() { vkDestroySampler(m_Device, blockySampler, nullptr); });
-
-	VkDescriptorImageInfo imageBufferInfo;
-	imageBufferInfo.sampler = blockySampler;
-	imageBufferInfo.imageView = m_VkManager.get_texture("empire_diffuse").value()->imageView;
+	VkDescriptorImageInfo imageBufferInfo{};
+	imageBufferInfo.sampler = texture->sampler;
+	imageBufferInfo.imageView = texture->imageView;
 	imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	VkWriteDescriptorSet texture1 = vkinit::write_descriptor_image(
-		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMat->textureSet,
-		&imageBufferInfo, 0);
+	m_VkManager.descriptor_builder()
+		.bind_image(0, &imageBufferInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		.build(&texturedMat->textureSet);
 
-	vkUpdateDescriptorSets(m_Device, 1, &texture1, 0, nullptr);
+	for (int x = -20; x <= 20; x++) {
+		for (int y = -20; y <= 20; y++) {
+
+			RenderObject tri;
+			tri.mesh = m_VkManager.get_mesh("triangle").value();
+			tri.material = m_VkManager.get_material("debug_mat").value();
+			glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(x, 3, y));
+			glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
+			tri.transformMatrix = translation * scale;
+
+			m_RenderObjects.push_back(tri);
+		}
+	}
+
 }
 
 void VulkanEngine::init_descriptors() {
-
-	m_DescriptorAllocator = vkutil::DescriptorAllocator(m_Device);
-	m_DescriptorLayoutCache = vkutil::DescriptorLayoutCache(m_Device);
 
 	std::vector<VkDescriptorPoolSize> sizes = {
 		{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10},
@@ -969,7 +978,7 @@ void VulkanEngine::init_descriptors() {
 		setInfo.pBindings = &textureBind;
 
 		m_SingleTextureSetLayout =
-			m_DescriptorLayoutCache.create_descriptor_layout(setInfo);
+			m_VkManager.get_descriptor_layoutcache().create_descriptor_layout(setInfo);
 	}
 
 	// const size_t sceneParamBufferSize =
@@ -1003,20 +1012,17 @@ void VulkanEngine::init_descriptors() {
 	objectBufferInfo.offset = 0;
 	objectBufferInfo.range = sizeof(GPUObjectData) * MAX_OBJECTS;
 
-	vkutil::DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator)
+	m_VkManager.descriptor_builder()
 		.bind_buffer(0, &cameraInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 		.bind_buffer(1, &sceneInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
 		.build(&m_FrameData.globalDescriptor, &m_GlobalSetLayout);
 
-	vkutil::DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator)
+	m_VkManager.descriptor_builder()
 		.bind_buffer(0, &objectBufferInfo, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 		.build(&m_FrameData.objectDescriptor, &m_ObjectSetLayout);
 
 	m_MainDeletionQueue.push_function([&]() {
-		m_DescriptorLayoutCache.cleanup();
-	m_DescriptorAllocator.cleanup();
-
-	vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
+		vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
 
 	vmaDestroyBuffer(m_Allocator, m_SceneParameterBuffer.buffer,
 		m_SceneParameterBuffer.allocation);
@@ -1059,7 +1065,7 @@ void VulkanEngine::init_imgui() {
 	// this initializes the core structures of imgui
 	ImGui::CreateContext();
 
-	ImGuiIO& io = ImGui::GetIO();
+	ImGuiIO &io = ImGui::GetIO();
 	(void)io;
 	// io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable
 	// Keyboard Controls io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; //
@@ -1074,7 +1080,7 @@ void VulkanEngine::init_imgui() {
 
 	ImGui::StyleColorsDark();
 
-	ImGuiStyle& style = ImGui::GetStyle();
+	ImGuiStyle &style = ImGui::GetStyle();
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 		style.WindowRounding = 0.0f;
 		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
@@ -1099,8 +1105,8 @@ void VulkanEngine::init_imgui() {
 	{
 		ImFontConfig fontConfig;
 		fontConfig.FontDataOwnedByAtlas = false;
-		ImFont* robotoFont = io.Fonts->AddFontFromMemoryTTF(
-			(void*)c_RobotoRegular, sizeof(c_RobotoRegular), 23.0f, &fontConfig);
+		ImFont *robotoFont = io.Fonts->AddFontFromMemoryTTF(
+			(void *)c_RobotoRegular, sizeof(c_RobotoRegular), 23.0f, &fontConfig);
 		io.FontDefault = robotoFont;
 
 		m_VkManager.immediate_submit(
@@ -1131,13 +1137,12 @@ size_t VulkanEngine::pad_uniform_buffer_size(size_t originalSize) {
 
 void VulkanEngine::load_images() {
 	{
-		auto info = vkinit::sampler_create_info(VK_FILTER_LINEAR);
-		Ref<Texture> texture =
+		auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+		Ref<vkutil::Texture> texture =
 			vkutil::load_texture("res/images/lost_empire-RGBA.png", m_VkManager, info).value();
 
 		m_VkManager.set_texture("empire_diffuse", texture);
 
-		//vkutil::queue_destroy_texture(m_VkManager, *texture);
 		m_MainDeletionQueue.push_function([=] {
 			vkutil::destroy_texture(m_VkManager, *texture);
 			});
@@ -1145,14 +1150,15 @@ void VulkanEngine::load_images() {
 
 	{
 		auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-		Ref<Texture> texture =
+		Ref<vkutil::Texture> texture =
 			vkutil::load_texture("res/images/rgb_test.png", m_VkManager, info).value();
 
 		m_VkManager.set_texture("rgb_test", texture);
 
-		//vkutil::queue_destroy_texture(m_VkManager, *texture);
 		m_MainDeletionQueue.push_function([=] {
 			vkutil::destroy_texture(m_VkManager, *texture);
 			});
 	}
+}
+
 }
