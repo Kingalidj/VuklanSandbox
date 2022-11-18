@@ -11,13 +11,6 @@
 
 #define BIND_EVENT_FN(x) std::bind(&x, this, std::placeholders::_1)
 
-//TODO remove this
-enum class ShaderType {
-	Fragment,
-	Vertex,
-};
-
-
 template<typename T>
 using Scope = std::unique_ptr<T>;
 template<typename T, typename ... Args>

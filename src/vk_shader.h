@@ -2,12 +2,6 @@
 
 #include <vulkan/vulkan_core.h>
 
-struct Shader {
-
-	ShaderType type;
-
-};
-
 namespace vkutil {
 
 	bool compile_shader_module(uint32_t *buffer, uint32_t byteSize,
@@ -19,7 +13,7 @@ namespace vkutil {
 		const VkDevice device);
 
 	bool load_glsl_shader(std::filesystem::path filePath,
-		ShaderType type,
+		VkShaderStageFlagBits type,
 		VkShaderModule *outShaderModule,
 		const VkDevice device);
 

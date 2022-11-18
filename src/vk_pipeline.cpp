@@ -1,22 +1,12 @@
 #include "vk_pipeline.h"
+#include "vk_scene.h"
 
 namespace vkutil {
 
 	PipelineBuilder &
-		PipelineBuilder::add_shader_module(VkShaderModule shaderModule,
-			ShaderType shaderType) {
-		VkShaderStageFlagBits flag;
+		PipelineBuilder::add_shader_module(VkShaderModule shaderModule, VkShaderStageFlagBits shaderType) {
 
-		switch (shaderType) {
-		case ShaderType::Vertex:
-			flag = VK_SHADER_STAGE_VERTEX_BIT;
-			break;
-		case ShaderType::Fragment:
-			flag = VK_SHADER_STAGE_FRAGMENT_BIT;
-			break;
-		}
-
-		shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(flag, shaderModule));
+		shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(shaderType, shaderModule));
 		return *this;
 	}
 	PipelineBuilder &PipelineBuilder::set_viewport(VkViewport viewport) {
@@ -48,6 +38,11 @@ namespace vkutil {
 		enableDepthStencil = true;
 		depthStencil = vkinit::depth_stencil_create_info(depthTest, depthWrite, compareOp);
 		return *this;
+	}
+
+	PipelineBuilder &PipelineBuilder::set_vertex_description(VertexInputDescription &desc)
+	{
+		return set_vertex_description(desc.attributes, desc.bindings);
 	}
 
 	std::optional<VkPipeline> PipelineBuilder::build() {

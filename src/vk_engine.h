@@ -16,166 +16,163 @@
 
 namespace vkutil {
 
-struct GPUSceneData {
-	//glm::vec4 fogColor;
-	//glm::vec4 fogDistance;
-	//glm::vec4 ambientColor;
-	//glm::vec4 sunlightDirection;
-	//glm::vec4 sunlightColor;
-};
+	struct GPUSceneData {
+		//glm::vec4 fogColor;
+		//glm::vec4 fogDistance;
+		//glm::vec4 ambientColor;
+		//glm::vec4 sunlightDirection;
+		//glm::vec4 sunlightColor;
+	};
 
-struct GPUCameraData {
-	glm::mat4 view;
-	glm::mat4 proj;
-	glm::mat4 viewProj;
-};
+	struct GPUCameraData {
+		glm::mat4 view;
+		glm::mat4 proj;
+		glm::mat4 viewProj;
+	};
 
-struct GPUObjectData {
-	glm::mat4 modelMatrix;
-};
+	struct GPUObjectData {
+		glm::mat4 modelMatrix;
+	};
 
-struct FrameData {
-	VkSemaphore presentSemaphore, renderSemaphore;
-	VkFence renderFence;
+	struct FrameData {
+		VkSemaphore presentSemaphore, renderSemaphore;
+		VkFence renderFence;
 
-	VkCommandPool commandPool;
-	VkCommandBuffer mainCommandBuffer;
+		VkCommandPool commandPool;
+		VkCommandBuffer mainCommandBuffer;
 
-	AllocatedBuffer cameraBuffer;
-	AllocatedBuffer objectBuffer;
+		AllocatedBuffer cameraBuffer;
+		AllocatedBuffer objectBuffer;
 
-	VkDescriptorSet globalDescriptor;
-	VkDescriptorSet objectDescriptor;
-};
+		VkDescriptorSet globalDescriptor;
+		VkDescriptorSet objectDescriptor;
+	};
 
-/* struct MeshPushConstants { */
-/*   glm::vec4 data; */
-/*   glm::mat4 renderMatrix; */
-/* }; */
-//constexpr uint32_t FRAME_OVERLAP = 2;
+	/* struct MeshPushConstants { */
+	/*   glm::vec4 data; */
+	/*   glm::mat4 renderMatrix; */
+	/* }; */
+	//constexpr uint32_t FRAME_OVERLAP = 2;
 
-class  VulkanEngine {
-public:
-	bool m_IsInitialized{ false };
-	int m_FrameNumber{ 0 };
+	class  VulkanEngine {
+	public:
+		bool m_IsInitialized{ false };
+		int m_FrameNumber{ 0 };
 
-	VkExtent2D m_WindowExtent{ 1600, 900 };
-	VkExtent2D m_ViewportExtent{ 1600, 900 };
-	float m_RenderResolution = 1.0f;
+		VkExtent2D m_WindowExtent{ 1600, 900 };
+		VkExtent2D m_ViewportExtent{ 1600, 900 };
+		float m_RenderResolution = 1.0f;
 
-	//struct GLFWwindow *m_Window = nullptr;
+		//struct GLFWwindow *m_Window = nullptr;
 
-	Scope<Window> m_Window = nullptr;
+		Scope<Window> m_Window = nullptr;
 
-	void init();
-	void draw();
-	void run();
-	void cleanup();
+		void init();
+		void draw();
+		void run();
+		void cleanup();
 
-	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage,
-		VmaMemoryUsage memoryUsage);
+		void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
 
-	void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
+		size_t pad_uniform_buffer_size(size_t originalSize);
 
-	size_t pad_uniform_buffer_size(size_t originalSize);
+		//void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
 
-	//void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
-
-	//void upload_to_gpu(void *data, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
+		//void upload_to_gpu(void *data, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
 
 
 
-	VkInstance m_Instance;
-	VkDebugUtilsMessengerEXT m_DebugMessenger;
-	VkPhysicalDevice m_PhysicalDevice;
-	VkDevice m_Device;
-	VkSurfaceKHR m_Surface;
-	VkPhysicalDeviceProperties m_GPUProperties;
+		VkInstance m_Instance;
+		VkDebugUtilsMessengerEXT m_DebugMessenger;
+		VkPhysicalDevice m_PhysicalDevice;
+		VkDevice m_Device;
+		VkSurfaceKHR m_Surface;
+		VkPhysicalDeviceProperties m_GPUProperties;
 
-	VkSwapchainKHR m_Swapchain;
-	VkFormat m_SwapchainImageFormat;
-	VkFormat m_DepthFormat;
+		VkSwapchainKHR m_Swapchain;
+		VkFormat m_SwapchainImageFormat;
+		VkFormat m_DepthFormat;
 
-	VkQueue m_GraphicsQueue;
-	uint32_t m_GraphicsQueueFamily;
+		VkQueue m_GraphicsQueue;
+		uint32_t m_GraphicsQueueFamily;
 
-	FrameData m_FrameData;
-	//FrameData &get_current_frame();
+		FrameData m_FrameData;
+		//FrameData &get_current_frame();
 
-	VkRenderPass m_ImGuiRenderPass;
-	VkRenderPass m_ViewportRenderPass;
+		VkRenderPass m_ImGuiRenderPass;
+		VkRenderPass m_ViewportRenderPass;
 
-	Framebuffer m_ViewportFramebuffer;
-	//Texture m_DepthTexture;
-	//Texture m_ViewportTexture;
-	//VkFramebuffer m_ViewportFrameBuffer;
+		Framebuffer m_ViewportFramebuffer;
+		//Texture m_DepthTexture;
+		//Texture m_ViewportTexture;
+		//VkFramebuffer m_ViewportFrameBuffer;
 
-	std::vector<VkImage> m_SwapchainImages;
-	std::vector<VkImageView> m_SwapchainImageViews;
+		std::vector<VkImage> m_SwapchainImages;
+		std::vector<VkImageView> m_SwapchainImageViews;
 
-	std::vector<VkFramebuffer> m_ImGuiFrameBuffers;
+		std::vector<VkFramebuffer> m_ImGuiFrameBuffers;
 
-	/* VkSemaphore m_PresentSemaphore, m_RenderSemaphore; */
-	/* VkFence m_RenderFence; */
+		/* VkSemaphore m_PresentSemaphore, m_RenderSemaphore; */
+		/* VkFence m_RenderFence; */
 
-	VkPipelineLayout m_TrianglePipelineLayout;
-	VkPipelineLayout m_MeshPipelineLayout;
-	VkPipeline m_MeshPipeline;
-	VkPipeline m_DebugPipeline;
+		VkPipelineLayout m_TrianglePipelineLayout;
+		VkPipelineLayout m_MeshPipelineLayout;
+		VkPipeline m_MeshPipeline;
+		VkPipeline m_DebugPipeline;
 
-	DeletionQueue m_MainDeletionQueue;
+		DeletionQueue m_MainDeletionQueue;
 
-	//VkImageView m_DepthImageView;
-	//AllocatedImage m_DepthImage;
+		//VkImageView m_DepthImageView;
+		//AllocatedImage m_DepthImage;
 
 
-	std::vector<RenderObject> m_RenderObjects;
+		std::vector<RenderObject> m_RenderObjects;
 
-	VulkanManager m_VkManager;
+		VulkanManager m_VkManager;
 
-	VmaAllocator m_Allocator;
+		VmaAllocator m_Allocator;
 
-	VkDescriptorSetLayout m_GlobalSetLayout;
-	VkDescriptorSetLayout m_ObjectSetLayout;
-	VkDescriptorSetLayout m_SingleTextureSetLayout;
+		VkDescriptorSetLayout m_GlobalSetLayout;
+		VkDescriptorSetLayout m_ObjectSetLayout;
+		VkDescriptorSetLayout m_SingleTextureSetLayout;
 
-	VkDescriptorPool m_DescriptorPool;
+		VkDescriptorPool m_DescriptorPool;
 
-	GPUSceneData m_SceneParameters;
-	AllocatedBuffer m_SceneParameterBuffer;
+		GPUSceneData m_SceneParameters;
+		AllocatedBuffer m_SceneParameterBuffer;
 
-	bool m_FramebufferResized = false;
-	bool m_ViewportbufferResized = false;
+		bool m_FramebufferResized = false;
+		bool m_ViewportbufferResized = false;
 
-	bool m_WindowMinimized = false;
-	bool m_ViewportMinimized = false;
+		bool m_WindowMinimized = false;
+		bool m_ViewportMinimized = false;
 
-private:
-	void init_vulkan();
-	void init_commands();
-	void init_sync_structures();
-	void init_pipelines();
-	void init_scene();
-	void init_descriptors();
-	void init_imgui();
+	private:
+		void init_vulkan();
+		void init_commands();
+		void init_sync_structures();
+		void init_pipelines();
+		void init_scene();
+		void init_descriptors();
+		void init_imgui();
 
-	void init_swapchain();
-	void init_renderpass();
-	void init_framebuffers();
-	void cleanup_swapchain();
-	void rebuild_swapchain();
+		void init_swapchain();
+		void init_renderpass();
+		void init_framebuffers();
+		void cleanup_swapchain();
+		void rebuild_swapchain();
 
-	void init_vp_renderpass();
-	void init_vp_framebuffers();
-	void rebuild_vp_swapchain();
+		void init_vp_renderpass();
+		void init_vp_framebuffers();
+		void rebuild_vp_swapchain();
 
-	void load_meshes();
-	void load_images();
-	void upload_mesh(Ref<Mesh> mesh);
+		void load_meshes();
+		void load_images();
+		void upload_mesh(Ref<Mesh> mesh);
 
-	void on_event(Atlas::Event &e);
-	bool on_window_resize(Atlas::WindowResizedEvent &e);
-	bool on_viewport_resize(Atlas::ViewportResizedEvent &e);
-};
+		void on_event(Atlas::Event &e);
+		bool on_window_resize(Atlas::WindowResizedEvent &e);
+		bool on_viewport_resize(Atlas::ViewportResizedEvent &e);
+	};
 
 }

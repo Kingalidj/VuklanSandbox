@@ -120,8 +120,7 @@ namespace vkinit {
 	}
 
 	VkPipelineShaderStageCreateInfo
-		pipeline_shader_stage_create_info(VkShaderStageFlagBits stage,
-			VkShaderModule shaderModule) {
+		pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule) {
 
 		VkPipelineShaderStageCreateInfo info{};
 		info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

@@ -1,10 +1,9 @@
 #include "vk_scene.h"
 #include <tiny_obj_loader.h>
 
-namespace vkutil {}
 
-VertexInputDescription Vertex::get_vertex_description() {
-	VertexInputDescription description;
+vkutil::VertexInputDescription Vertex::get_vertex_description() {
+	vkutil::VertexInputDescription description;
 
 	VkVertexInputBindingDescription mainBinding{};
 	mainBinding.binding = 0;

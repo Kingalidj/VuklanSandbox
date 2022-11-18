@@ -4,246 +4,242 @@
 
 namespace vkutil {
 
-void VulkanManager::init(VkDevice device, VmaAllocator allocator) {
-	m_Device = device;
-	m_Allocator = allocator;
+	void VulkanManager::init(VkDevice device, VmaAllocator allocator) {
+		m_Device = device;
+		m_Allocator = allocator;
 
-	m_DescriptorAllocator = DescriptorAllocator(m_Device);
-	m_DescriptorLayoutCache = DescriptorLayoutCache(m_Device);
-}
-
-void VulkanManager::set_texture(const std::string &name, Ref<Texture> tex) {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	m_Textures[name] = tex;
-}
-
-void VulkanManager::set_mesh(const std::string &name, Ref<Mesh> mesh) {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	m_Meshes[name] = mesh;
-}
-
-void VulkanManager::set_material(const std::string &name, Ref<Material> material) {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	m_Materials[name] = material;
-}
-
-void VulkanManager::cleanup() {
-	m_DeletionQueue.flush();
-	m_DescriptorLayoutCache.cleanup();
-	m_DescriptorAllocator.cleanup();
-}
-
-std::optional<Ref<Texture>> VulkanManager::get_texture(const std::string &name) {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-
-	auto tex = m_Textures.find(name);
-
-	if (tex != m_Textures.end()) {
-		return tex->second;
+		m_DescriptorAllocator = DescriptorAllocator(m_Device);
+		m_DescriptorLayoutCache = DescriptorLayoutCache(m_Device);
 	}
-	else {
-		return std::nullopt;
+
+	void VulkanManager::set_texture(const std::string &name, Ref<Texture> tex) {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		m_Textures[name] = tex;
 	}
-}
 
-std::optional<Ref<Mesh>> VulkanManager::get_mesh(const std::string &name) {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-
-	auto mesh = m_Meshes.find(name);
-
-	if (mesh != m_Meshes.end()) {
-		return mesh->second;
+	void VulkanManager::set_mesh(const std::string &name, Ref<Mesh> mesh) {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		m_Meshes[name] = mesh;
 	}
-	else {
-		return std::nullopt;
+
+	void VulkanManager::set_material(const std::string &name, Ref<Material> material) {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		m_Materials[name] = material;
 	}
-}
 
-std::optional<Ref<Material>> VulkanManager::get_material(const std::string &name) {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-
-	auto mat = m_Materials.find(name);
-
-	if (mat != m_Materials.end()) {
-		return mat->second;
+	void VulkanManager::cleanup() {
+		m_DeletionQueue.flush();
+		m_DescriptorLayoutCache.cleanup();
+		m_DescriptorAllocator.cleanup();
 	}
-	else {
-		return std::nullopt;
+
+	std::optional<Ref<Texture>> VulkanManager::get_texture(const std::string &name) {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+
+		auto tex = m_Textures.find(name);
+
+		if (tex != m_Textures.end()) {
+			return tex->second;
+		}
+		else {
+			return std::nullopt;
+		}
 	}
-}
 
-std::optional<Ref<Material>> VulkanManager::create_material(const std::string &name, VkPipeline pipeline, VkPipelineLayout layout) {
-	Ref<Material> mat = make_ref<Material>();
-	mat->pipeline = pipeline;
-	mat->pipelineLayout = layout;
-	set_material(name, mat);
+	std::optional<Ref<Mesh>> VulkanManager::get_mesh(const std::string &name) {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
 
-	return mat;
-}
+		auto mesh = m_Meshes.find(name);
 
-void VulkanManager::delete_func(std::function<void()> &&func) {
-	m_DeletionQueue.push_function(std::move(func));
-}
+		if (mesh != m_Meshes.end()) {
+			return mesh->second;
+		}
+		else {
+			return std::nullopt;
+		}
+	}
 
-void VulkanManager::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, AllocatedBuffer *buffer) {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	std::optional<Ref<Material>> VulkanManager::get_material(const std::string &name) {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
 
-	VkBufferCreateInfo bufferInfo{};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.pNext = nullptr;
+		auto mat = m_Materials.find(name);
 
-	bufferInfo.size = allocSize;
-	bufferInfo.usage = usage;
+		if (mat != m_Materials.end()) {
+			return mat->second;
+		}
+		else {
+			return std::nullopt;
+		}
+	}
 
-	VmaAllocationCreateInfo vmaAllocInfo{};
-	vmaAllocInfo.usage = memoryUsage;
+	std::optional<Ref<Material>> VulkanManager::create_material(const std::string &name, VkPipeline pipeline, VkPipelineLayout layout) {
+		Ref<Material> mat = make_ref<Material>();
+		mat->pipeline = pipeline;
+		mat->pipelineLayout = layout;
+		set_material(name, mat);
 
-	VK_CHECK(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo,
-		&buffer->buffer, &buffer->allocation, nullptr));
-}
+		return mat;
+	}
 
-void VulkanManager::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img) {
-	CORE_ASSERT(m_Allocator, "ResourceManager not initialized");
+	void VulkanManager::delete_func(std::function<void()> &&func) {
+		m_DeletionQueue.push_function(std::move(func));
+	}
 
-	VkExtent3D imageExtent;
-	imageExtent.width = width;
-	imageExtent.height = height;
-	imageExtent.depth = 1;
+	void VulkanManager::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryUsage, AllocatedBuffer *buffer) {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
 
-	VkImageCreateInfo dimgInfo = vkinit::image_create_info(format, flags, imageExtent);
+		VkBufferCreateInfo bufferInfo{};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferInfo.pNext = nullptr;
 
-	VmaAllocationCreateInfo dimgAllocInfo{};
-	dimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		bufferInfo.size = allocSize;
+		bufferInfo.usage = usage;
 
-	vmaCreateImage(m_Allocator, &dimgInfo, &dimgAllocInfo, &img->image,
-		&img->allocation, nullptr);
-}
+		VmaAllocationCreateInfo vmaAllocInfo{};
+		vmaAllocInfo.requiredFlags = memoryUsage;
 
-void VulkanManager::upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags) {
+		VK_CHECK(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo,
+			&buffer->buffer, &buffer->allocation, nullptr));
+	}
 
-	VkBufferCreateInfo stagingBufferInfo{};
-	stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	stagingBufferInfo.pNext = nullptr;
-	stagingBufferInfo.size = size;
-	stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	void VulkanManager::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img) {
+		CORE_ASSERT(m_Allocator, "ResourceManager not initialized");
 
-	VmaAllocationCreateInfo vmaAllocInfo{};
-	vmaAllocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+		VkExtent3D imageExtent;
+		imageExtent.width = width;
+		imageExtent.height = height;
+		imageExtent.depth = 1;
 
-	AllocatedBuffer stagingBuffer;
+		VkImageCreateInfo dimgInfo = vkinit::image_create_info(format, flags, imageExtent);
 
-	VK_CHECK(vmaCreateBuffer(m_Allocator, &stagingBufferInfo, &vmaAllocInfo,
-		&stagingBuffer.buffer, &stagingBuffer.allocation,
-		nullptr));
-	void *data;
-	vmaMapMemory(m_Allocator, stagingBuffer.allocation, &data);
-	memcpy(data, copyData, size);
-	vmaUnmapMemory(m_Allocator, stagingBuffer.allocation);
+		VmaAllocationCreateInfo dimgAllocInfo{};
+		dimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-	VkBufferCreateInfo vertexBufferInfo{};
-	vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	vertexBufferInfo.pNext = nullptr;
-	vertexBufferInfo.size = size;
-	vertexBufferInfo.usage = flags;
+		vmaCreateImage(m_Allocator, &dimgInfo, &dimgAllocInfo, &img->image,
+			&img->allocation, nullptr);
+	}
 
-	vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	void VulkanManager::upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags) {
 
-	VK_CHECK(vmaCreateBuffer(m_Allocator, &vertexBufferInfo, &vmaAllocInfo,
-		&buffer.buffer, &buffer.allocation, nullptr));
+		VkBufferCreateInfo stagingBufferInfo{};
+		stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		stagingBufferInfo.pNext = nullptr;
+		stagingBufferInfo.size = size;
+		stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-	immediate_submit([=](VkCommandBuffer cmd) {
-		VkBufferCopy copy;
-	copy.dstOffset = 0;
-	copy.srcOffset = 0;
-	copy.size = size;
-	vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
-		});
+		VmaAllocationCreateInfo vmaAllocInfo{};
+		vmaAllocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 
-	vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
-}
+		AllocatedBuffer stagingBuffer;
 
-DescriptorBuilder VulkanManager::descriptor_builder() {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	return DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator);
-}
+		create_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer);
 
-const VkDevice VulkanManager::get_device() {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	return m_Device;
-}
+		map_memory(m_Allocator, &stagingBuffer, copyData, size);
 
-const VmaAllocator VulkanManager::get_allocator() {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	return m_Allocator;
-}
+		VkBufferCreateInfo vertexBufferInfo{};
+		vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		vertexBufferInfo.pNext = nullptr;
+		vertexBufferInfo.size = size;
+		vertexBufferInfo.usage = flags;
 
-DescriptorAllocator &VulkanManager::get_descriptor_allocator() {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	return m_DescriptorAllocator;
-}
+		vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-DescriptorLayoutCache &VulkanManager::get_descriptor_layoutcache() {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	return m_DescriptorLayoutCache;
-}
+		VK_CHECK(vmaCreateBuffer(m_Allocator, &vertexBufferInfo, &vmaAllocInfo,
+			&buffer.buffer, &buffer.allocation, nullptr));
 
-void VulkanManager::init_commands(VkQueue queue, uint32_t queueFamilyIndex) {
-	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		immediate_submit([=](VkCommandBuffer cmd) {
+			VkBufferCopy copy;
+		copy.dstOffset = 0;
+		copy.srcOffset = 0;
+		copy.size = size;
+		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
+			});
 
-	m_Queue = queue;
-	m_QueueFamilyIndex = queueFamilyIndex;
+		vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+	}
 
-	VkCommandPoolCreateInfo uploadCommandPoolInfo =
-		vkinit::command_pool_create_info(queueFamilyIndex);
+	DescriptorBuilder VulkanManager::descriptor_builder() {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		return DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator);
+	}
 
-	VK_CHECK(vkCreateCommandPool(m_Device, &uploadCommandPoolInfo, nullptr, &m_UploadContext.commandPool));
+	const VkDevice VulkanManager::get_device() {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		return m_Device;
+	}
 
-	VkCommandBufferAllocateInfo cmdAllocInfo =
-		vkinit::command_buffer_allocate_info(m_UploadContext.commandPool, 1);
+	const VmaAllocator VulkanManager::get_allocator() {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		return m_Allocator;
+	}
 
-	VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo,
-		&m_UploadContext.commandBuffer));
+	DescriptorAllocator &VulkanManager::get_descriptor_allocator() {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		return m_DescriptorAllocator;
+	}
 
-	m_DeletionQueue.push_function([=]() {
-		vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
-		});
+	DescriptorLayoutCache &VulkanManager::get_descriptor_layoutcache() {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		return m_DescriptorLayoutCache;
+	}
 
-}
+	void VulkanManager::init_commands(VkQueue queue, uint32_t queueFamilyIndex) {
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
 
-void VulkanManager::init_sync_structures() {
-	VkFenceCreateInfo uploadFenceCreateInfo = vkinit::fence_create_info();
+		m_Queue = queue;
+		m_QueueFamilyIndex = queueFamilyIndex;
 
-	VK_CHECK(vkCreateFence(m_Device, &uploadFenceCreateInfo, nullptr,
-		&m_UploadContext.uploadFence));
+		VkCommandPoolCreateInfo uploadCommandPoolInfo =
+			vkinit::command_pool_create_info(queueFamilyIndex);
 
-	m_DeletionQueue.push_function([=]() {
-		vkDestroyFence(m_Device, m_UploadContext.uploadFence, nullptr);
-		});
-}
+		VK_CHECK(vkCreateCommandPool(m_Device, &uploadCommandPoolInfo, nullptr, &m_UploadContext.commandPool));
 
-void VulkanManager::immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func) {
-	CORE_ASSERT(m_Queue, "Queue not initialized");
+		VkCommandBufferAllocateInfo cmdAllocInfo =
+			vkinit::command_buffer_allocate_info(m_UploadContext.commandPool, 1);
 
-	VkCommandBuffer cmd = m_UploadContext.commandBuffer;
+		VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo,
+			&m_UploadContext.commandBuffer));
 
-	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(
-		VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+		m_DeletionQueue.push_function([=]() {
+			vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
+			});
 
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+	}
 
-	func(cmd);
+	void VulkanManager::init_sync_structures() {
+		VkFenceCreateInfo uploadFenceCreateInfo = vkinit::fence_create_info();
 
-	VK_CHECK(vkEndCommandBuffer(cmd));
+		VK_CHECK(vkCreateFence(m_Device, &uploadFenceCreateInfo, nullptr,
+			&m_UploadContext.uploadFence));
 
-	VkSubmitInfo submit = vkinit::submit_info(&cmd);
+		m_DeletionQueue.push_function([=]() {
+			vkDestroyFence(m_Device, m_UploadContext.uploadFence, nullptr);
+			});
+	}
 
-	VK_CHECK(vkQueueSubmit(m_Queue, 1, &submit, m_UploadContext.uploadFence));
+	void VulkanManager::immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func) {
+		CORE_ASSERT(m_Queue, "Queue not initialized");
 
-	vkWaitForFences(m_Device, 1, &m_UploadContext.uploadFence, true, UINT64_MAX);
-	vkResetFences(m_Device, 1, &m_UploadContext.uploadFence);
+		VkCommandBuffer cmd = m_UploadContext.commandBuffer;
 
-	vkResetCommandPool(m_Device, m_UploadContext.commandPool, 0);
-}
+		VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(
+			VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+		func(cmd);
+
+		VK_CHECK(vkEndCommandBuffer(cmd));
+
+		VkSubmitInfo submit = vkinit::submit_info(&cmd);
+
+		VK_CHECK(vkQueueSubmit(m_Queue, 1, &submit, m_UploadContext.uploadFence));
+
+		vkWaitForFences(m_Device, 1, &m_UploadContext.uploadFence, true, UINT64_MAX);
+		vkResetFences(m_Device, 1, &m_UploadContext.uploadFence);
+
+		vkResetCommandPool(m_Device, m_UploadContext.commandPool, 0);
+	}
 
 
 }

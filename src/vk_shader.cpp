@@ -79,17 +79,17 @@ namespace vkutil {
 	}
 
 	bool load_glsl_shader(std::filesystem::path filePath,
-		ShaderType type,
+		VkShaderStageFlagBits type,
 		VkShaderModule *outShaderModule,
 		const VkDevice device) {
 
 		shaderc_shader_kind kind{};
 
 		switch (type) {
-		case ShaderType::Vertex:
+		case VK_SHADER_STAGE_VERTEX_BIT:
 			kind = shaderc_vertex_shader;
 			break;
-		case ShaderType::Fragment:
+		case VK_SHADER_STAGE_FRAGMENT_BIT:
 			kind = shaderc_fragment_shader;
 			break;
 		default:
@@ -148,12 +148,12 @@ namespace vkutil {
 		const VkDevice device) {
 		auto ext = filePath.extension();
 
-		ShaderType type;
+		VkShaderStageFlagBits type;
 		if (ext == ".vert") {
-			type = ShaderType::Vertex;
+			type = VK_SHADER_STAGE_VERTEX_BIT;
 		}
 		else if (ext == ".frag") {
-			type = ShaderType::Fragment;
+			type = VK_SHADER_STAGE_FRAGMENT_BIT;
 		}
 		else {
 			CORE_WARN("unknown extension for file: {}", filePath);
