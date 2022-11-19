@@ -2,11 +2,27 @@
 
 #include "vk_manager.h"
 #include "vk_initializers.h"
+#include "vk_buffer.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 namespace vkutil {
+	void create_image(VulkanManager &manager, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img)
+	{
+
+		VkExtent3D imageExtent;
+		imageExtent.width = width;
+		imageExtent.height = height;
+		imageExtent.depth = 1;
+
+		VkImageCreateInfo dimgInfo = vkinit::image_create_info(format, flags, imageExtent);
+
+		VmaAllocationCreateInfo dimgAllocInfo{};
+		dimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		vmaCreateImage(manager.get_allocator(), &dimgInfo, &dimgAllocInfo, &img->image, &img->allocation, nullptr);
+	}
 
 	TextureCreateInfo color_texture_create_info(uint32_t w, uint32_t h, VkFormat format)
 	{
@@ -40,15 +56,15 @@ namespace vkutil {
 	void set_texture_data(Texture &tex, const void *data, VulkanManager &manager) {
 		VkDeviceSize imageSize = tex.width * tex.height * 4;
 
-		VkExtent3D imageExtent;
+		VkExtent3D imageExtent{};
 		imageExtent.width = tex.width;
 		imageExtent.height = tex.height;
 		imageExtent.depth = 1;
 
 		AllocatedBuffer stagingBuffer;
-		manager.create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer);
+		create_buffer(manager, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer);
 
-		map_memory(manager.get_allocator(), &stagingBuffer, data, (uint32_t)imageSize);
+		map_memory(manager, &stagingBuffer, data, (uint32_t)imageSize);
 
 		manager.immediate_submit([&](VkCommandBuffer cmd) {
 			VkImageSubresourceRange range;
@@ -124,7 +140,7 @@ namespace vkutil {
 		if (info.allowDescriptor)
 			info.usageFlags |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
-		manager.create_image(info.width, info.height, info.format, info.usageFlags, &tex->imageAllocation);
+		create_image(manager, info.width, info.height, info.format, info.usageFlags, &tex->imageAllocation);
 
 		VkImageViewCreateInfo imageInfo = vkinit::imageview_create_info(
 			info.format, tex->imageAllocation.image,
@@ -171,8 +187,7 @@ namespace vkutil {
 	bool load_alloc_image_from_file(const char *file, VulkanManager &manager,
 		AllocatedImage *outImage, int *w, int *h, int *nC, VkFormat format) {
 
-		stbi_uc *pixel_ptr =
-			stbi_load(file, w, h, nC, STBI_rgb_alpha);
+		stbi_uc *pixel_ptr = stbi_load(file, w, h, nC, STBI_rgb_alpha);
 
 		int width = *w;
 		int height = *h;
@@ -186,22 +201,22 @@ namespace vkutil {
 		VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
 
 		AllocatedBuffer stagingBuffer;
-		manager.create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer);
+		create_buffer(manager, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer);
 
-		map_memory(manager.get_allocator(), &stagingBuffer, pixel_ptr, (uint32_t)imageSize);
+		map_memory(manager, &stagingBuffer, pixel_ptr, (uint32_t)imageSize);
 
 		stbi_image_free(pixel_ptr);
 
-		VkExtent3D imageExtent;
+		VkExtent3D imageExtent{};
 		imageExtent.width = static_cast<uint32_t>(width);
 		imageExtent.height = static_cast<uint32_t>(height);
 		imageExtent.depth = 1;
 
 		AllocatedImage img;
-		manager.create_image(imageExtent.width, imageExtent.height, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &img);
+		create_image(manager, imageExtent.width, imageExtent.height, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &img);
 
 		manager.immediate_submit([&](VkCommandBuffer cmd) {
-			VkImageSubresourceRange range;
+			VkImageSubresourceRange range{};
 		range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		range.baseMipLevel = 0;
 		range.levelCount = 1;

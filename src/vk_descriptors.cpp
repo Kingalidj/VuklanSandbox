@@ -1,4 +1,5 @@
 #include "vk_descriptors.h"
+#include "vk_manager.h"
 
 namespace vkutil {
 
@@ -101,7 +102,7 @@ namespace vkutil {
 	}
 
 	void DescriptorLayoutCache::cleanup() {
-		for (auto pair : m_LayoutCache) {
+		for (auto &pair : m_LayoutCache) {
 			vkDestroyDescriptorSetLayout(m_Device, pair.second, nullptr);
 		}
 	}
@@ -143,16 +144,13 @@ namespace vkutil {
 	}
 
 	bool DescriptorLayoutCache::DescriptorLayoutInfo::operator==(const DescriptorLayoutInfo &other) const {
-		if (other.bindings.size() != bindings.size()) {
-			return false;
-		}
-		else {
-			for (int i = 0; i < bindings.size(); i++) {
-				if (other.bindings[i].binding != bindings[i].binding) return false;
-				if (other.bindings[i].descriptorType != bindings[i].descriptorType)	return false;
-				if (other.bindings[i].descriptorCount != bindings[i].descriptorCount) return false;
-				if (other.bindings[i].stageFlags != bindings[i].stageFlags) return false;
-			}
+		if (other.bindings.size() != bindings.size()) return false;
+
+		for (int i = 0; i < bindings.size(); i++) {
+			if (other.bindings[i].binding != bindings[i].binding) return false;
+			if (other.bindings[i].descriptorType != bindings[i].descriptorType)	return false;
+			if (other.bindings[i].descriptorCount != bindings[i].descriptorCount) return false;
+			if (other.bindings[i].stageFlags != bindings[i].stageFlags) return false;
 		}
 
 		return true;
@@ -173,7 +171,21 @@ namespace vkutil {
 		return result;
 	}
 
-	DescriptorBuilder &DescriptorBuilder::bind_buffer(uint32_t binding, VkDescriptorBufferInfo *bufferInfo, VkDescriptorType type, VkShaderStageFlags flags) {
+	DescriptorBuilder::DescriptorBuilder(VulkanManager &manager)
+	{
+		m_LayoutCache = &manager.get_descriptor_layout_cache();
+		m_Alloc = &manager.get_descriptor_allocator();
+	}
+
+	DescriptorBuilder &DescriptorBuilder::bind_buffer(uint32_t binding, AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags)
+	{
+		VkDescriptorBufferInfo cameraInfo{};
+		cameraInfo.buffer = buffer.buffer;
+		cameraInfo.offset = 0;
+		cameraInfo.range = size;
+
+		m_DescritorInfos.push_back(cameraInfo);
+
 		VkDescriptorSetLayoutBinding bind{};
 		bind.descriptorCount = 1;
 		bind.descriptorType = type;
@@ -189,19 +201,28 @@ namespace vkutil {
 
 		write.descriptorCount = 1;
 		write.descriptorType = type;
-		write.pBufferInfo = bufferInfo;
+		//write.pBufferInfo = bufferInfo;
 		write.dstBinding = binding;
 
 		m_Writes.push_back(write);
 		return *this;
+
 	}
 
-	DescriptorBuilder &DescriptorBuilder::bind_image(uint32_t binding, VkDescriptorImageInfo *imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags) {
+	DescriptorBuilder &DescriptorBuilder::bind_image(uint32_t binding, Texture &image, VkDescriptorType type, VkShaderStageFlags flags)
+	{
+		VkDescriptorImageInfo imageBufferInfo{};
+		imageBufferInfo.sampler = image.sampler;
+		imageBufferInfo.imageView = image.imageView;
+		imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		m_DescritorInfos.push_back(imageBufferInfo);
+
 		VkDescriptorSetLayoutBinding bind{};
 		bind.descriptorCount = 1;
 		bind.descriptorType = type;
 		bind.pImmutableSamplers = nullptr;
-		bind.stageFlags = stageFlags;
+		bind.stageFlags = flags;
 		bind.binding = binding;
 
 		m_Bindings.push_back(bind);
@@ -211,7 +232,7 @@ namespace vkutil {
 		write.pNext = nullptr;
 		write.descriptorCount = 1;
 		write.descriptorType = type;
-		write.pImageInfo = imageInfo;
+		//write.pImageInfo = imageInfo;
 		write.dstBinding = binding;
 
 		m_Writes.push_back(write);
@@ -231,8 +252,15 @@ namespace vkutil {
 		bool success = m_Alloc->allocate(set, *layout);
 		if (!success) { return false; };
 
-		for (VkWriteDescriptorSet &w : m_Writes) {
-			w.dstSet = *set;
+		for (uint32_t i = 0; i < m_Writes.size(); i++) {
+			m_Writes.at(i).dstSet = *set;
+
+			if (m_DescritorInfos.at(i).index() == (uint32_t)DescriptorInfoType::BUFFER) {
+				m_Writes.at(i).pBufferInfo = &std::get<VkDescriptorBufferInfo>(m_DescritorInfos.at(i));
+			}
+			else if (m_DescritorInfos.at(i).index() == (uint32_t)DescriptorInfoType::IMAGE) {
+				m_Writes.at(i).pImageInfo = &std::get<VkDescriptorImageInfo>(m_DescritorInfos.at(i));
+			}
 		}
 
 		vkUpdateDescriptorSets(m_Alloc->m_Device, (uint32_t)m_Writes.size(), m_Writes.data(), 0, nullptr);
@@ -241,25 +269,8 @@ namespace vkutil {
 	}
 
 	bool DescriptorBuilder::build(VkDescriptorSet *set) {
-		VkDescriptorSetLayoutCreateInfo layoutInfo{};
-		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layoutInfo.pNext = nullptr;
-
-		layoutInfo.pBindings = m_Bindings.data();
-		layoutInfo.bindingCount = (uint32_t)m_Bindings.size();
-
-		VkDescriptorSetLayout layout = m_LayoutCache->create_descriptor_layout(layoutInfo);
-
-		bool success = m_Alloc->allocate(set, layout);
-		if (!success) { return false; };
-
-		for (VkWriteDescriptorSet &w : m_Writes) {
-			w.dstSet = *set;
-		}
-
-		vkUpdateDescriptorSets(m_Alloc->m_Device, (uint32_t)m_Writes.size(), m_Writes.data(), 0, nullptr);
-
-		return true;
+		VkDescriptorSetLayout layout{};
+		return build(set, &layout);
 	}
 
 } //namespace vkutil

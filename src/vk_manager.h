@@ -4,6 +4,7 @@
 #include "vk_textures.h"
 #include "vk_scene.h"
 #include "vk_descriptors.h"
+#include "vk_pipeline.h"
 
 namespace vkutil {
 
@@ -36,17 +37,16 @@ namespace vkutil {
 		const VkDevice get_device();
 		const VmaAllocator get_allocator();
 		DescriptorAllocator &get_descriptor_allocator();
-		DescriptorLayoutCache &get_descriptor_layoutcache();
+		DescriptorLayoutCache &get_descriptor_layout_cache();
+
+		PipelineLayoutCache &get_pipeline_layout_cache();
 
 		void init(VkDevice device, VmaAllocator allocator);
 		void init_commands(VkQueue queue, uint32_t queueFamilyIndex);
 		void init_sync_structures();
 
 		void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func);
-		void create_buffer(size_t allocSize, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryUsage, AllocatedBuffer *buffer);
-		void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img);
 		void upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
-		DescriptorBuilder descriptor_builder();
 
 		void set_texture(const std::string &name, Ref<Texture> tex);
 		void set_mesh(const std::string &name, Ref<Mesh> mesh);
@@ -69,14 +69,16 @@ namespace vkutil {
 		VmaAllocator m_Allocator{ VK_NULL_HANDLE };
 
 		VkQueue m_Queue{ VK_NULL_HANDLE };
-		uint32_t m_QueueFamilyIndex;
+		uint32_t m_QueueFamilyIndex{ 0 };
 
-		UploadContext m_UploadContext;
+		UploadContext m_UploadContext{};
 
 		DeletionQueue m_DeletionQueue;
 
 		DescriptorAllocator m_DescriptorAllocator;
 		DescriptorLayoutCache m_DescriptorLayoutCache;
+
+		PipelineLayoutCache m_PipelineLayoutCache;
 
 		std::unordered_map<std::string, Ref<Texture>> m_Textures;
 		std::unordered_map<std::string, Ref<Mesh>> m_Meshes;

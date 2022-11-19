@@ -6,6 +6,7 @@
 #include "vk_textures.h"
 #include "vk_manager.h"
 #include "vk_framebuffer.h"
+#include "vk_buffer.h"
 
 #include "window.h"
 
@@ -15,14 +16,6 @@
 #include <imgui_impl_glfw.h>
 
 namespace vkutil {
-
-	struct GPUSceneData {
-		//glm::vec4 fogColor;
-		//glm::vec4 fogDistance;
-		//glm::vec4 ambientColor;
-		//glm::vec4 sunlightDirection;
-		//glm::vec4 sunlightColor;
-	};
 
 	struct GPUCameraData {
 		glm::mat4 view;
@@ -44,7 +37,7 @@ namespace vkutil {
 		AllocatedBuffer cameraBuffer;
 		AllocatedBuffer objectBuffer;
 
-		VkDescriptorSet globalDescriptor;
+		VkDescriptorSet cameraDescriptor;
 		VkDescriptorSet objectDescriptor;
 	};
 
@@ -68,6 +61,7 @@ namespace vkutil {
 		Scope<Window> m_Window = nullptr;
 
 		void init();
+		uint32_t prepare_frame();
 		void draw();
 		void run();
 		void cleanup();
@@ -75,12 +69,6 @@ namespace vkutil {
 		void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
 
 		size_t pad_uniform_buffer_size(size_t originalSize);
-
-		//void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function);
-
-		//void upload_to_gpu(void *data, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
-
-
 
 		VkInstance m_Instance;
 		VkDebugUtilsMessengerEXT m_DebugMessenger;
@@ -97,34 +85,18 @@ namespace vkutil {
 		uint32_t m_GraphicsQueueFamily;
 
 		FrameData m_FrameData;
-		//FrameData &get_current_frame();
 
 		VkRenderPass m_ImGuiRenderPass;
 		VkRenderPass m_ViewportRenderPass;
 
 		Framebuffer m_ViewportFramebuffer;
-		//Texture m_DepthTexture;
-		//Texture m_ViewportTexture;
-		//VkFramebuffer m_ViewportFrameBuffer;
 
 		std::vector<VkImage> m_SwapchainImages;
 		std::vector<VkImageView> m_SwapchainImageViews;
 
 		std::vector<VkFramebuffer> m_ImGuiFrameBuffers;
 
-		/* VkSemaphore m_PresentSemaphore, m_RenderSemaphore; */
-		/* VkFence m_RenderFence; */
-
-		VkPipelineLayout m_TrianglePipelineLayout;
-		VkPipelineLayout m_MeshPipelineLayout;
-		VkPipeline m_MeshPipeline;
-		VkPipeline m_DebugPipeline;
-
 		DeletionQueue m_MainDeletionQueue;
-
-		//VkImageView m_DepthImageView;
-		//AllocatedImage m_DepthImage;
-
 
 		std::vector<RenderObject> m_RenderObjects;
 
@@ -132,14 +104,9 @@ namespace vkutil {
 
 		VmaAllocator m_Allocator;
 
-		VkDescriptorSetLayout m_GlobalSetLayout;
+		VkDescriptorSetLayout m_CameraSetLayout;
 		VkDescriptorSetLayout m_ObjectSetLayout;
 		VkDescriptorSetLayout m_SingleTextureSetLayout;
-
-		VkDescriptorPool m_DescriptorPool;
-
-		GPUSceneData m_SceneParameters;
-		AllocatedBuffer m_SceneParameterBuffer;
 
 		bool m_FramebufferResized = false;
 		bool m_ViewportbufferResized = false;

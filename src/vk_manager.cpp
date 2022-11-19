@@ -1,6 +1,7 @@
 #include "vk_manager.h"
 
 #include "vk_initializers.h"
+#include "vk_buffer.h"
 
 namespace vkutil {
 
@@ -10,6 +11,7 @@ namespace vkutil {
 
 		m_DescriptorAllocator = DescriptorAllocator(m_Device);
 		m_DescriptorLayoutCache = DescriptorLayoutCache(m_Device);
+		m_PipelineLayoutCache = PipelineLayoutCache(m_Device);
 	}
 
 	void VulkanManager::set_texture(const std::string &name, Ref<Texture> tex) {
@@ -31,6 +33,7 @@ namespace vkutil {
 		m_DeletionQueue.flush();
 		m_DescriptorLayoutCache.cleanup();
 		m_DescriptorAllocator.cleanup();
+		m_PipelineLayoutCache.cleanup();
 	}
 
 	std::optional<Ref<Texture>> VulkanManager::get_texture(const std::string &name) {
@@ -85,40 +88,6 @@ namespace vkutil {
 		m_DeletionQueue.push_function(std::move(func));
 	}
 
-	void VulkanManager::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryUsage, AllocatedBuffer *buffer) {
-		CORE_ASSERT(m_Device, "ResourceManager not initialized");
-
-		VkBufferCreateInfo bufferInfo{};
-		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bufferInfo.pNext = nullptr;
-
-		bufferInfo.size = allocSize;
-		bufferInfo.usage = usage;
-
-		VmaAllocationCreateInfo vmaAllocInfo{};
-		vmaAllocInfo.requiredFlags = memoryUsage;
-
-		VK_CHECK(vmaCreateBuffer(m_Allocator, &bufferInfo, &vmaAllocInfo,
-			&buffer->buffer, &buffer->allocation, nullptr));
-	}
-
-	void VulkanManager::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img) {
-		CORE_ASSERT(m_Allocator, "ResourceManager not initialized");
-
-		VkExtent3D imageExtent;
-		imageExtent.width = width;
-		imageExtent.height = height;
-		imageExtent.depth = 1;
-
-		VkImageCreateInfo dimgInfo = vkinit::image_create_info(format, flags, imageExtent);
-
-		VmaAllocationCreateInfo dimgAllocInfo{};
-		dimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-		vmaCreateImage(m_Allocator, &dimgInfo, &dimgAllocInfo, &img->image,
-			&img->allocation, nullptr);
-	}
-
 	void VulkanManager::upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags) {
 
 		VkBufferCreateInfo stagingBufferInfo{};
@@ -132,9 +101,9 @@ namespace vkutil {
 
 		AllocatedBuffer stagingBuffer;
 
-		create_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer);
+		create_buffer(*this, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer);
 
-		map_memory(m_Allocator, &stagingBuffer, copyData, size);
+		map_memory(*this, &stagingBuffer, copyData, size);
 
 		VkBufferCreateInfo vertexBufferInfo{};
 		vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -158,11 +127,6 @@ namespace vkutil {
 		vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 	}
 
-	DescriptorBuilder VulkanManager::descriptor_builder() {
-		CORE_ASSERT(m_Device, "ResourceManager not initialized");
-		return DescriptorBuilder(&m_DescriptorLayoutCache, &m_DescriptorAllocator);
-	}
-
 	const VkDevice VulkanManager::get_device() {
 		CORE_ASSERT(m_Device, "ResourceManager not initialized");
 		return m_Device;
@@ -178,9 +142,15 @@ namespace vkutil {
 		return m_DescriptorAllocator;
 	}
 
-	DescriptorLayoutCache &VulkanManager::get_descriptor_layoutcache() {
+	DescriptorLayoutCache &VulkanManager::get_descriptor_layout_cache() {
 		CORE_ASSERT(m_Device, "ResourceManager not initialized");
 		return m_DescriptorLayoutCache;
+	}
+
+	PipelineLayoutCache &VulkanManager::get_pipeline_layout_cache()
+	{
+		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+		return m_PipelineLayoutCache;
 	}
 
 	void VulkanManager::init_commands(VkQueue queue, uint32_t queueFamilyIndex) {

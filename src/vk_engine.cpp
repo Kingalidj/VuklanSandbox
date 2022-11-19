@@ -67,13 +67,11 @@ namespace vkutil {
 		camData.view = view;
 		camData.viewProj = projection * view;
 
-		map_memory(m_Allocator, &m_FrameData.cameraBuffer, &camData, sizeof(GPUCameraData));
+		map_memory(m_VkManager, &m_FrameData.cameraBuffer, &camData, sizeof(GPUCameraData));
 
 		float framed = (m_FrameNumber / 120.f);
 
-		map_memory(m_Allocator, &m_SceneParameterBuffer, &m_SceneParameters, sizeof(GPUSceneData));
-
-		map_memory(m_Allocator, &m_FrameData.objectBuffer, [=](void *data) {
+		map_memory(m_VkManager, &m_FrameData.objectBuffer, [=](void *data) {
 			GPUObjectData *objectSSBO = (GPUObjectData *)data;
 
 		for (int i = 0; i < count; i++) {
@@ -97,7 +95,7 @@ namespace vkutil {
 
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
 					object.material->pipelineLayout, 0, 1,
-					&m_FrameData.globalDescriptor, 0, nullptr);
+					&m_FrameData.cameraDescriptor, 0, nullptr);
 
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
 					object.material->pipelineLayout, 1, 1,
@@ -105,10 +103,15 @@ namespace vkutil {
 
 				if (object.material->textureSet != VK_NULL_HANDLE) {
 
+					//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
+
+					//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+					//	object.material->pipelineLayout, 2, 1,
+					//	&tex->descriptor, 0, nullptr);
+
 					vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
 						object.material->pipelineLayout, 2, 1,
 						&object.material->textureSet, 0, nullptr);
-					//&tex.descriptorSet, 0, nullptr);
 				}
 			}
 
@@ -153,8 +156,8 @@ namespace vkutil {
 		}
 	}
 
-	void VulkanEngine::draw() {
-
+	uint32_t VulkanEngine::prepare_frame()
+	{
 		if (m_ViewportbufferResized) {
 			m_ViewportbufferResized = false;
 			rebuild_vp_swapchain();
@@ -174,17 +177,22 @@ namespace vkutil {
 		if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
 			m_FramebufferResized = false;
 			rebuild_swapchain();
-			return;
 		}
 
 		VK_CHECK(res);
-
 
 		VK_CHECK(vkWaitForFences(m_Device, 1, &m_FrameData.renderFence, true, UINT64_MAX));
 		VK_CHECK(vkResetFences(m_Device, 1, &m_FrameData.renderFence));
 
 		// since we waited the buffer is empty
 		VK_CHECK(vkResetCommandBuffer(m_FrameData.mainCommandBuffer, 0));
+
+		return swapchainImageIndex;
+	}
+
+	void VulkanEngine::draw() {
+
+		uint32_t swapchainImageIndex = prepare_frame();
 
 		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
 
@@ -640,10 +648,12 @@ namespace vkutil {
 		const int h = (int)m_ViewportExtent.height * m_RenderResolution;
 
 		vkutil::TextureCreateInfo depthInfo = vkutil::depth_texture_create_info(w, h, m_DepthFormat);
-		vkutil::TextureCreateInfo texInfo = vkutil::color_texture_create_info(w, h, m_SwapchainImageFormat);
+		vkutil::TextureCreateInfo colorInfo = vkutil::color_texture_create_info(w, h, m_SwapchainImageFormat);
+
+		colorInfo.filter = VK_FILTER_NEAREST;
 
 		m_ViewportFramebuffer = FramebufferBuilder(w, h, m_ViewportRenderPass)
-			.push_attachment(texInfo)
+			.push_attachment(colorInfo)
 			.push_attachment(depthInfo).build(m_VkManager);
 	}
 
@@ -704,30 +714,29 @@ namespace vkutil {
 
 	void VulkanEngine::init_pipelines() {
 
+		VkPipelineLayout layout{};
+
+		VkPipeline meshPipeline{};
+		VkPipeline debugPipeline{};
+
 		{
-			VkShaderModule texturedMeshFragShader;
-			if (!vkutil::load_spirv_shader_module("res/shaders/textured_lit.frag.spv",
-				&texturedMeshFragShader, m_Device)) {
+			VkShaderModule fragShader;
+			if (!vkutil::load_glsl_shader("res/shaders/textured_lit.frag",
+				&fragShader, m_Device)) {
 				return;
 			}
 			else {
 				CORE_INFO("textured_mesh fragment shader successfully loaded");
 			}
 
-			VkShaderModule texturedMeshVertexShader;
-			if (!vkutil::load_spirv_shader_module("res/shaders/textured_lit.vert.spv",
-				&texturedMeshVertexShader, m_Device)) {
+			VkShaderModule vertShader;
+			if (!vkutil::load_glsl_shader("res/shaders/textured_lit.vert",
+				&vertShader, m_Device)) {
 				return;
 			}
 			else {
 				CORE_INFO("textured_mesh vertex shader successfully loaded");
 			}
-
-			VkPipelineLayoutCreateInfo pipelineLayoutInfo =
-				vkinit::pipeline_layout_create_info();
-
-			VK_CHECK(vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr,
-				&m_TrianglePipelineLayout));
 
 			VkPipelineLayoutCreateInfo meshPipelineLayoutInfo =
 				vkinit::pipeline_layout_create_info();
@@ -737,50 +746,45 @@ namespace vkutil {
 			/* pushConstant.size = sizeof(MeshPushConstants); */
 			/* pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; */
 
-			VkDescriptorSetLayout setLayouts[] = { m_GlobalSetLayout, m_ObjectSetLayout,
-												  m_SingleTextureSetLayout };
-
 			/* meshPipelineLayoutInfo.pPushConstantRanges = &pushConstant; */
 			/* meshPipelineLayoutInfo.pushConstantRangeCount = 1; */
-			meshPipelineLayoutInfo.setLayoutCount = 3;
-			meshPipelineLayoutInfo.pSetLayouts = setLayouts;
+			//meshPipelineLayoutInfo.setLayoutCount = 3;
+			//meshPipelineLayoutInfo.pSetLayouts = setLayouts;
 
-			VK_CHECK(vkCreatePipelineLayout(m_Device, &meshPipelineLayoutInfo, nullptr,
-				&m_MeshPipelineLayout));
+			//VK_CHECK(vkCreatePipelineLayout(m_Device, &meshPipelineLayoutInfo, nullptr, &layout));
 
 			VertexInputDescription vertexDescription = Vertex::get_vertex_description();
 
-			m_MeshPipeline =
-				vkutil::PipelineBuilder(m_Device, m_ViewportRenderPass, m_MeshPipelineLayout)
-				.set_vertex_description(vertexDescription.attributes, vertexDescription.bindings)
-				.add_shader_module(texturedMeshVertexShader, VK_SHADER_STAGE_VERTEX_BIT)
-				.add_shader_module(texturedMeshFragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
+			PipelineBuilder(m_VkManager)
+				.set_renderpass(m_ViewportRenderPass)
+				.set_vertex_description(vertexDescription)
+				.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
+				.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
+				.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
 				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL)
-				.build()
-				.value();
+				.build(&meshPipeline, &layout);
 
-			m_VkManager.create_material("textured_mat", m_MeshPipeline,
-				m_MeshPipelineLayout);
+			m_VkManager.create_material("textured_mat", meshPipeline, layout);
 
 			/* m_MeshPipeline = pipelineBuilder.build(); */
 
-			vkDestroyShaderModule(m_Device, texturedMeshFragShader, nullptr);
-			vkDestroyShaderModule(m_Device, texturedMeshVertexShader, nullptr);
+			vkDestroyShaderModule(m_Device, fragShader, nullptr);
+			vkDestroyShaderModule(m_Device, vertShader, nullptr);
 		}
 
 		{
-			VkShaderModule debugFrag;
-			if (!vkutil::load_spirv_shader_module("res/shaders/debug.frag.spv",
-				&debugFrag, m_Device)) {
+			VkShaderModule fragShader;
+			if (!vkutil::load_glsl_shader("res/shaders/debug.frag",
+				&fragShader, m_Device)) {
 				return;
 			}
 			else {
 				CORE_INFO("textured_mesh fragment shader successfully loaded");
 			}
 
-			VkShaderModule debugVert;
-			if (!vkutil::load_spirv_shader_module("res/shaders/debug.vert.spv",
-				&debugVert, m_Device)) {
+			VkShaderModule vertShader;
+			if (!vkutil::load_glsl_shader("res/shaders/debug.vert",
+				&vertShader, m_Device)) {
 				return;
 			}
 			else {
@@ -789,28 +793,26 @@ namespace vkutil {
 
 			VertexInputDescription vertexDescription = Vertex::get_vertex_description();
 
-			m_DebugPipeline =
-				vkutil::PipelineBuilder(m_Device, m_ViewportRenderPass, m_MeshPipelineLayout)
+			PipelineBuilder(m_VkManager)
+				.set_renderpass(m_ViewportRenderPass)
 				.set_vertex_description(vertexDescription)
-				.add_shader_module(debugVert, VK_SHADER_STAGE_VERTEX_BIT)
-				.add_shader_module(debugFrag, VK_SHADER_STAGE_FRAGMENT_BIT)
+				.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
+				.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
+				.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
 				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL)
-				.build()
-				.value();
+				.build(&debugPipeline);
 
-			m_VkManager.create_material("debug_mat", m_DebugPipeline,
-				m_MeshPipelineLayout);
 
-			vkDestroyShaderModule(m_Device, debugFrag, nullptr);
-			vkDestroyShaderModule(m_Device, debugVert, nullptr);
+			m_VkManager.create_material("debug_mat", debugPipeline, layout);
+
+			vkDestroyShaderModule(m_Device, fragShader, nullptr);
+			vkDestroyShaderModule(m_Device, vertShader, nullptr);
 		}
 
 		m_MainDeletionQueue.push_function([=]() {
-			vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
-		vkDestroyPipelineLayout(m_Device, m_TrianglePipelineLayout, nullptr);
-		vkDestroyPipelineLayout(m_Device, m_MeshPipelineLayout, nullptr);
+			vkDestroyPipeline(m_Device, meshPipeline, nullptr);
 
-		vkDestroyPipeline(m_Device, m_DebugPipeline, nullptr);
+		vkDestroyPipeline(m_Device, debugPipeline, nullptr);
 			});
 	}
 
@@ -887,18 +889,12 @@ namespace vkutil {
 
 		m_RenderObjects.push_back(empire);
 
-		Ref<Material> texturedMat =
-			m_VkManager.get_material("textured_mat").value();
+		Ref<Material> texturedMat = m_VkManager.get_material("textured_mat").value();
 
 		Ref<Texture> texture = m_VkManager.get_texture("empire_diffuse").value();
 
-		VkDescriptorImageInfo imageBufferInfo{};
-		imageBufferInfo.sampler = texture->sampler;
-		imageBufferInfo.imageView = texture->imageView;
-		imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-		m_VkManager.descriptor_builder()
-			.bind_image(0, &imageBufferInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		DescriptorBuilder(m_VkManager)
+			.bind_image(0, *texture.get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
 			.build(&texturedMat->textureSet);
 
 		for (int x = -20; x <= 20; x++) {
@@ -919,21 +915,6 @@ namespace vkutil {
 
 	void VulkanEngine::init_descriptors() {
 
-		std::vector<VkDescriptorPoolSize> sizes = {
-			{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10},
-			{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10},
-			{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10},
-			{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10} };
-
-		VkDescriptorPoolCreateInfo poolInfo{};
-		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		poolInfo.flags = 0;
-		poolInfo.maxSets = 10;
-		poolInfo.poolSizeCount = (uint32_t)sizes.size();
-		poolInfo.pPoolSizes = sizes.data();
-
-		vkCreateDescriptorPool(m_Device, &poolInfo, nullptr, &m_DescriptorPool);
-
 		{
 			VkDescriptorSetLayoutBinding textureBind =
 				vkinit::descriptorset_layout_binding(
@@ -948,58 +929,35 @@ namespace vkutil {
 			setInfo.pBindings = &textureBind;
 
 			m_SingleTextureSetLayout =
-				m_VkManager.get_descriptor_layoutcache().create_descriptor_layout(setInfo);
+				m_VkManager.get_descriptor_layout_cache().create_descriptor_layout(setInfo);
 		}
 
 		// const size_t sceneParamBufferSize =
 		// pad_uniform_buffer_size(sizeof(GPUSceneData));
 		const int MAX_OBJECTS = 10000; // TODO: dynamic object buffer?
 
-		m_VkManager.create_buffer(sizeof(GPUSceneData),
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-			&m_SceneParameterBuffer);
-
-		m_VkManager.create_buffer(sizeof(GPUObjectData) * MAX_OBJECTS,
+		create_buffer(m_VkManager, sizeof(GPUObjectData) * MAX_OBJECTS,
 			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
 			&m_FrameData.objectBuffer);
 
-		m_VkManager.create_buffer(sizeof(GPUCameraData),
+		create_buffer(m_VkManager, sizeof(GPUCameraData),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
 			&m_FrameData.cameraBuffer
 		);
 
-		VkDescriptorBufferInfo cameraInfo{};
-		cameraInfo.buffer = m_FrameData.cameraBuffer.buffer;
-		cameraInfo.offset = 0;
-		cameraInfo.range = sizeof(GPUCameraData);
+		DescriptorBuilder(m_VkManager)
+			.bind_buffer(0, m_FrameData.cameraBuffer, sizeof(GPUCameraData), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+			.build(&m_FrameData.cameraDescriptor, &m_CameraSetLayout);
 
-		VkDescriptorBufferInfo sceneInfo{};
-		sceneInfo.buffer = m_SceneParameterBuffer.buffer;
-		sceneInfo.offset = 0;
-		sceneInfo.range = sizeof(GPUSceneData);
-
-		VkDescriptorBufferInfo objectBufferInfo{};
-		objectBufferInfo.buffer = m_FrameData.objectBuffer.buffer;
-		objectBufferInfo.offset = 0;
-		objectBufferInfo.range = sizeof(GPUObjectData) * MAX_OBJECTS;
-
-		m_VkManager.descriptor_builder()
-			.bind_buffer(0, &cameraInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-			.bind_buffer(1, &sceneInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-			.build(&m_FrameData.globalDescriptor, &m_GlobalSetLayout);
-
-		m_VkManager.descriptor_builder()
-			.bind_buffer(0, &objectBufferInfo, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+		DescriptorBuilder(m_VkManager)
+			.bind_buffer(0, m_FrameData.objectBuffer, sizeof(GPUObjectData) * MAX_OBJECTS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 			.build(&m_FrameData.objectDescriptor, &m_ObjectSetLayout);
 
 		m_MainDeletionQueue.push_function([&]() {
-			vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
 
-		destroy_buffer(m_VkManager, m_SceneParameterBuffer);
-		destroy_buffer(m_VkManager, m_FrameData.objectBuffer);
+			destroy_buffer(m_VkManager, m_FrameData.objectBuffer);
 		destroy_buffer(m_VkManager, m_FrameData.cameraBuffer);
 			});
 	}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk_types.h"
+#include "vk_textures.h"
 
 namespace vkutil {
 
@@ -51,8 +52,7 @@ namespace vkutil {
 		DescriptorLayoutCache() = default;
 
 		DescriptorLayoutCache(VkDevice device)
-			: m_Device(device) {
-		}
+			: m_Device(device) {}
 
 		void cleanup();
 
@@ -78,17 +78,16 @@ namespace vkutil {
 		std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash> m_LayoutCache;
 	};
 
-	//TODO DescriptorWriter
-
 	class DescriptorBuilder {
 	public:
 
-		DescriptorBuilder(DescriptorLayoutCache *layoutCache, DescriptorAllocator *allocator)
-			: m_LayoutCache(layoutCache), m_Alloc(allocator) {
-		}
+		DescriptorBuilder(VulkanManager &manager);
 
-		DescriptorBuilder &bind_buffer(uint32_t binding, VkDescriptorBufferInfo *bufferInof, VkDescriptorType type, VkShaderStageFlags flags);
-		DescriptorBuilder &bind_image(uint32_t binding, VkDescriptorImageInfo *imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
+		DescriptorBuilder(DescriptorLayoutCache *layoutCache, DescriptorAllocator *allocator)
+			: m_LayoutCache(layoutCache), m_Alloc(allocator) {}
+
+		DescriptorBuilder &bind_buffer(uint32_t binding, AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags);
+		DescriptorBuilder &bind_image(uint32_t binding, Texture &image, VkDescriptorType type, VkShaderStageFlags flags);
 
 		bool build(VkDescriptorSet *set, VkDescriptorSetLayout *layout);
 		bool build(VkDescriptorSet *set);
@@ -96,6 +95,14 @@ namespace vkutil {
 	private:
 		std::vector<VkWriteDescriptorSet> m_Writes;
 		std::vector<VkDescriptorSetLayoutBinding> m_Bindings;
+
+		using DescriptorInfo = std::variant<VkDescriptorBufferInfo, VkDescriptorImageInfo>;
+		enum class DescriptorInfoType : uint32_t {
+			BUFFER = 0,
+			IMAGE = 1,
+		};
+
+		std::vector<DescriptorInfo> m_DescritorInfos;
 
 		DescriptorLayoutCache *m_LayoutCache;
 		DescriptorAllocator *m_Alloc;
