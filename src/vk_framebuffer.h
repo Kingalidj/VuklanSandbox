@@ -6,28 +6,28 @@
 
 namespace vkutil {
 
-struct Framebuffer {
-	std::vector<Texture> renderTarget;
-	VkFramebuffer framebuffer;
-};
+	struct Framebuffer {
+		std::vector<Texture> framebufferTexture;
+		VkFramebuffer framebuffer;
+	};
 
-class FramebufferBuilder {
-public:
+	class FramebufferBuilder {
+	public:
 
-	FramebufferBuilder(uint32_t w, uint32_t h, VkRenderPass rp)
-		:width(w), height(h), renderpass(rp) {}
+		FramebufferBuilder(uint32_t w, uint32_t h, VkRenderPass rp)
+			:width(w), height(h), renderpass(rp) {}
 
-	FramebufferBuilder &push_attachment(TextureCreateInfo &info);
-	Framebuffer build(VulkanManager &manager);
+		FramebufferBuilder &push_attachment(TextureCreateInfo &info);
+		Framebuffer build(VulkanManager &manager);
 
-private:
+	private:
 
-	uint32_t width, height;
-	VkRenderPass renderpass;
+		uint32_t width, height;
+		VkRenderPass renderpass;
 
-	std::vector<TextureCreateInfo> m_AttachmentInfos;
-};
+		std::vector<TextureCreateInfo> m_AttachmentInfos;
+	};
 
-void destroy_framebuffer(VulkanManager &manager, Framebuffer &framebuffer);
+	void destroy_framebuffer(VulkanManager &manager, Framebuffer &framebuffer);
 
 }

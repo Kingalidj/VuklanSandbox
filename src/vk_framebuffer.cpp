@@ -14,12 +14,12 @@ namespace vkutil {
 	{
 		Framebuffer framebuffer;
 
-		framebuffer.renderTarget = std::vector<Texture>(m_AttachmentInfos.size());
+		framebuffer.framebufferTexture = std::vector<Texture>(m_AttachmentInfos.size());
 		std::vector<VkImageView> attachmentViews = std::vector<VkImageView>(m_AttachmentInfos.size());
 
 		for (uint32_t i = 0; i < m_AttachmentInfos.size(); i++) {
-			alloc_texture(manager, m_AttachmentInfos[i], &framebuffer.renderTarget[i]);
-			attachmentViews[i] = framebuffer.renderTarget[i].imageView;
+			alloc_texture(manager, m_AttachmentInfos[i], &framebuffer.framebufferTexture[i]);
+			attachmentViews[i] = framebuffer.framebufferTexture[i].imageView;
 		}
 
 		VkFramebufferCreateInfo fbInfo = vkinit::framebuffer_create_info(renderpass, { width, height });
@@ -35,7 +35,7 @@ namespace vkutil {
 	void destroy_framebuffer(VulkanManager &manager, Framebuffer &framebuffer)
 	{
 		vkDestroyFramebuffer(manager.get_device(), framebuffer.framebuffer, nullptr);
-		for (auto &tex : framebuffer.renderTarget) {
+		for (auto &tex : framebuffer.framebufferTexture) {
 			destroy_texture(manager, tex);
 		}
 	}

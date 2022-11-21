@@ -61,10 +61,14 @@ namespace vkutil {
 		Scope<Window> m_Window = nullptr;
 
 		void init();
-		uint32_t prepare_frame();
 		void draw();
 		void run();
 		void cleanup();
+
+		void prepare_frame(uint32_t *swapchainImageIndex);
+		void end_frame(uint32_t swapchainImageIndex);
+		void exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
+			uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func);
 
 		void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
 

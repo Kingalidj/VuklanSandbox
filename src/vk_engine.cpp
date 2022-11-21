@@ -78,7 +78,7 @@ namespace vkutil {
 			RenderObject &object = first[i];
 			objectSSBO[i].modelMatrix = object.transformMatrix * rotMat;
 		}
-			});
+		});
 
 		Ref<Mesh> lastMesh = nullptr;
 		Ref<Material> lastMaterial = nullptr;
@@ -156,7 +156,7 @@ namespace vkutil {
 		}
 	}
 
-	uint32_t VulkanEngine::prepare_frame()
+	void VulkanEngine::prepare_frame(uint32_t *swapchainImageIndex)
 	{
 		if (m_ViewportbufferResized) {
 			m_ViewportbufferResized = false;
@@ -169,10 +169,9 @@ namespace vkutil {
 		}
 
 		// we will write to this image index (framebuffer)
-		uint32_t swapchainImageIndex;
 		VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX,
 			m_FrameData.presentSemaphore, nullptr,
-			&swapchainImageIndex);
+			swapchainImageIndex);
 
 		if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
 			m_FramebufferResized = false;
@@ -187,131 +186,27 @@ namespace vkutil {
 		// since we waited the buffer is empty
 		VK_CHECK(vkResetCommandBuffer(m_FrameData.mainCommandBuffer, 0));
 
-		return swapchainImageIndex;
-	}
-
-	void VulkanEngine::draw() {
-
-		uint32_t swapchainImageIndex = prepare_frame();
-
-		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
-
 		VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(
 			VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-		VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
-		VkClearValue clearValue{};
-		clearValue.color = { {0.0f, 0.0f, 0.0, 1.0f} };
-
-		VkClearValue depthClear{};
-		depthClear.depthStencil.depth = 1.0f;
+		VK_CHECK(vkBeginCommandBuffer(m_FrameData.mainCommandBuffer, &cmdBeginInfo));
 
 		{
 			ImGui_ImplVulkan_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 		}
+	}
 
-		{
-			VkExtent2D scaledViewport = { m_ViewportExtent.width * m_RenderResolution, m_ViewportExtent.height * m_RenderResolution };
-			VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(
-				m_ViewportRenderPass, scaledViewport,
-				m_ViewportFramebuffer.framebuffer);
-
-			rpInfo.clearValueCount = 2;
-			VkClearValue clearValues[] = { clearValue, depthClear };
-			rpInfo.pClearValues = clearValues;
-
-			VkViewport viewport{};
-			viewport.x = 0;
-			viewport.y = 0;
-			viewport.height = (float)scaledViewport.height;
-			viewport.width = (float)scaledViewport.width;
-			viewport.minDepth = 0;
-			viewport.maxDepth = 1;
-
-			VkRect2D scissor;
-			scissor.offset = { 0, 0 };
-			scissor.extent = scaledViewport;
-
-			vkCmdSetViewport(cmd, 0, 1, &viewport);
-			vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-			vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			draw_objects(cmd, m_RenderObjects.data(), (int)m_RenderObjects.size());
-
-			vkCmdEndRenderPass(cmd);
-		}
-
-		{
-			VkRenderPassBeginInfo rpInfo =
-				vkinit::renderpass_begin_info(m_ImGuiRenderPass, m_WindowExtent,
-					m_ImGuiFrameBuffers[swapchainImageIndex]);
-
-			rpInfo.clearValueCount = 1;
-			rpInfo.pClearValues = &clearValue;
-
-			vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
-
-			ImGui::ShowDemoWindow();
-
-			ImGui::Begin("Texture Viewer");
-			Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
-			ImGui::Image(tex->descriptor, ImVec2(1200, 1200));
-			ImGui::End();
-
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-			ImGui::Begin("Viewport");
-			ImGui::PopStyleVar();
-
-			auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
-			auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
-			auto viewportOffset = ImGui::GetWindowPos();
-			glm::vec2 viewportBounds[2];
-			viewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
-			viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
-			auto viewportSize = viewportBounds[1] - viewportBounds[0];
-
-			//CORE_TRACE("viewport: {}, {}", viewportSize.x, viewportSize.y);
-
-			//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
-			//ImGui::Image(tex->descriptor, { (float)m_ViewportExtent.width, (float)m_ViewportExtent.height });
-			ImGui::Image(m_ViewportFramebuffer.renderTarget[0].descriptor, { viewportSize.x, viewportSize.y });
-			ImGui::End();
-
-			ImGui::Begin("Settings");
-
-			float resolution = m_RenderResolution;
-			ImGui::SliderFloat("Resolution", &resolution, 0.0f, 1.0f);
-			if (resolution != m_RenderResolution && resolution != 0) {
-				m_ViewportbufferResized = true;
-				m_RenderResolution = resolution;
-			}
-
-			ImGui::End();
-
-			ImGui::Render();
-			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-
-			vkCmdEndRenderPass(cmd);
-
-			if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
-				Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
-				Atlas::Event e(event);
-				on_event(e);
-			}
-		}
+	void VulkanEngine::end_frame(uint32_t swapchainImageIndex)
+	{
+		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
 
 		VK_CHECK(vkEndCommandBuffer(cmd));
 
 		VkSubmitInfo submitInfo = vkinit::submit_info(&cmd);
 
-		VkPipelineStageFlags waitStage =
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
 		submitInfo.pWaitDstStageMask = &waitStage;
 
@@ -324,8 +219,7 @@ namespace vkutil {
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &cmd;
 
-		VK_CHECK(
-			vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_FrameData.renderFence));
+		VK_CHECK(vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_FrameData.renderFence));
 
 		VkPresentInfoKHR presentInfo = vkinit::present_info();
 
@@ -340,6 +234,113 @@ namespace vkutil {
 		VK_CHECK(vkQueuePresentKHR(m_GraphicsQueue, &presentInfo));
 
 		m_FrameNumber++;
+	}
+
+	void VulkanEngine::exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
+		uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func)
+	{
+		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+
+		VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(renderpass, { w, h }, framebuffer);
+
+		VkClearValue clearValue{};
+		clearValue.color = { {clearColor.r, clearColor.g, clearColor.b, clearColor.a} };
+		VkClearValue depthClear{};
+		depthClear.depthStencil.depth = 1.0f;
+
+		//VkClearValue clearValues[] = { clearValue, depthClear };
+		std::vector<VkClearValue> clearValues;
+		clearValues.push_back(clearValue);
+		clearValues.push_back(depthClear);
+		clearValues.resize(attachmentCount);
+
+		rpInfo.pClearValues = clearValues.data();
+		rpInfo.clearValueCount = attachmentCount;
+
+		VkViewport viewport{};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.height = (float)h;
+		viewport.width = (float)w;
+		viewport.minDepth = 0;
+		viewport.maxDepth = 1;
+
+		VkRect2D scissor{};
+		scissor.offset = { 0, 0 };
+		scissor.extent = { w, h };
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+		vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
+		func();
+		vkCmdEndRenderPass(cmd);
+	}
+
+	void VulkanEngine::draw() {
+
+		uint32_t swapchainImageIndex;
+		prepare_frame(&swapchainImageIndex);
+
+		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+
+		VkExtent2D scaledViewport = { m_ViewportExtent.width * m_RenderResolution, m_ViewportExtent.height * m_RenderResolution };
+
+		exec_renderpass(m_ViewportRenderPass, m_ViewportFramebuffer.framebuffer, scaledViewport.width, scaledViewport.height,
+			2, { 0, 0, 0, 1 }, [&]() {
+			draw_objects(cmd, m_RenderObjects.data(), (int)m_RenderObjects.size());
+		});
+
+		exec_renderpass(m_ImGuiRenderPass, m_ImGuiFrameBuffers[swapchainImageIndex], m_WindowExtent.width, m_WindowExtent.height,
+			1, { 0, 0, 0, 1 }, [&]() {
+
+			ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+
+		ImGui::ShowDemoWindow();
+
+		ImGui::Begin("Texture Viewer");
+		Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
+		ImGui::Image(tex->descriptor, ImVec2(1200, 1200));
+		ImGui::End();
+
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::Begin("Viewport");
+		ImGui::PopStyleVar();
+
+		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
+		auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
+		auto viewportOffset = ImGui::GetWindowPos();
+		glm::vec2 viewportBounds[2];
+		viewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
+		viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
+		auto viewportSize = viewportBounds[1] - viewportBounds[0];
+
+		ImGui::Image(m_ViewportFramebuffer.framebufferTexture[0].descriptor, { viewportSize.x, viewportSize.y });
+		ImGui::End();
+
+		ImGui::Begin("Settings");
+
+		float resolution = m_RenderResolution;
+		ImGui::SliderFloat("Resolution", &resolution, 0.0f, 1.0f);
+		if (resolution != m_RenderResolution && resolution != 0) {
+			m_ViewportbufferResized = true;
+			m_RenderResolution = resolution;
+		}
+
+		ImGui::End();
+
+		ImGui::Render();
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+		if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
+			Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
+			Atlas::Event e(event);
+			on_event(e);
+		}
+
+		});
+
+		end_frame(swapchainImageIndex);
 
 		ImGuiIO &io = ImGui::GetIO();
 
@@ -349,6 +350,7 @@ namespace vkutil {
 			ImGui::RenderPlatformWindowsDefault();
 			glfwMakeContextCurrent(backup_current_context);
 		}
+
 	}
 
 	void VulkanEngine::run() {
@@ -442,7 +444,7 @@ namespace vkutil {
 		vkDestroyDevice(m_Device, nullptr);
 		vkb::destroy_debug_utils_messenger(m_Instance, m_DebugMessenger);
 		vkDestroyInstance(m_Instance, nullptr);
-			});
+		});
 	}
 
 	void VulkanEngine::init_swapchain() {
@@ -497,7 +499,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=]() {
 				vkDestroyCommandPool(m_Device, m_FrameData.commandPool, nullptr);
-				});
+			});
 		}
 
 		{
@@ -547,7 +549,7 @@ namespace vkutil {
 
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyRenderPass(m_Device, m_ImGuiRenderPass, nullptr);
-			});
+		});
 	}
 
 	uint32_t to_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
@@ -638,7 +640,7 @@ namespace vkutil {
 
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyRenderPass(m_Device, m_ViewportRenderPass, nullptr);
-			});
+		});
 
 	}
 
@@ -709,7 +711,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroySemaphore(m_Device, m_FrameData.presentSemaphore, nullptr);
 		vkDestroySemaphore(m_Device, m_FrameData.renderSemaphore, nullptr);
-			});
+		});
 	}
 
 	void VulkanEngine::init_pipelines() {
@@ -719,41 +721,21 @@ namespace vkutil {
 		VkPipeline meshPipeline{};
 		VkPipeline debugPipeline{};
 
-		{
-			VkShaderModule fragShader;
-			if (!vkutil::load_glsl_shader("res/shaders/textured_lit.frag",
-				&fragShader, m_Device)) {
-				return;
-			}
-			else {
-				CORE_INFO("textured_mesh fragment shader successfully loaded");
-			}
+		VertexInputDescription vertexDescription = VertexInputDescriptionBuilder()
+			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::position)
+			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::normal)
+			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::color)
+			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::uv)
+			.value();
 
+		{
 			VkShaderModule vertShader;
-			if (!vkutil::load_glsl_shader("res/shaders/textured_lit.vert",
-				&vertShader, m_Device)) {
-				return;
-			}
-			else {
-				CORE_INFO("textured_mesh vertex shader successfully loaded");
-			}
+			VkShaderModule fragShader;
+			vkutil::load_glsl_shader("res/shaders/textured_lit.vert", &vertShader, m_Device);
+			vkutil::load_glsl_shader("res/shaders/textured_lit.frag", &fragShader, m_Device);
 
 			VkPipelineLayoutCreateInfo meshPipelineLayoutInfo =
 				vkinit::pipeline_layout_create_info();
-
-			/* VkPushConstantRange pushConstant; */
-			/* pushConstant.offset = 0; */
-			/* pushConstant.size = sizeof(MeshPushConstants); */
-			/* pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; */
-
-			/* meshPipelineLayoutInfo.pPushConstantRanges = &pushConstant; */
-			/* meshPipelineLayoutInfo.pushConstantRangeCount = 1; */
-			//meshPipelineLayoutInfo.setLayoutCount = 3;
-			//meshPipelineLayoutInfo.pSetLayouts = setLayouts;
-
-			//VK_CHECK(vkCreatePipelineLayout(m_Device, &meshPipelineLayoutInfo, nullptr, &layout));
-
-			VertexInputDescription vertexDescription = Vertex::get_vertex_description();
 
 			PipelineBuilder(m_VkManager)
 				.set_renderpass(m_ViewportRenderPass)
@@ -766,32 +748,15 @@ namespace vkutil {
 
 			m_VkManager.create_material("textured_mat", meshPipeline, layout);
 
-			/* m_MeshPipeline = pipelineBuilder.build(); */
-
 			vkDestroyShaderModule(m_Device, fragShader, nullptr);
 			vkDestroyShaderModule(m_Device, vertShader, nullptr);
 		}
 
 		{
-			VkShaderModule fragShader;
-			if (!vkutil::load_glsl_shader("res/shaders/debug.frag",
-				&fragShader, m_Device)) {
-				return;
-			}
-			else {
-				CORE_INFO("textured_mesh fragment shader successfully loaded");
-			}
-
 			VkShaderModule vertShader;
-			if (!vkutil::load_glsl_shader("res/shaders/debug.vert",
-				&vertShader, m_Device)) {
-				return;
-			}
-			else {
-				CORE_INFO("textured_mesh vertex shader successfully loaded");
-			}
-
-			VertexInputDescription vertexDescription = Vertex::get_vertex_description();
+			VkShaderModule fragShader;
+			vkutil::load_glsl_shader("res/shaders/debug.vert", &vertShader, m_Device);
+			vkutil::load_glsl_shader("res/shaders/debug.frag", &fragShader, m_Device);
 
 			PipelineBuilder(m_VkManager)
 				.set_renderpass(m_ViewportRenderPass)
@@ -813,11 +778,11 @@ namespace vkutil {
 			vkDestroyPipeline(m_Device, meshPipeline, nullptr);
 
 		vkDestroyPipeline(m_Device, debugPipeline, nullptr);
-			});
+		});
 	}
 
 	void VulkanEngine::load_meshes() {
-		Ref<Mesh> empire = load_mesh_from_obj("res/models/lost_empire.obj").value();
+		Ref<Mesh> empire = vkutil::load_mesh_from_obj("res/models/lost_empire.obj").value();
 
 		Ref<Mesh> triangle = make_ref<Mesh>();
 		triangle->vertices.resize(3);
@@ -846,7 +811,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vmaDestroyBuffer(m_Allocator, mesh->vertexBuffer.buffer,
 			mesh->vertexBuffer.allocation);
-			});
+		});
 	}
 
 	void VulkanEngine::on_event(Atlas::Event &e) {
@@ -959,7 +924,7 @@ namespace vkutil {
 
 			destroy_buffer(m_VkManager, m_FrameData.objectBuffer);
 		destroy_buffer(m_VkManager, m_FrameData.cameraBuffer);
-			});
+		});
 	}
 
 	void VulkanEngine::init_imgui() {
@@ -1051,7 +1016,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyDescriptorPool(m_Device, imguiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();
-			});
+		});
 	}
 
 	size_t VulkanEngine::pad_uniform_buffer_size(size_t originalSize) {
@@ -1074,7 +1039,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=] {
 				vkutil::destroy_texture(m_VkManager, *texture);
-				});
+			});
 		}
 
 		{
@@ -1086,7 +1051,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=] {
 				vkutil::destroy_texture(m_VkManager, *texture);
-				});
+			});
 		}
 	}
 
