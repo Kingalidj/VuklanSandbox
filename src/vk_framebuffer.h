@@ -8,7 +8,7 @@ namespace vkutil {
 
 	struct Framebuffer {
 		std::vector<Texture> framebufferTexture;
-		VkFramebuffer framebuffer;
+		VkFramebuffer framebuffer{ VK_NULL_HANDLE };
 	};
 
 	class FramebufferBuilder {

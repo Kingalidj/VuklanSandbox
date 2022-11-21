@@ -28,6 +28,7 @@ add_subdirectory(vendor)
 
 
 set(SOURCES
+		src/application.cpp
 		src/vk_buffer.cpp
 		src/vk_framebuffer.cpp
 		src/window.cpp
@@ -49,6 +50,7 @@ set(HEADERS
 		src/pch.h
 		src/event.h
 
+		src/application.h
 		src/vk_buffer.h
 		src/vk_framebuffer.h
 		src/window.h

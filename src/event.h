@@ -270,12 +270,12 @@ inline int get_event_category_flags< x##Event >() { \
 		}
 
 		template<typename T, typename F>
-		bool dispatch(const F &func) {
+		EventDispatcher &dispatch(const F &func) {
 			if (m_Event.get_type() == get_event_type<T>()) {
 				m_Event.handled = func(m_Event.get<T>());
-				return true;
 			}
-			return false;
+
+			return *this;
 		}
 	};
 

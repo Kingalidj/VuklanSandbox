@@ -1,5 +1,7 @@
 #include "vk_engine.h"
 
+#include "window.h"
+
 #include "vk_initializers.h"
 #include "vk_pipeline.h"
 #include "vk_shader.h"
@@ -18,24 +20,18 @@ const uint8_t c_RobotoRegular[] = {
 
 namespace vkutil {
 
-	void VulkanEngine::init() {
-
-		{
-			WindowInfo info = { "Vulkan Engine", m_WindowExtent.width, m_WindowExtent.height };
-			m_Window = make_scope<Window>(info);
-			m_WindowExtent.width = m_Window->get_width();
-			m_WindowExtent.height = m_Window->get_height();
-			m_Window->set_event_callback(BIND_EVENT_FN(VulkanEngine::on_event));
-		}
-
-		init_vulkan();
+	VulkanEngine::VulkanEngine(Window &window)
+		: m_App_Callback(window.get_event_callback()),
+		m_WindowExtent({ window.get_width(), window.get_height() })
+	{
+		init_vulkan(window);
 		init_swapchain();
 		init_commands();
 		init_renderpass();
 		init_framebuffers();
 		init_sync_structures();
 
-		init_imgui();
+		init_imgui(window);
 
 		init_vp_renderpass();
 		init_vp_framebuffers();
@@ -57,7 +53,8 @@ namespace vkutil {
 		glm::vec3 camPos = { 0.f, -3.f, -9.f };
 
 		glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
-		glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)m_ViewportExtent.width / m_ViewportExtent.height, 0.1f, 200.0f);
+		glm::mat4 projection = glm::perspective(glm::radians(70.f),
+			(float)m_ViewportExtent.width / m_ViewportExtent.height, 0.1f, 200.0f);
 		projection[1][1] *= -1;
 
 		glm::mat4 rotMat = glm::rotate(glm::mat4(1), glm::radians((float)m_FrameNumber * 2.0f), glm::vec3(0, 1, 0));
@@ -151,7 +148,7 @@ namespace vkutil {
 			m_MainDeletionQueue.flush();
 
 			//glfwDestroyWindow(m_Window);
-			m_Window->cleanup();
+			//m_Window->destroy();
 			//glfwTerminate();
 		}
 	}
@@ -160,7 +157,7 @@ namespace vkutil {
 	{
 		if (m_ViewportbufferResized) {
 			m_ViewportbufferResized = false;
-			rebuild_vp_swapchain();
+			rebuild_vp_framebuffer();
 		}
 
 		if (m_FramebufferResized) {
@@ -284,14 +281,17 @@ namespace vkutil {
 
 		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
 
-		VkExtent2D scaledViewport = { m_ViewportExtent.width * m_RenderResolution, m_ViewportExtent.height * m_RenderResolution };
+		VkExtent2D scaledViewport = { m_ViewportExtent.width * m_RenderResolution,
+			m_ViewportExtent.height * m_RenderResolution };
 
-		exec_renderpass(m_ViewportRenderPass, m_ViewportFramebuffer.framebuffer, scaledViewport.width, scaledViewport.height,
+		exec_renderpass(m_ViewportRenderPass, m_ViewportFramebuffer.framebuffer,
+			scaledViewport.width, scaledViewport.height,
 			2, { 0, 0, 0, 1 }, [&]() {
 			draw_objects(cmd, m_RenderObjects.data(), (int)m_RenderObjects.size());
 		});
 
-		exec_renderpass(m_ImGuiRenderPass, m_ImGuiFrameBuffers[swapchainImageIndex], m_WindowExtent.width, m_WindowExtent.height,
+		exec_renderpass(m_ImGuiRenderPass, m_ImGuiFrameBuffers[swapchainImageIndex],
+			m_WindowExtent.width, m_WindowExtent.height,
 			1, { 0, 0, 0, 1 }, [&]() {
 
 			ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
@@ -335,7 +335,7 @@ namespace vkutil {
 		if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
 			Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
 			Atlas::Event e(event);
-			on_event(e);
+			m_App_Callback(e);
 		}
 
 		});
@@ -351,17 +351,6 @@ namespace vkutil {
 			glfwMakeContextCurrent(backup_current_context);
 		}
 
-	}
-
-	void VulkanEngine::run() {
-
-		while (!m_Window->should_close()) {
-
-			if (!m_WindowMinimized) {
-				m_Window->on_update();
-				draw();
-			}
-		}
 	}
 
 	VkBool32
@@ -390,7 +379,7 @@ namespace vkutil {
 		return VK_FALSE;
 	}
 
-	void VulkanEngine::init_vulkan() {
+	void VulkanEngine::init_vulkan(Window &window) {
 		vkb::Instance vkb_inst = vkb::InstanceBuilder()
 			.set_app_name("Vulkan Application")
 			.request_validation_layers(true)
@@ -403,7 +392,7 @@ namespace vkutil {
 		m_DebugMessenger = vkb_inst.debug_messenger;
 
 		//VK_CHECK(glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface));
-		VK_CHECK(m_Window->create_window_surface(m_Instance, &m_Surface));
+		VK_CHECK(window.create_window_surface(m_Instance, &m_Surface));
 
 		vkb::PhysicalDevice physicalDevice = vkb::PhysicalDeviceSelector(vkb_inst)
 			.set_minimum_version(1, 1)
@@ -427,8 +416,7 @@ namespace vkutil {
 		m_PhysicalDevice = physicalDevice.physical_device;
 
 		m_GraphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
-		m_GraphicsQueueFamily =
-			vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+		m_GraphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 
 		VmaAllocatorCreateInfo allocatorInfo{};
 		allocatorInfo.physicalDevice = m_PhysicalDevice;
@@ -649,8 +637,8 @@ namespace vkutil {
 		const int w = (int)m_ViewportExtent.width * m_RenderResolution;
 		const int h = (int)m_ViewportExtent.height * m_RenderResolution;
 
-		vkutil::TextureCreateInfo depthInfo = vkutil::depth_texture_create_info(w, h, m_DepthFormat);
-		vkutil::TextureCreateInfo colorInfo = vkutil::color_texture_create_info(w, h, m_SwapchainImageFormat);
+		TextureCreateInfo depthInfo = depth_texture_create_info(w, h, m_DepthFormat);
+		TextureCreateInfo colorInfo = color_texture_create_info(w, h, m_SwapchainImageFormat);
 
 		colorInfo.filter = VK_FILTER_NEAREST;
 
@@ -659,7 +647,7 @@ namespace vkutil {
 			.push_attachment(depthInfo).build(m_VkManager);
 	}
 
-	void VulkanEngine::rebuild_vp_swapchain() {
+	void VulkanEngine::rebuild_vp_framebuffer() {
 		if (m_ViewportMinimized) return;
 
 		vkDeviceWaitIdle(m_Device);
@@ -731,8 +719,8 @@ namespace vkutil {
 		{
 			VkShaderModule vertShader;
 			VkShaderModule fragShader;
-			vkutil::load_glsl_shader("res/shaders/textured_lit.vert", &vertShader, m_Device);
-			vkutil::load_glsl_shader("res/shaders/textured_lit.frag", &fragShader, m_Device);
+			load_spirv_shader_module("res/shaders/textured_lit.vert.spv", &vertShader, m_Device);
+			load_spirv_shader_module("res/shaders/textured_lit.frag.spv", &fragShader, m_Device);
 
 			VkPipelineLayoutCreateInfo meshPipelineLayoutInfo =
 				vkinit::pipeline_layout_create_info();
@@ -755,8 +743,8 @@ namespace vkutil {
 		{
 			VkShaderModule vertShader;
 			VkShaderModule fragShader;
-			vkutil::load_glsl_shader("res/shaders/debug.vert", &vertShader, m_Device);
-			vkutil::load_glsl_shader("res/shaders/debug.frag", &fragShader, m_Device);
+			load_spirv_shader_module("res/shaders/debug.vert.spv", &vertShader, m_Device);
+			load_spirv_shader_module("res/shaders/debug.frag.spv", &fragShader, m_Device);
 
 			PipelineBuilder(m_VkManager)
 				.set_renderpass(m_ViewportRenderPass)
@@ -782,7 +770,7 @@ namespace vkutil {
 	}
 
 	void VulkanEngine::load_meshes() {
-		Ref<Mesh> empire = vkutil::load_mesh_from_obj("res/models/lost_empire.obj").value();
+		Ref<Mesh> empire = load_mesh_from_obj("res/models/lost_empire.obj").value();
 
 		Ref<Mesh> triangle = make_ref<Mesh>();
 		triangle->vertices.resize(3);
@@ -814,36 +802,26 @@ namespace vkutil {
 		});
 	}
 
-	void VulkanEngine::on_event(Atlas::Event &e) {
-		using namespace Atlas;
-		if (!e.in_category(EventCategoryMouse)) CORE_TRACE(e);
-
-
-		EventDispatcher ed(e);
-		ed.dispatch<WindowResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_window_resize));
-		ed.dispatch<ViewportResizedEvent>(BIND_EVENT_FN(VulkanEngine::on_viewport_resize));
-	}
-
-	bool VulkanEngine::on_window_resize(Atlas::WindowResizedEvent &e) {
+	void VulkanEngine::resize_window(uint32_t w, uint32_t h)
+	{
+		if (m_WindowExtent.width == w && m_WindowExtent.height == h) return;
 		m_FramebufferResized = true;
+		m_WindowExtent.width = w;
+		m_WindowExtent.height = h;
 
-		m_WindowExtent.width = e.width;
-		m_WindowExtent.height = e.height;
-
-		if (e.width == 0 || e.height == 0) m_WindowMinimized = true;
+		if (w == 0 || h == 0) m_WindowMinimized = true;
 		else m_WindowMinimized = false;
-
-		return false;
 	}
 
-	bool VulkanEngine::on_viewport_resize(Atlas::ViewportResizedEvent &e) {
-		m_ViewportExtent = { e.width, e.height };
+	void VulkanEngine::resize_viewport(uint32_t w, uint32_t h)
+	{
+		if (m_ViewportExtent.width == w && m_ViewportExtent.height == h) return;
 		m_ViewportbufferResized = true;
+		m_ViewportExtent.width = w;
+		m_ViewportExtent.height = h;
 
-		if (e.width == 0 || e.height == 0) m_ViewportMinimized = true;
+		if (w == 0 || h == 0) m_ViewportMinimized = true;
 		else m_ViewportMinimized = false;
-
-		return false;
 	}
 
 	void VulkanEngine::init_scene() {
@@ -913,11 +891,13 @@ namespace vkutil {
 		);
 
 		DescriptorBuilder(m_VkManager)
-			.bind_buffer(0, m_FrameData.cameraBuffer, sizeof(GPUCameraData), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+			.bind_buffer(0, m_FrameData.cameraBuffer, sizeof(GPUCameraData),
+				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 			.build(&m_FrameData.cameraDescriptor, &m_CameraSetLayout);
 
 		DescriptorBuilder(m_VkManager)
-			.bind_buffer(0, m_FrameData.objectBuffer, sizeof(GPUObjectData) * MAX_OBJECTS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+			.bind_buffer(0, m_FrameData.objectBuffer, sizeof(GPUObjectData) * MAX_OBJECTS,
+				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
 			.build(&m_FrameData.objectDescriptor, &m_ObjectSetLayout);
 
 		m_MainDeletionQueue.push_function([&]() {
@@ -927,7 +907,7 @@ namespace vkutil {
 		});
 	}
 
-	void VulkanEngine::init_imgui() {
+	void VulkanEngine::init_imgui(Window &window) {
 		// 1: create descriptor pool for IMGUI
 		//  the size of the pool is very oversize, but it's copied from imgui demo
 		//  itself.
@@ -980,7 +960,7 @@ namespace vkutil {
 			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 		}
 
-		ImGui_ImplGlfw_InitForVulkan(m_Window->get_native_window(), true);
+		ImGui_ImplGlfw_InitForVulkan(window.get_native_window(), true);
 
 		// this initializes imgui for Vulkan
 		{
@@ -1032,25 +1012,25 @@ namespace vkutil {
 	void VulkanEngine::load_images() {
 		{
 			auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-			Ref<vkutil::Texture> texture =
-				vkutil::load_texture("res/images/lost_empire-RGBA.png", m_VkManager, info).value();
+			Ref<Texture> texture =
+				load_texture("res/images/lost_empire-RGBA.png", m_VkManager, info).value();
 
 			m_VkManager.set_texture("empire_diffuse", texture);
 
 			m_MainDeletionQueue.push_function([=] {
-				vkutil::destroy_texture(m_VkManager, *texture);
+				destroy_texture(m_VkManager, *texture);
 			});
 		}
 
 		{
 			auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-			Ref<vkutil::Texture> texture =
-				vkutil::load_texture("res/images/rgb_test.png", m_VkManager, info).value();
+			Ref<Texture> texture =
+				load_texture("res/images/rgb_test.png", m_VkManager, info).value();
 
 			m_VkManager.set_texture("rgb_test", texture);
 
 			m_MainDeletionQueue.push_function([=] {
-				vkutil::destroy_texture(m_VkManager, *texture);
+				destroy_texture(m_VkManager, *texture);
 			});
 		}
 	}

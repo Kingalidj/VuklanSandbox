@@ -7,13 +7,14 @@
 #include "vk_manager.h"
 #include "vk_framebuffer.h"
 #include "vk_buffer.h"
-
-#include "window.h"
+#include "event.h"
 
 #include <glm/glm.hpp>
 
 #include <imgui_impl_vulkan.h>
 #include <imgui_impl_glfw.h>
+
+class Window;
 
 namespace vkutil {
 
@@ -49,30 +50,55 @@ namespace vkutil {
 
 	class  VulkanEngine {
 	public:
+		float m_RenderResolution = 1.0f;
+
+		VulkanEngine(Window &window);
+
+		void draw();
+		void cleanup();
+
+		void resize_window(uint32_t w, uint32_t h);
+		void resize_viewport(uint32_t w, uint32_t h);
+
+		void prepare_frame(uint32_t *swapchainImageIndex);
+		void exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
+			uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func);
+		void end_frame(uint32_t swapchainImageIndex);
+
+		void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
+		size_t pad_uniform_buffer_size(size_t originalSize);
+
+	private:
+		void init_vulkan(Window &window);
+		void init_commands();
+		void init_sync_structures();
+		void init_pipelines();
+		void init_scene();
+		void init_descriptors();
+		void init_imgui(Window &window);
+
+		void init_swapchain();
+		void init_renderpass();
+		void init_framebuffers();
+		void cleanup_swapchain();
+		void rebuild_swapchain();
+
+		void init_vp_renderpass();
+		void init_vp_framebuffers();
+		void rebuild_vp_framebuffer();
+
+		void load_meshes();
+		void load_images();
+		void upload_mesh(Ref<Mesh> mesh);
+
 		bool m_IsInitialized{ false };
 		int m_FrameNumber{ 0 };
 
 		VkExtent2D m_WindowExtent{ 1600, 900 };
 		VkExtent2D m_ViewportExtent{ 1600, 900 };
-		float m_RenderResolution = 1.0f;
 
-		//struct GLFWwindow *m_Window = nullptr;
-
-		Scope<Window> m_Window = nullptr;
-
-		void init();
-		void draw();
-		void run();
-		void cleanup();
-
-		void prepare_frame(uint32_t *swapchainImageIndex);
-		void end_frame(uint32_t swapchainImageIndex);
-		void exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
-			uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func);
-
-		void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
-
-		size_t pad_uniform_buffer_size(size_t originalSize);
+		using EventCallbackFn = std::function<void(Atlas::Event &)>;
+		const EventCallbackFn &m_App_Callback;
 
 		VkInstance m_Instance;
 		VkDebugUtilsMessengerEXT m_DebugMessenger;
@@ -118,32 +144,7 @@ namespace vkutil {
 		bool m_WindowMinimized = false;
 		bool m_ViewportMinimized = false;
 
-	private:
-		void init_vulkan();
-		void init_commands();
-		void init_sync_structures();
-		void init_pipelines();
-		void init_scene();
-		void init_descriptors();
-		void init_imgui();
 
-		void init_swapchain();
-		void init_renderpass();
-		void init_framebuffers();
-		void cleanup_swapchain();
-		void rebuild_swapchain();
-
-		void init_vp_renderpass();
-		void init_vp_framebuffers();
-		void rebuild_vp_swapchain();
-
-		void load_meshes();
-		void load_images();
-		void upload_mesh(Ref<Mesh> mesh);
-
-		void on_event(Atlas::Event &e);
-		bool on_window_resize(Atlas::WindowResizedEvent &e);
-		bool on_viewport_resize(Atlas::ViewportResizedEvent &e);
 	};
 
 }

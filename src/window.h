@@ -43,7 +43,7 @@ private:
 
 public:
 	Window(const WindowInfo &props);
-	void cleanup();
+	void destroy();
 
 	void on_update();
 

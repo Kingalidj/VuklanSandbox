@@ -12,12 +12,12 @@ namespace vkutil {
 		VkShaderModule *outShaderModule,
 		const VkDevice device);
 
-	bool load_glsl_shader(std::filesystem::path filePath,
+	bool load_glsl_shader_module(std::filesystem::path filePath,
 		VkShaderStageFlagBits type,
 		VkShaderModule *outShaderModule,
 		const VkDevice device);
 
-	bool load_glsl_shader(std::filesystem::path filePath,
+	bool load_glsl_shader_module(std::filesystem::path filePath,
 		VkShaderModule *outShaderModule,
 		const VkDevice device);
 } // namespace vkutil

@@ -78,7 +78,7 @@ namespace vkutil {
 		return true;
 	}
 
-	bool load_glsl_shader(std::filesystem::path filePath,
+	bool load_glsl_shader_module(std::filesystem::path filePath,
 		VkShaderStageFlagBits type,
 		VkShaderModule *outShaderModule,
 		const VkDevice device) {
@@ -143,7 +143,7 @@ namespace vkutil {
 		return true;
 	}
 
-	bool load_glsl_shader(std::filesystem::path filePath,
+	bool load_glsl_shader_module(std::filesystem::path filePath,
 		VkShaderModule *outShaderModule,
 		const VkDevice device) {
 		auto ext = filePath.extension();
@@ -160,7 +160,7 @@ namespace vkutil {
 			return false;
 		}
 
-		return load_glsl_shader(filePath, type, outShaderModule, device);
+		return load_glsl_shader_module(filePath, type, outShaderModule, device);
 	}
 
 } // namespace vkutil

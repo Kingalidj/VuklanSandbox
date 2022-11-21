@@ -1,12 +1,10 @@
-#include "vk_engine.h"
+#include "application.h"
 
 int main() {
 
-	vkutil::VulkanEngine app;
+	Atlas::Application app;
 
-	app.init();
 	app.run();
-	app.cleanup();
 
 	return 0;
 }
