@@ -43,7 +43,7 @@ namespace vkutil {
 			attribute.binding = 0;
 			attribute.location = m_AttribLocation++;
 			attribute.format = (VkFormat)type;
-			attribute.offset = offset_of(member);
+			attribute.offset = (uint32_t)offset_of(member);
 
 			m_Description.attributes.push_back(attribute);
 			return *this;

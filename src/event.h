@@ -148,6 +148,7 @@ namespace Atlas {
 	template<typename T>
 	inline EventType get_event_type() {
 		CORE_ASSERT(false, "get_event_type not defined for this type");
+		return EventType::NONE;
 	}
 #define A(x, _) \
 template<> \
@@ -161,6 +162,7 @@ inline EventType get_event_type< x##Event>() { \
 		template<typename T>
 	inline int get_event_category_flags() {
 		CORE_ASSERT(false, "get_event_category_flags not defined for this type");
+		return 0;
 	}
 #define A(x, z) \
 template<> \

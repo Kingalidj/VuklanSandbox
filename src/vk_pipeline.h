@@ -48,19 +48,20 @@ namespace vkutil {
 
 		PipelineBuilder(VulkanManager &manager);
 
+		PipelineBuilder &set_color_format(VkFormat format);
+
 		PipelineBuilder &add_shader_module(VkShaderModule shaderModule, VkShaderStageFlagBits shaderType);
 
 		PipelineBuilder &set_renderpass(VkRenderPass renderpass);
 
 		PipelineBuilder &set_vertex_description(VertexInputDescription &descriptrion);
-		PipelineBuilder &PipelineBuilder::set_vertex_description(
-			std::vector<VkVertexInputAttributeDescription> &attributes,
+		PipelineBuilder &set_vertex_description(std::vector<VkVertexInputAttributeDescription> &attributes,
 			std::vector<VkVertexInputBindingDescription> &bindings);
 		PipelineBuilder &set_vertex_description(
 			VkVertexInputAttributeDescription *pAttributes, uint32_t attributesCount,
 			VkVertexInputBindingDescription *pBindings, uint32_t bindingCount);
 
-		PipelineBuilder &set_depth_stencil(bool depthTest, bool depthWrite, VkCompareOp compareOp);
+		PipelineBuilder &set_depth_stencil(bool depthTest, bool depthWrite, VkCompareOp compareOp, VkFormat depthFormat);
 
 		PipelineBuilder &set_descriptor_layouts(std::initializer_list<VkDescriptorSetLayout> layouts);
 
@@ -73,6 +74,9 @@ namespace vkutil {
 		VkRenderPass m_RenderPass{ VK_NULL_HANDLE };
 
 		PipelineLayoutCache *m_LayoutCache{ nullptr };
+
+		VkFormat m_ColorFormat;
+		VkFormat m_DepthFormat;
 
 		std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStageInfo;
 		VkPipelineVertexInputStateCreateInfo m_VertexInputInfo{};

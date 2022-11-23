@@ -5,7 +5,6 @@
 #include "vk_descriptors.h"
 #include "vk_textures.h"
 #include "vk_manager.h"
-#include "vk_framebuffer.h"
 #include "vk_buffer.h"
 #include "event.h"
 
@@ -42,12 +41,6 @@ namespace vkutil {
 		VkDescriptorSet objectDescriptor;
 	};
 
-	/* struct MeshPushConstants { */
-	/*   glm::vec4 data; */
-	/*   glm::mat4 renderMatrix; */
-	/* }; */
-	//constexpr uint32_t FRAME_OVERLAP = 2;
-
 	class  VulkanEngine {
 	public:
 		float m_RenderResolution = 1.0f;
@@ -61,11 +54,15 @@ namespace vkutil {
 		void resize_viewport(uint32_t w, uint32_t h);
 
 		void prepare_frame(uint32_t *swapchainImageIndex);
-		void exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
-			uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func);
 		void end_frame(uint32_t swapchainImageIndex);
 
-		void draw_objects(VkCommandBuffer cmd, RenderObject *first, int count);
+		void exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
+			uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func);
+
+		void dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func);
+		void dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func);
+
+		void draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count);
 		size_t pad_uniform_buffer_size(size_t originalSize);
 
 	private:
@@ -83,7 +80,6 @@ namespace vkutil {
 		void cleanup_swapchain();
 		void rebuild_swapchain();
 
-		void init_vp_renderpass();
 		void init_vp_framebuffers();
 		void rebuild_vp_framebuffer();
 
@@ -98,7 +94,7 @@ namespace vkutil {
 		VkExtent2D m_ViewportExtent{ 1600, 900 };
 
 		using EventCallbackFn = std::function<void(Atlas::Event &)>;
-		const EventCallbackFn &m_App_Callback;
+		const EventCallbackFn &m_EventCallback;
 
 		VkInstance m_Instance;
 		VkDebugUtilsMessengerEXT m_DebugMessenger;
@@ -106,25 +102,23 @@ namespace vkutil {
 		VkDevice m_Device;
 		VkSurfaceKHR m_Surface;
 		VkPhysicalDeviceProperties m_GPUProperties;
-
-		VkSwapchainKHR m_Swapchain;
-		VkFormat m_SwapchainImageFormat;
-		VkFormat m_DepthFormat;
-
 		VkQueue m_GraphicsQueue;
 		uint32_t m_GraphicsQueueFamily;
+
+		VkSwapchainKHR m_Swapchain;
+		std::vector<VkImage> m_SwapchainImages;
+		std::vector<VkImageView> m_SwapchainImageViews;
+		std::vector<VkFramebuffer> m_Framebuffers;
+
+		VkFormat m_SwapchainImageFormat;
+		VkFormat m_DepthFormat;
 
 		FrameData m_FrameData;
 
 		VkRenderPass m_ImGuiRenderPass;
-		VkRenderPass m_ViewportRenderPass;
 
-		Framebuffer m_ViewportFramebuffer;
-
-		std::vector<VkImage> m_SwapchainImages;
-		std::vector<VkImageView> m_SwapchainImageViews;
-
-		std::vector<VkFramebuffer> m_ImGuiFrameBuffers;
+		Texture m_ColorTexture;
+		Texture m_DepthTexture;
 
 		DeletionQueue m_MainDeletionQueue;
 

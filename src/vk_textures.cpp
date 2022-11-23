@@ -30,7 +30,7 @@ namespace vkutil {
 		info.width = w;
 		info.height = h;
 		info.format = format;
-		info.allowDescriptor = true;
+		info.createImguiDescriptor = true;
 		info.aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
 		info.filter = VK_FILTER_LINEAR;
 		info.usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -47,7 +47,7 @@ namespace vkutil {
 		info.filter = VK_FILTER_LINEAR;
 		info.aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
 		info.usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-		info.allowDescriptor = false;
+		info.createImguiDescriptor = false;
 
 		return info;
 	}
@@ -115,7 +115,7 @@ namespace vkutil {
 		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
 			0, nullptr, 1, &imageBarrierToReadable);
-			});
+		});
 
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 	}
@@ -124,10 +124,38 @@ namespace vkutil {
 		vkDestroyImageView(manager.get_device(), tex.imageView, nullptr);
 		vmaDestroyImage(manager.get_allocator(), tex.imageAllocation.image, tex.imageAllocation.allocation);
 
-		if (tex.allowDescriptor) {
+		if (tex.bImguiDescriptor) {
 			ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)tex.descriptor);
 			vkDestroySampler(manager.get_device(), tex.sampler, nullptr);
 		}
+	}
+
+	void insert_image_memory_barrier(VkCommandBuffer command_buffer, VkImage image, VkAccessFlags src_access_mask,
+		VkAccessFlags dst_access_mask, VkImageLayout old_layout, VkImageLayout new_layout,
+		VkPipelineStageFlags src_stage_mask, VkPipelineStageFlags dst_stage_mask, VkImageSubresourceRange range)
+	{
+		VkImageMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.srcAccessMask = src_access_mask;
+		barrier.dstAccessMask = dst_access_mask;
+		barrier.oldLayout = old_layout;
+		barrier.newLayout = new_layout;
+		barrier.image = image;
+		barrier.subresourceRange = range;
+		//barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		//barrier.subresourceRange.levelCount = 1;
+		//barrier.subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(
+			command_buffer,
+			src_stage_mask,
+			dst_stage_mask,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier);
 	}
 
 	void alloc_texture(VulkanManager &manager, TextureCreateInfo &info, Texture *tex)
@@ -135,9 +163,9 @@ namespace vkutil {
 		tex->width = info.width;
 		tex->height = info.height;
 		tex->format = info.format;
-		tex->allowDescriptor = info.allowDescriptor;
+		tex->bImguiDescriptor = info.createImguiDescriptor;
 
-		if (info.allowDescriptor)
+		if (info.createImguiDescriptor)
 			info.usageFlags |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
 		create_image(manager, info.width, info.height, info.format, info.usageFlags, &tex->imageAllocation);
@@ -149,7 +177,7 @@ namespace vkutil {
 		vkCreateImageView(manager.get_device(), &imageInfo, nullptr, &tex->imageView);
 
 
-		if (info.allowDescriptor) {
+		if (info.createImguiDescriptor) {
 			VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(info.filter);
 			VK_CHECK(vkCreateSampler(manager.get_device(), &samplerInfo, nullptr, &tex->sampler));
 			tex->descriptor = ImGui_ImplVulkan_AddTexture(tex->sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -179,7 +207,7 @@ namespace vkutil {
 		VK_CHECK(vkCreateSampler(manager.get_device(), &info, nullptr, &tex->sampler));
 
 		tex->descriptor = ImGui_ImplVulkan_AddTexture(tex->sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		tex->allowDescriptor = true;
+		tex->bImguiDescriptor = true;
 
 		return std::move(tex);
 	}
@@ -264,7 +292,7 @@ namespace vkutil {
 		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
 			0, nullptr, 1, &imageBarrierToReadable);
-			});
+		});
 
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 

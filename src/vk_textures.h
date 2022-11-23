@@ -18,7 +18,7 @@ namespace vkutil {
 		uint32_t width, height;
 		VkFormat format;
 
-		bool allowDescriptor;
+		bool bImguiDescriptor;
 		VkDescriptorSet descriptor;
 		VkSampler sampler;
 	};
@@ -29,8 +29,19 @@ namespace vkutil {
 		VkFilter filter;
 		VkImageUsageFlags usageFlags;
 		VkImageAspectFlags aspectFlags;
-		bool allowDescriptor;
+		bool createImguiDescriptor;
 	};
+
+	void insert_image_memory_barrier(
+		VkCommandBuffer         command_buffer,
+		VkImage                 image,
+		VkAccessFlags           src_access_mask,
+		VkAccessFlags           dst_access_mask,
+		VkImageLayout           old_layout,
+		VkImageLayout           new_layout,
+		VkPipelineStageFlags    src_stage_mask,
+		VkPipelineStageFlags    dst_stage_mask,
+		VkImageSubresourceRange range);
 
 	TextureCreateInfo color_texture_create_info(uint32_t w, uint32_t h, VkFormat format);
 	TextureCreateInfo depth_texture_create_info(uint32_t w, uint32_t h, VkFormat format);

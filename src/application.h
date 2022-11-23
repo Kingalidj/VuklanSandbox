@@ -51,9 +51,9 @@ namespace Atlas {
 		bool on_window_resized(WindowResizedEvent &e);
 		bool on_viewport_resized(ViewportResizedEvent &e);
 
-		Scope<vkutil::VulkanEngine> m_Engine = nullptr;
+		Scope<vkutil::VulkanEngine> m_Engine;
 
-		Scope<Window> m_Window = nullptr;
+		Scope<Window> m_Window;
 		bool m_WindowMinimized = false;
 
 	};

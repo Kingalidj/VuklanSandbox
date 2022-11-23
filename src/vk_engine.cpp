@@ -21,7 +21,7 @@ const uint8_t c_RobotoRegular[] = {
 namespace vkutil {
 
 	VulkanEngine::VulkanEngine(Window &window)
-		: m_App_Callback(window.get_event_callback()),
+		: m_EventCallback(window.get_event_callback()),
 		m_WindowExtent({ window.get_width(), window.get_height() })
 	{
 		init_vulkan(window);
@@ -33,7 +33,6 @@ namespace vkutil {
 
 		init_imgui(window);
 
-		init_vp_renderpass();
 		init_vp_framebuffers();
 
 		init_descriptors();
@@ -48,8 +47,7 @@ namespace vkutil {
 		m_IsInitialized = true;
 	}
 
-	void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first,
-		int count) {
+	void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count) {
 		glm::vec3 camPos = { 0.f, -3.f, -9.f };
 
 		glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
@@ -82,12 +80,11 @@ namespace vkutil {
 		for (int i = 0; i < count; i++) {
 			RenderObject &object = first[i];
 
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-				object.material->pipeline);
+			//vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
+
 			if (object.material != lastMaterial) {
 
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-					object.material->pipeline);
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
 				lastMaterial = object.material;
 
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -141,7 +138,8 @@ namespace vkutil {
 
 			VK_CHECK(vkDeviceWaitIdle(m_Device));
 
-			destroy_framebuffer(m_VkManager, m_ViewportFramebuffer);
+			destroy_texture(m_VkManager, m_ColorTexture);
+			destroy_texture(m_VkManager, m_DepthTexture);
 			cleanup_swapchain();
 
 			m_VkManager.cleanup();
@@ -231,6 +229,16 @@ namespace vkutil {
 		VK_CHECK(vkQueuePresentKHR(m_GraphicsQueue, &presentInfo));
 
 		m_FrameNumber++;
+
+		ImGuiIO &io = ImGui::GetIO();
+
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+			GLFWwindow *backup_current_context = glfwGetCurrentContext();
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+			glfwMakeContextCurrent(backup_current_context);
+		}
+
 	}
 
 	void VulkanEngine::exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
@@ -274,6 +282,150 @@ namespace vkutil {
 		vkCmdEndRenderPass(cmd);
 	}
 
+	void VulkanEngine::dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func)
+	{
+		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+		VkImageSubresourceRange colorRange{};
+		colorRange.levelCount = 1;
+		colorRange.layerCount = 1;
+		colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+		insert_image_memory_barrier(cmd,
+			color.imageAllocation.image,
+			0,
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			colorRange);
+
+		VkRenderingAttachmentInfo  colorAttachment{};
+		colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+		colorAttachment.pNext = nullptr;
+		colorAttachment.clearValue = { clearColor.r, clearColor.g, clearColor.b, clearColor.a };
+		colorAttachment.imageView = color.imageView;
+		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+		VkRenderingAttachmentInfo  depthAttachment{};
+		depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+		depthAttachment.pNext = nullptr;
+		depthAttachment.clearValue = { {1, 1, 1, 1} };
+		depthAttachment.imageView = depth.imageView;
+		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+		VkRenderingInfo info{};
+		info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+		info.pNext = nullptr;
+		info.renderArea.offset = { 0, 0 };
+		info.renderArea.extent = { color.width, color.height };
+		info.layerCount = 1;
+		info.colorAttachmentCount = 1;
+		info.pColorAttachments = &colorAttachment;
+		info.pDepthAttachment = &depthAttachment;
+
+		VkViewport viewport{};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.height = color.height;
+		viewport.width = color.width;
+		viewport.minDepth = 0;
+		viewport.maxDepth = 1;
+
+		VkRect2D scissor{};
+		scissor.offset = { 0, 0 };
+		scissor.extent = { color.width, color.height };
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+		vkCmdBeginRendering(cmd, &info);
+		func();
+		vkCmdEndRendering(cmd);
+
+		insert_image_memory_barrier(cmd,
+			color.imageAllocation.image,
+			0,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			colorRange
+		);
+	}
+
+	void VulkanEngine::dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func)
+	{
+		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+		VkImageSubresourceRange colorRange{};
+		colorRange.levelCount = 1;
+		colorRange.layerCount = 1;
+		colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+		insert_image_memory_barrier(cmd,
+			color.imageAllocation.image,
+			0,
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			colorRange);
+
+		VkRenderingAttachmentInfo  colorAttachment{};
+		colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+		colorAttachment.pNext = nullptr;
+		colorAttachment.clearValue = { clearColor.r, clearColor.g, clearColor.b, clearColor.a };
+		colorAttachment.imageView = color.imageView;
+		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+		VkRenderingInfo info{};
+		info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+		info.pNext = nullptr;
+		info.renderArea.offset = { 0, 0 };
+		info.renderArea.extent = { color.width, color.height };
+		info.layerCount = 1;
+		info.colorAttachmentCount = 1;
+		info.pColorAttachments = &colorAttachment;
+
+		VkViewport viewport{};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.height = color.height;
+		viewport.width = color.width;
+		viewport.minDepth = 0;
+		viewport.maxDepth = 1;
+
+		VkRect2D scissor{};
+		scissor.offset = { 0, 0 };
+		scissor.extent = { color.width, color.height };
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+		vkCmdBeginRendering(cmd, &info);
+		func();
+		vkCmdEndRendering(cmd);
+
+		insert_image_memory_barrier(cmd,
+			color.imageAllocation.image,
+			0,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			colorRange
+		);
+	}
+
 	void VulkanEngine::draw() {
 
 		uint32_t swapchainImageIndex;
@@ -281,22 +433,17 @@ namespace vkutil {
 
 		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
 
-		VkExtent2D scaledViewport = { m_ViewportExtent.width * m_RenderResolution,
-			m_ViewportExtent.height * m_RenderResolution };
+		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
-		exec_renderpass(m_ViewportRenderPass, m_ViewportFramebuffer.framebuffer,
-			scaledViewport.width, scaledViewport.height,
-			2, { 0, 0, 0, 1 }, [&]() {
-			draw_objects(cmd, m_RenderObjects.data(), (int)m_RenderObjects.size());
+		dyn_renderpass(m_ColorTexture, m_DepthTexture, { 0, 0, 0, 0 }, [&]() {
+			draw_objects(cmd, m_RenderObjects.data(), (uint32_t)m_RenderObjects.size());
 		});
 
-		exec_renderpass(m_ImGuiRenderPass, m_ImGuiFrameBuffers[swapchainImageIndex],
+		exec_renderpass(m_ImGuiRenderPass, m_Framebuffers[swapchainImageIndex],
 			m_WindowExtent.width, m_WindowExtent.height,
 			1, { 0, 0, 0, 1 }, [&]() {
 
-			ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
-
-		ImGui::ShowDemoWindow();
+			ImGui::ShowDemoWindow();
 
 		ImGui::Begin("Texture Viewer");
 		Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
@@ -315,7 +462,8 @@ namespace vkutil {
 		viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
 		auto viewportSize = viewportBounds[1] - viewportBounds[0];
 
-		ImGui::Image(m_ViewportFramebuffer.framebufferTexture[0].descriptor, { viewportSize.x, viewportSize.y });
+		ImGui::Image(m_ColorTexture.descriptor, { viewportSize.x, viewportSize.y });
+
 		ImGui::End();
 
 		ImGui::Begin("Settings");
@@ -335,21 +483,12 @@ namespace vkutil {
 		if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
 			Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
 			Atlas::Event e(event);
-			m_App_Callback(e);
+			m_EventCallback(e);
 		}
 
 		});
 
 		end_frame(swapchainImageIndex);
-
-		ImGuiIO &io = ImGui::GetIO();
-
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-			GLFWwindow *backup_current_context = glfwGetCurrentContext();
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-			glfwMakeContextCurrent(backup_current_context);
-		}
 
 	}
 
@@ -380,13 +519,17 @@ namespace vkutil {
 	}
 
 	void VulkanEngine::init_vulkan(Window &window) {
-		vkb::Instance vkb_inst = vkb::InstanceBuilder()
+
+		auto res = vkb::InstanceBuilder()
 			.set_app_name("Vulkan Application")
 			.request_validation_layers(true)
-			.require_api_version(1, 1, 0)
+			.require_api_version(1, 3, 0)
 			.set_debug_callback(spdlog_debug_callback)
-			.build()
-			.value();
+			.build();
+
+		CORE_ASSERT(res, "could not select a suitable Instance. Error: {}", res.error().message());
+
+		vkb::Instance vkb_inst = res.value();
 
 		m_Instance = vkb_inst.instance;
 		m_DebugMessenger = vkb_inst.debug_messenger;
@@ -394,11 +537,20 @@ namespace vkutil {
 		//VK_CHECK(glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface));
 		VK_CHECK(window.create_window_surface(m_Instance, &m_Surface));
 
-		vkb::PhysicalDevice physicalDevice = vkb::PhysicalDeviceSelector(vkb_inst)
-			.set_minimum_version(1, 1)
+		VkPhysicalDeviceVulkan13Features features{};
+		features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+		features.pNext = nullptr;
+		features.dynamicRendering = true;
+
+		auto selection = vkb::PhysicalDeviceSelector(vkb_inst)
+			.set_minimum_version(1, 3)
 			.set_surface(m_Surface)
-			.select()
-			.value();
+			.set_required_features_13(features)
+			.select();
+
+		CORE_ASSERT(selection, "could not select a suitable Physical Device. Error: {}", selection.error().message());
+
+		vkb::PhysicalDevice physicalDevice = selection.value();
 
 		VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParametersFeatures{};
 		shaderDrawParametersFeatures.sType =
@@ -458,7 +610,7 @@ namespace vkutil {
 
 		for (uint32_t i = 0; i < m_SwapchainImageViews.size(); i++) {
 
-			vkDestroyFramebuffer(m_Device, m_ImGuiFrameBuffers[i], nullptr);
+			vkDestroyFramebuffer(m_Device, m_Framebuffers[i], nullptr);
 			vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
 		}
 	}
@@ -554,97 +706,16 @@ namespace vkutil {
 		CORE_INFO("(r, g, b, a): {}, {}, {}, {}", r, g, b, a);
 	}
 
-
-	void VulkanEngine::init_vp_renderpass() {
-		const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
-
-		{
-			VkAttachmentDescription colorAttachment{};
-			colorAttachment.format = m_SwapchainImageFormat;
-			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-			VkAttachmentReference colorAttachmentRef{};
-			colorAttachmentRef.attachment = 0;
-			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			VkAttachmentDescription depthAttachment{};
-			depthAttachment.flags = 0;
-			depthAttachment.format = m_DepthFormat;
-			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			VkAttachmentReference depthAttachmentRef = {};
-			depthAttachmentRef.attachment = 1;
-			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			VkSubpassDescription subpass{};
-			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-			subpass.colorAttachmentCount = 1;
-			subpass.pColorAttachments = &colorAttachmentRef;
-			subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-			VkSubpassDependency dependency{};
-			dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-			dependency.dstSubpass = 0;
-			dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			dependency.srcAccessMask = 0;
-			dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-			VkSubpassDependency depthDependency = {};
-			depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-			depthDependency.dstSubpass = 0;
-			depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-			depthDependency.srcAccessMask = 0;
-			depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-			depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-			VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
-			VkSubpassDependency dependencies[2] = { dependency, depthDependency };
-
-			VkRenderPassCreateInfo renderPassInfo{};
-			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-			renderPassInfo.attachmentCount = 2;
-			renderPassInfo.pAttachments = &attachments[0];
-			renderPassInfo.subpassCount = 1;
-			renderPassInfo.pSubpasses = &subpass;
-
-			renderPassInfo.dependencyCount = 2;
-			renderPassInfo.pDependencies = &dependencies[0];
-
-			VK_CHECK(vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_ViewportRenderPass));
-		}
-
-		m_MainDeletionQueue.push_function([=]() {
-			vkDestroyRenderPass(m_Device, m_ViewportRenderPass, nullptr);
-		});
-
-	}
-
 	void VulkanEngine::init_vp_framebuffers() {
 
-		const int w = (int)m_ViewportExtent.width * m_RenderResolution;
-		const int h = (int)m_ViewportExtent.height * m_RenderResolution;
+		const uint32_t w = (uint32_t)(m_ViewportExtent.width * m_RenderResolution);
+		const uint32_t h = (uint32_t)(m_ViewportExtent.height * m_RenderResolution);
 
 		TextureCreateInfo depthInfo = depth_texture_create_info(w, h, m_DepthFormat);
 		TextureCreateInfo colorInfo = color_texture_create_info(w, h, m_SwapchainImageFormat);
 
-		colorInfo.filter = VK_FILTER_NEAREST;
-
-		m_ViewportFramebuffer = FramebufferBuilder(w, h, m_ViewportRenderPass)
-			.push_attachment(colorInfo)
-			.push_attachment(depthInfo).build(m_VkManager);
+		alloc_texture(m_VkManager, colorInfo, &m_ColorTexture);
+		alloc_texture(m_VkManager, depthInfo, &m_DepthTexture);
 	}
 
 	void VulkanEngine::rebuild_vp_framebuffer() {
@@ -652,7 +723,8 @@ namespace vkutil {
 
 		vkDeviceWaitIdle(m_Device);
 
-		destroy_framebuffer(m_VkManager, m_ViewportFramebuffer);
+		destroy_texture(m_VkManager, m_ColorTexture);
+		destroy_texture(m_VkManager, m_DepthTexture);
 		init_vp_framebuffers();
 	}
 
@@ -661,7 +733,7 @@ namespace vkutil {
 			vkinit::framebuffer_create_info(m_ImGuiRenderPass, m_WindowExtent);
 
 		const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
-		m_ImGuiFrameBuffers = std::vector<VkFramebuffer>(swapchainImageCount);
+		m_Framebuffers = std::vector<VkFramebuffer>(swapchainImageCount);
 
 		// create framebuffers for each of the swapchain image views
 		for (uint32_t i = 0; i < swapchainImageCount; i++) {
@@ -671,7 +743,7 @@ namespace vkutil {
 			imguiFbInfo.attachmentCount = 1;
 
 			VK_CHECK(vkCreateFramebuffer(m_Device, &imguiFbInfo, nullptr,
-				&m_ImGuiFrameBuffers[i]));
+				&m_Framebuffers[i]));
 
 		}
 	}
@@ -726,12 +798,13 @@ namespace vkutil {
 				vkinit::pipeline_layout_create_info();
 
 			PipelineBuilder(m_VkManager)
-				.set_renderpass(m_ViewportRenderPass)
+				//.set_renderpass(m_ViewportRenderPass)
+				.set_color_format(m_SwapchainImageFormat)
 				.set_vertex_description(vertexDescription)
 				.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
 				.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
 				.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
-				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL)
+				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, m_DepthFormat)
 				.build(&meshPipeline, &layout);
 
 			m_VkManager.create_material("textured_mat", meshPipeline, layout);
@@ -747,12 +820,13 @@ namespace vkutil {
 			load_spirv_shader_module("res/shaders/debug.frag.spv", &fragShader, m_Device);
 
 			PipelineBuilder(m_VkManager)
-				.set_renderpass(m_ViewportRenderPass)
+				//.set_renderpass(m_ViewportRenderPass)
+				.set_color_format(m_SwapchainImageFormat)
 				.set_vertex_description(vertexDescription)
 				.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
 				.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
 				.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
-				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL)
+				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, m_DepthFormat)
 				.build(&debugPipeline);
 
 

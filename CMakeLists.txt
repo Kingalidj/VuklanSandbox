@@ -23,14 +23,13 @@ endmacro()
 set(SRC_DIR src)
 set(RES_DIR res)
 
-find_package(Vulkan REQUIRED FATAL_ERROR)
+find_package(Vulkan 1.3 REQUIRED FATAL_ERROR)
 add_subdirectory(vendor)
 
 
 set(SOURCES
 		src/application.cpp
 		src/vk_buffer.cpp
-		src/vk_framebuffer.cpp
 		src/window.cpp
 		src/vk_manager.cpp
 		src/vk_types.cpp
@@ -52,7 +51,6 @@ set(HEADERS
 
 		src/application.h
 		src/vk_buffer.h
-		src/vk_framebuffer.h
 		src/window.h
 		src/vk_manager.h
 		src/vk_types.h
