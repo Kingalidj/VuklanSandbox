@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vk_types.h"
-#include "imgui_impl_vulkan.h"
 
 
 namespace vkutil {
@@ -13,13 +12,13 @@ namespace vkutil {
 	struct Texture {
 
 		AllocatedImage imageAllocation;
-		VkImageView imageView;
+		VkImageView imageView{ VK_NULL_HANDLE };
 
 		uint32_t width, height;
 		VkFormat format;
 
-		bool bImguiDescriptor;
-		VkDescriptorSet descriptor;
+		bool bImguiDescriptor{ true };
+		VkDescriptorSet imguiDescriptor;
 		VkSampler sampler;
 	};
 
@@ -48,11 +47,12 @@ namespace vkutil {
 
 	void set_texture_data(Texture &tex, const void *data, VulkanManager &manager);
 
-	void destroy_texture(VulkanManager &manager, Texture &tex);
+	void destroy_texture(const VulkanManager &manager, Texture &tex);
 
 	void alloc_texture(VulkanManager &manager, TextureCreateInfo &info, Texture *tex);
 
-	std::optional<Ref<Texture>> load_texture(const char *file, VulkanManager &manager, VkSamplerCreateInfo &info, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
+	//std::optional<Ref<Texture>> load_texture(const char *file, VulkanManager &manager, VkSamplerCreateInfo &info);
+	bool load_texture(const char *file, VulkanManager &manager, VkSamplerCreateInfo &info, Texture *tex);
 
 	bool load_alloc_image_from_file(const char *file, VulkanManager &manager,
 		AllocatedImage *outImage, int *width, int *height, int *nChannels, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);

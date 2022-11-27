@@ -4,10 +4,7 @@
 
 #include "vk_initializers.h"
 #include "vk_pipeline.h"
-#include "vk_shader.h"
 #include "vk_types.h"
-
-#include "imgui_theme.h"
 
 const uint8_t c_RobotoRegular[] = {
 #include "robot_regular.embed"
@@ -138,6 +135,8 @@ namespace vkutil {
 
 			VK_CHECK(vkDeviceWaitIdle(m_Device));
 
+			m_AssetManager.cleanup(m_VkManager);
+
 			destroy_texture(m_VkManager, m_ColorTexture);
 			destroy_texture(m_VkManager, m_DepthTexture);
 			cleanup_swapchain();
@@ -185,12 +184,13 @@ namespace vkutil {
 			VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 		VK_CHECK(vkBeginCommandBuffer(m_FrameData.mainCommandBuffer, &cmdBeginInfo));
+		m_FrameData.activeCommandBuffer = m_FrameData.mainCommandBuffer;
 
-		{
-			ImGui_ImplVulkan_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-			ImGui::NewFrame();
-		}
+		//{
+		//	ImGui_ImplVulkan_NewFrame();
+		//	ImGui_ImplGlfw_NewFrame();
+		//	ImGui::NewFrame();
+		//}
 	}
 
 	void VulkanEngine::end_frame(uint32_t swapchainImageIndex)
@@ -198,6 +198,7 @@ namespace vkutil {
 		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
 
 		VK_CHECK(vkEndCommandBuffer(cmd));
+		m_FrameData.activeCommandBuffer = VK_NULL_HANDLE;
 
 		VkSubmitInfo submitInfo = vkinit::submit_info(&cmd);
 
@@ -230,21 +231,21 @@ namespace vkutil {
 
 		m_FrameNumber++;
 
-		ImGuiIO &io = ImGui::GetIO();
+		//ImGuiIO &io = ImGui::GetIO();
 
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-			GLFWwindow *backup_current_context = glfwGetCurrentContext();
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-			glfwMakeContextCurrent(backup_current_context);
-		}
+		//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		//	GLFWwindow *backup_current_context = glfwGetCurrentContext();
+		//	ImGui::UpdatePlatformWindows();
+		//	ImGui::RenderPlatformWindowsDefault();
+		//	glfwMakeContextCurrent(backup_current_context);
+		//}
 
 	}
 
 	void VulkanEngine::exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
 		uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func)
 	{
-		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+		VkCommandBuffer cmd = get_active_command_buffer();
 
 		VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(renderpass, { w, h }, framebuffer);
 
@@ -282,9 +283,17 @@ namespace vkutil {
 		vkCmdEndRenderPass(cmd);
 	}
 
+	void VulkanEngine::exec_swapchain_renderpass(uint32_t swapchainImageIndex, glm::vec4 color,
+		std::function<void()> &&func)
+	{
+		exec_renderpass(m_RenderPass, m_Framebuffers[swapchainImageIndex], m_WindowExtent.width, m_WindowExtent.height,
+			1, color, std::move(func));
+	}
+
 	void VulkanEngine::dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func)
 	{
-		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+		VkCommandBuffer cmd = get_active_command_buffer();
+
 		VkImageSubresourceRange colorRange{};
 		colorRange.levelCount = 1;
 		colorRange.layerCount = 1;
@@ -361,7 +370,7 @@ namespace vkutil {
 
 	void VulkanEngine::dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func)
 	{
-		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+		VkCommandBuffer cmd = get_active_command_buffer();
 		VkImageSubresourceRange colorRange{};
 		colorRange.levelCount = 1;
 		colorRange.layerCount = 1;
@@ -431,7 +440,7 @@ namespace vkutil {
 		uint32_t swapchainImageIndex;
 		prepare_frame(&swapchainImageIndex);
 
-		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+		VkCommandBuffer cmd = get_active_command_buffer();
 
 		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
@@ -439,15 +448,17 @@ namespace vkutil {
 			draw_objects(cmd, m_RenderObjects.data(), (uint32_t)m_RenderObjects.size());
 		});
 
-		exec_renderpass(m_ImGuiRenderPass, m_Framebuffers[swapchainImageIndex],
-			m_WindowExtent.width, m_WindowExtent.height,
-			1, { 0, 0, 0, 1 }, [&]() {
+		//exec_renderpass(m_RenderPass, m_Framebuffers[swapchainImageIndex],
+		//	m_WindowExtent.width, m_WindowExtent.height,
+		//	1, { 0, 0, 0, 1 }, [&]() {
+		exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 1 },
+			[&]() {
 
 			ImGui::ShowDemoWindow();
 
 		ImGui::Begin("Texture Viewer");
 		Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
-		ImGui::Image(tex->descriptor, ImVec2(1200, 1200));
+		ImGui::Image(tex->imguiDescriptor, ImVec2(1200, 1200));
 		ImGui::End();
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -462,7 +473,7 @@ namespace vkutil {
 		viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
 		auto viewportSize = viewportBounds[1] - viewportBounds[0];
 
-		ImGui::Image(m_ColorTexture.descriptor, { viewportSize.x, viewportSize.y });
+		ImGui::Image(m_ColorTexture.imguiDescriptor, { viewportSize.x, viewportSize.y });
 
 		ImGui::End();
 
@@ -684,11 +695,11 @@ namespace vkutil {
 			info.pSubpasses = &subpass;
 			info.dependencyCount = 1;
 			info.pDependencies = &dependency;
-			VK_CHECK(vkCreateRenderPass(m_Device, &info, nullptr, &m_ImGuiRenderPass));
+			VK_CHECK(vkCreateRenderPass(m_Device, &info, nullptr, &m_RenderPass));
 		}
 
 		m_MainDeletionQueue.push_function([=]() {
-			vkDestroyRenderPass(m_Device, m_ImGuiRenderPass, nullptr);
+			vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
 		});
 	}
 
@@ -730,7 +741,7 @@ namespace vkutil {
 
 	void VulkanEngine::init_framebuffers() {
 		VkFramebufferCreateInfo imguiFbInfo =
-			vkinit::framebuffer_create_info(m_ImGuiRenderPass, m_WindowExtent);
+			vkinit::framebuffer_create_info(m_RenderPass, m_WindowExtent);
 
 		const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
 		m_Framebuffers = std::vector<VkFramebuffer>(swapchainImageCount);
@@ -781,7 +792,7 @@ namespace vkutil {
 		VkPipeline meshPipeline{};
 		VkPipeline debugPipeline{};
 
-		VertexInputDescription vertexDescription = VertexInputDescriptionBuilder()
+		VertexInputDescription vertexDescription = VertexInputDescriptionBuilder(sizeof(Vertex))
 			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::position)
 			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::normal)
 			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::color)
@@ -1022,7 +1033,6 @@ namespace vkutil {
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport /
 		// Platform Windows
 	// io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoTaskBarIcons;
-	// io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoMerge;
 
 		io.FontGlobalScale = 1.0f;
 
@@ -1047,7 +1057,7 @@ namespace vkutil {
 			initInfo.MinImageCount = 3;
 			initInfo.ImageCount = 3;
 			initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-			ImGui_ImplVulkan_Init(&initInfo, m_ImGuiRenderPass);
+			ImGui_ImplVulkan_Init(&initInfo, m_RenderPass);
 		}
 
 		{
@@ -1063,8 +1073,6 @@ namespace vkutil {
 
 		// clear font textures from cpu data
 		ImGui_ImplVulkan_DestroyFontUploadObjects();
-
-		ImGui::SetOneDarkTheme();
 
 		// add the destroy the imgui created structures
 		m_MainDeletionQueue.push_function([=]() {
@@ -1083,11 +1091,81 @@ namespace vkutil {
 		return alignedSize;
 	}
 
+	VulkanManager &VulkanEngine::manager()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+		return m_VkManager;
+	}
+
+	AssetManager &VulkanEngine::asset_manager()
+	{
+		return m_AssetManager;
+	}
+
+	VkFormat VulkanEngine::get_color_format()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+		return m_SwapchainImageFormat;
+	}
+
+	VkFormat VulkanEngine::get_depth_format()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+		return m_DepthFormat;
+	}
+
+	VkInstance VulkanEngine::get_instance()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+		return m_Instance;
+	}
+
+	VkPhysicalDevice VulkanEngine::get_physical_device()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+		return m_PhysicalDevice;
+	}
+
+	VkQueue VulkanEngine::get_graphics_queue()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+		return m_GraphicsQueue;
+	}
+
+	VkRenderPass VulkanEngine::get_swapchain_renderpass()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+		return m_RenderPass;
+	}
+
+	const VkDevice VulkanEngine::device()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+		return m_Device;
+	}
+
+	VkCommandBuffer VulkanEngine::get_active_command_buffer()
+	{
+		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
+
+		if (m_FrameData.activeCommandBuffer == VK_NULL_HANDLE) {
+			CORE_WARN("no active command buffer!");
+			return VK_NULL_HANDLE;
+		}
+
+		return m_FrameData.activeCommandBuffer;
+	}
+
+	void VulkanEngine::wait_idle()
+	{
+		VK_CHECK(vkDeviceWaitIdle(m_Device));
+	}
+
 	void VulkanEngine::load_images() {
 		{
 			auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-			Ref<Texture> texture =
-				load_texture("res/images/lost_empire-RGBA.png", m_VkManager, info).value();
+			Ref<Texture> texture = make_ref<Texture>();
+			load_texture("res/images/lost_empire.png", m_VkManager, info, texture.get());
 
 			m_VkManager.set_texture("empire_diffuse", texture);
 
@@ -1098,8 +1176,8 @@ namespace vkutil {
 
 		{
 			auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-			Ref<Texture> texture =
-				load_texture("res/images/rgb_test.png", m_VkManager, info).value();
+			Ref<Texture> texture = make_ref<Texture>();
+			load_texture("res/images/rgb_test.png", m_VkManager, info, texture.get());
 
 			m_VkManager.set_texture("rgb_test", texture);
 

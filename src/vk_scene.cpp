@@ -3,15 +3,6 @@
 
 namespace vkutil {
 
-	VertexInputDescriptionBuilder::VertexInputDescriptionBuilder()
-	{
-		VkVertexInputBindingDescription mainBinding{};
-		mainBinding.binding = 0;
-		mainBinding.stride = sizeof(Vertex);
-		mainBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		m_Description.bindings.push_back(mainBinding);
-	}
-
 	/*
 	VertexInputDescription Vertex::get_vertex_description() {
 		VertexInputDescription description;

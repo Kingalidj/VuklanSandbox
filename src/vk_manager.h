@@ -14,6 +14,7 @@ namespace vkutil {
 		VkCommandBuffer commandBuffer;
 	};
 
+
 	struct DeletionQueue {
 
 		std::deque<std::function<void()>> deletors;
@@ -34,8 +35,8 @@ namespace vkutil {
 
 		VulkanManager() = default;
 
-		const VkDevice get_device();
-		const VmaAllocator get_allocator();
+		const VkDevice device() const;
+		const VmaAllocator get_allocator() const;
 		DescriptorAllocator &get_descriptor_allocator();
 		DescriptorLayoutCache &get_descriptor_layout_cache();
 
@@ -84,6 +85,64 @@ namespace vkutil {
 		std::unordered_map<std::string, Ref<Mesh>> m_Meshes;
 		std::unordered_map<std::string, Ref<Material>> m_Materials;
 
+	};
+
+	class AssetManager {
+	public:
+
+		void cleanup(VulkanManager &manager) {
+
+			for (auto &shader : m_Shaders) {
+				vkDestroyPipeline(manager.device(), shader->pipeline, nullptr);
+			}
+
+			for (auto &texture : m_Textures) {
+				destroy_texture(manager, *texture.get());
+			}
+
+			m_Shaders.clear();
+			m_Textures.clear();
+		}
+
+		template<typename ...Args>
+		WeakRef<Texture> register_texture(Args &&...args) {
+			Ref<Texture> texture = make_ref<Texture>(std::forward<Args>(args)...);
+			m_Textures.insert(texture);
+
+			return texture;
+		}
+
+		template<typename ...Args>
+		WeakRef<Shader> register_shader(Args &&...args) {
+			Ref<Shader> shader = make_ref<Shader>(std::forward<Args>(args)...);
+			m_Shaders.insert(shader);
+
+			return shader;
+		}
+
+		void deregister_shader(Ref<Shader> &shader) {
+			auto it = m_Shaders.find(shader);
+
+			if (it == m_Shaders.end()) {
+				CORE_WARN("Shader was never registered: {}", shader);
+			}
+
+			m_Shaders.erase(it);
+		}
+
+		void deregister_texture(Ref<Texture> &texture) {
+			auto it = m_Textures.find(texture);
+
+			if (it == m_Textures.end()) {
+				CORE_WARN("Shader was never registered: {}", texture);
+			}
+
+			m_Textures.erase(it);
+		}
+
+	private:
+		std::unordered_set<Ref<Shader>> m_Shaders;
+		std::unordered_set<Ref<Texture>> m_Textures;
 	};
 
 }

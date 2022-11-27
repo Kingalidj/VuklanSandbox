@@ -28,6 +28,10 @@ add_subdirectory(vendor)
 
 
 set(SOURCES
+		src/shader.cpp
+		src/renderer.cpp
+		src/imgui_layer.cpp
+		src/texture.cpp
 		src/application.cpp
 		src/vk_buffer.cpp
 		src/window.cpp
@@ -40,7 +44,6 @@ set(SOURCES
 		src/vk_engine.cpp
 		src/vk_initializers.cpp
 		src/vk_scene.cpp
-		src/vk_shader.cpp
 		src/vk_textures.cpp
 	)
 
@@ -48,7 +51,12 @@ set(HEADERS
 		src/utils.h
 		src/pch.h
 		src/event.h
+		src/layer.h
 
+		src/shader.h
+		src/renderer.h
+		src/imgui_layer.h
+		src/texture.h
 		src/application.h
 		src/vk_buffer.h
 		src/window.h
@@ -61,7 +69,6 @@ set(HEADERS
 		src/vk_engine.h
 		src/vk_initializers.h
 		src/vk_scene.h
-		src/vk_shader.h
 		src/vk_textures.h
 	)
 

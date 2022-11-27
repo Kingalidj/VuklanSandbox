@@ -34,6 +34,8 @@ namespace vkutil {
 		VkCommandPool commandPool;
 		VkCommandBuffer mainCommandBuffer;
 
+		VkCommandBuffer activeCommandBuffer{ VK_NULL_HANDLE };
+
 		AllocatedBuffer cameraBuffer;
 		AllocatedBuffer objectBuffer;
 
@@ -58,12 +60,27 @@ namespace vkutil {
 
 		void exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
 			uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func);
+		void exec_swapchain_renderpass(uint32_t swapchainImageIndex, glm::vec4 color, std::function<void()> &&func);
 
 		void dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func);
 		void dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func);
 
 		void draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count);
 		size_t pad_uniform_buffer_size(size_t originalSize);
+
+		VulkanManager &manager();
+		AssetManager &asset_manager();
+
+		VkFormat get_color_format();
+		VkFormat get_depth_format();
+		VkInstance get_instance();
+		VkPhysicalDevice get_physical_device();
+		VkQueue get_graphics_queue();
+		VkRenderPass get_swapchain_renderpass();
+		const VkDevice device();
+		VkCommandBuffer get_active_command_buffer();
+
+		void wait_idle();
 
 	private:
 		void init_vulkan(Window &window);
@@ -109,13 +126,12 @@ namespace vkutil {
 		std::vector<VkImage> m_SwapchainImages;
 		std::vector<VkImageView> m_SwapchainImageViews;
 		std::vector<VkFramebuffer> m_Framebuffers;
+		VkRenderPass m_RenderPass;
 
 		VkFormat m_SwapchainImageFormat;
 		VkFormat m_DepthFormat;
 
 		FrameData m_FrameData;
-
-		VkRenderPass m_ImGuiRenderPass;
 
 		Texture m_ColorTexture;
 		Texture m_DepthTexture;
@@ -125,6 +141,7 @@ namespace vkutil {
 		std::vector<RenderObject> m_RenderObjects;
 
 		VulkanManager m_VkManager;
+		AssetManager m_AssetManager;
 
 		VmaAllocator m_Allocator;
 

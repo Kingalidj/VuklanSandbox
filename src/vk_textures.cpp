@@ -4,6 +4,8 @@
 #include "vk_initializers.h"
 #include "vk_buffer.h"
 
+#include "imgui_impl_vulkan.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -11,7 +13,7 @@ namespace vkutil {
 	void create_image(VulkanManager &manager, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img)
 	{
 
-		VkExtent3D imageExtent;
+		VkExtent3D imageExtent{};
 		imageExtent.width = width;
 		imageExtent.height = height;
 		imageExtent.depth = 1;
@@ -120,13 +122,13 @@ namespace vkutil {
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 	}
 
-	void destroy_texture(VulkanManager &manager, Texture &tex) {
-		vkDestroyImageView(manager.get_device(), tex.imageView, nullptr);
+	void destroy_texture(const VulkanManager &manager, Texture &tex) {
+		vkDestroyImageView(manager.device(), tex.imageView, nullptr);
 		vmaDestroyImage(manager.get_allocator(), tex.imageAllocation.image, tex.imageAllocation.allocation);
 
 		if (tex.bImguiDescriptor) {
-			ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)tex.descriptor);
-			vkDestroySampler(manager.get_device(), tex.sampler, nullptr);
+			ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)tex.imguiDescriptor);
+			vkDestroySampler(manager.device(), tex.sampler, nullptr);
 		}
 	}
 
@@ -174,25 +176,41 @@ namespace vkutil {
 			info.format, tex->imageAllocation.image,
 			info.aspectFlags);
 
-		vkCreateImageView(manager.get_device(), &imageInfo, nullptr, &tex->imageView);
+		vkCreateImageView(manager.device(), &imageInfo, nullptr, &tex->imageView);
 
 
 		if (info.createImguiDescriptor) {
 			VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(info.filter);
-			VK_CHECK(vkCreateSampler(manager.get_device(), &samplerInfo, nullptr, &tex->sampler));
-			tex->descriptor = ImGui_ImplVulkan_AddTexture(tex->sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+			VK_CHECK(vkCreateSampler(manager.device(), &samplerInfo, nullptr, &tex->sampler));
+			tex->imguiDescriptor = ImGui_ImplVulkan_AddTexture(tex->sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}
+
+		if (info.usageFlags & (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)) {
+
+			manager.immediate_submit([=](VkCommandBuffer cmd) {
+				VkImageSubresourceRange range{};
+			range.aspectMask = info.aspectFlags;
+			range.levelCount = 1;
+			range.layerCount = 1;
+
+			insert_image_memory_barrier(cmd, tex->imageAllocation.image,
+				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				range);
+			});
 		}
 	}
 
-	std::optional<Ref<Texture>> load_texture(const char *file, VulkanManager &manager, VkSamplerCreateInfo &info, VkFormat format) {
-		Ref<Texture> tex = make_ref<Texture>();
+	bool load_texture(const char *file, VulkanManager &manager, VkSamplerCreateInfo &info, Texture *tex) {
+		//Ref<Texture> tex = make_ref<Texture>();
+		CORE_ASSERT(tex->imageAllocation.image == VK_NULL_HANDLE, "VkImage is not VK_NULL_HANDLE, overriding not allowed");
 
-		tex->format = format;
+		tex->format = VK_FORMAT_R8G8B8A8_UNORM;
 
 		int w, h, nC;
-		if (!load_alloc_image_from_file(file, manager, &tex->imageAllocation, &w, &h, &nC, format)) {
-			CORE_WARN("Could not load Texture: {}", file);
-			return std::nullopt;
+		if (!load_alloc_image_from_file(file, manager, &tex->imageAllocation, &w, &h, &nC, tex->format)) {
+			return false;
 		}
 
 		tex->width = static_cast<uint32_t>(w);
@@ -202,14 +220,14 @@ namespace vkutil {
 			tex->format, tex->imageAllocation.image,
 			VK_IMAGE_ASPECT_COLOR_BIT);
 
-		vkCreateImageView(manager.get_device(), &imageInfo, nullptr, &tex->imageView);
+		vkCreateImageView(manager.device(), &imageInfo, nullptr, &tex->imageView);
 
-		VK_CHECK(vkCreateSampler(manager.get_device(), &info, nullptr, &tex->sampler));
+		VK_CHECK(vkCreateSampler(manager.device(), &info, nullptr, &tex->sampler));
 
-		tex->descriptor = ImGui_ImplVulkan_AddTexture(tex->sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		tex->imguiDescriptor = ImGui_ImplVulkan_AddTexture(tex->sampler, tex->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		tex->bImguiDescriptor = true;
 
-		return std::move(tex);
+		return true;
 	}
 
 	bool load_alloc_image_from_file(const char *file, VulkanManager &manager,
@@ -222,7 +240,7 @@ namespace vkutil {
 		int nChannels = *nC;
 
 		if (!pixel_ptr) {
-			CORE_WARN("Failed to load texture file: {}", file);
+			CORE_WARN("Failed to load texture file: {}, message: {}", file, stbi_failure_reason());
 			return false;
 		}
 

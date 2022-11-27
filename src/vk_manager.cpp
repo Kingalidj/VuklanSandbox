@@ -122,17 +122,17 @@ namespace vkutil {
 		copy.srcOffset = 0;
 		copy.size = size;
 		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
-			});
+		});
 
 		vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 	}
 
-	const VkDevice VulkanManager::get_device() {
+	const VkDevice VulkanManager::device() const {
 		CORE_ASSERT(m_Device, "ResourceManager not initialized");
 		return m_Device;
 	}
 
-	const VmaAllocator VulkanManager::get_allocator() {
+	const VmaAllocator VulkanManager::get_allocator() const {
 		CORE_ASSERT(m_Device, "ResourceManager not initialized");
 		return m_Allocator;
 	}
@@ -172,7 +172,7 @@ namespace vkutil {
 
 		m_DeletionQueue.push_function([=]() {
 			vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
-			});
+		});
 
 	}
 
@@ -184,7 +184,7 @@ namespace vkutil {
 
 		m_DeletionQueue.push_function([=]() {
 			vkDestroyFence(m_Device, m_UploadContext.uploadFence, nullptr);
-			});
+		});
 	}
 
 	void VulkanManager::immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func) {

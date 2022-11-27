@@ -9,6 +9,11 @@ namespace vkutil {
 
 	class VulkanManager;
 
+	struct Shader {
+		VkPipelineLayout layout;
+		VkPipeline pipeline;
+	};
+
 	class PipelineLayoutCache {
 	public:
 
@@ -67,6 +72,7 @@ namespace vkutil {
 
 		bool build(VkPipeline *pipeline, VkPipelineLayout *layout);
 		bool build(VkPipeline *pipeline);
+		bool build(Shader *shader);
 
 	private:
 
@@ -87,5 +93,19 @@ namespace vkutil {
 		VkPipelineDepthStencilStateCreateInfo m_DepthStencil{};
 
 	};
+
+	bool compile_shader_module(uint32_t *buffer, uint32_t byteSize,
+		VkShaderModule *outShaderModule,
+		const VkDevice device);
+
+	bool load_spirv_shader_module(const char *filePath,
+		VkShaderModule *outShaderModule,
+		const VkDevice device);
+
+	bool load_glsl_shader_module(const VulkanManager &manager, std::filesystem::path filePath,
+		VkShaderStageFlagBits type,
+		VkShaderModule *outShaderModule);
+
+	bool load_glsl_shader_module(const VulkanManager &manager, std::filesystem::path filePath, VkShaderModule *outShaderModule);
 
 } //namespace vkutil
