@@ -1,36 +1,14 @@
 #include "texture.h"
 #include "application.h"
 
+#include "atl_vk_utils.h"
 #include "vk_textures.h"
 #include "vk_initializers.h"
 #include "vk_engine.h"
 
 namespace Atlas {
-
-	VkFilter atlas_to_vk_filter(FilterOptions options) {
-
-		switch (options) {
-		case FilterOptions::LINEAR:
-			return VK_FILTER_LINEAR;
-		case FilterOptions::NEAREST:
-			return VK_FILTER_NEAREST;
-		}
-	}
-
-	vkutil::TextureCreateInfo color_format_to_texture_info(ColorFormat f, uint32_t w, uint32_t h) {
-		VkFormat format{};
-
-		switch (f) {
-		case ColorFormat::R8G8B8A8:
-			format = Atlas::Application::get_engine().get_color_format();
-			return vkutil::color_texture_create_info(w, h, format);
-		case ColorFormat::D32:
-			format = Atlas::Application::get_engine().get_depth_format();
-			return vkutil::depth_texture_create_info(w, h, format);
-		}
-	}
-
 	Texture::Texture(const char *path, FilterOptions options)
+		: m_Initialized(true)
 	{
 		if (!std::filesystem::exists(path)) {
 			CORE_WARN("Could not find file: {}", path);
@@ -47,6 +25,7 @@ namespace Atlas {
 	}
 
 	Texture::Texture(uint32_t width, uint32_t height, ColorFormat f, FilterOptions options)
+		: m_Initialized(true)
 	{
 		vkutil::TextureCreateInfo info = color_format_to_texture_info(f, width, height);
 		info.filter = atlas_to_vk_filter(options);
@@ -71,6 +50,7 @@ namespace Atlas {
 	{
 		//m_Texture = other.m_Texture;
 		m_Texture.swap(other.m_Texture);
+		std::swap(m_Initialized, other.m_Initialized);
 		return *this;
 	}
 
@@ -107,7 +87,7 @@ namespace Atlas {
 		CORE_WARN("This texture was never created / or deleted!");
 		return nullptr;
 	}
-	vkutil::Texture *Texture::get_native()
+	vkutil::Texture *Texture::get_native_texture()
 	{
 		if (auto texture = m_Texture.lock()) {
 			return texture.get();

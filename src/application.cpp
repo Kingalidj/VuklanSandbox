@@ -24,8 +24,8 @@ namespace Atlas {
 		m_ImGuiLayer = make_ref<ImGuiLayer>();
 		m_ImGuiLayer->on_attach();
 
-		m_ColorTexture = new Texture(m_ViewportSize.x, m_ViewportSize.y, ColorFormat::R8G8B8A8);
-		m_DepthTexture = new Texture(m_ViewportSize.x, m_ViewportSize.y, ColorFormat::D32);
+		m_ColorTexture = Texture(m_ViewportSize.x, m_ViewportSize.y, ColorFormat::R8G8B8A8);
+		m_DepthTexture = Texture(m_ViewportSize.x, m_ViewportSize.y, ColorFormat::D32);
 
 		Render2D::init();
 	}
@@ -41,9 +41,6 @@ namespace Atlas {
 			layer->on_detach();
 			m_LayerStack.pop_back();
 		}
-
-		delete m_ColorTexture;
-		delete m_DepthTexture;
 
 		m_Engine->cleanup();
 		m_Window->destroy();
@@ -64,20 +61,19 @@ namespace Atlas {
 				uint32_t swapchainImageIndex;
 				m_Engine->prepare_frame(&swapchainImageIndex);
 
-				dyn_renderpass(*m_ColorTexture, *m_DepthTexture, { 1, 1, 1, 1 }, [&]() {
-
+				m_Engine->dyn_renderpass(*m_ColorTexture.get_native_texture(), *m_DepthTexture.get_native_texture(), { 1, 1, 1, 1 }, [&]() {
 					for (auto &layer : m_LayerStack) {
 						layer->on_update(timestep);
 					}
-				});
+					});
 
 				for (auto &layer : m_LayerStack) layer->on_imgui();
 
 				render_viewport();
 
-				m_Engine->exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 0 }, [&]() {
+				m_Engine->exec_swapchain_renderpass(swapchainImageIndex, { 1, 0, 0, 0 }, [&]() {
 					m_ImGuiLayer->on_imgui();
-				});
+					});
 
 				m_Engine->end_frame(swapchainImageIndex);
 				m_ImGuiLayer->end();
@@ -104,7 +100,7 @@ namespace Atlas {
 		viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
 		auto viewportSize = viewportBounds[1] - viewportBounds[0];
 
-		ImGui::Image(m_ColorTexture->get_id(), { viewportSize.x, viewportSize.y });
+		ImGui::Image(m_ColorTexture.get_id(), { viewportSize.x, viewportSize.y });
 		ImGui::End();
 
 		ImGui::ShowDemoWindow();
@@ -137,6 +133,21 @@ namespace Atlas {
 		return s_Instance;
 	}
 
+	glm::vec2 Application::get_mouse()
+	{
+		return get_instance()->m_Window->get_mouse_pos();
+	}
+
+	bool Application::is_key_pressed(KeyCode key)
+	{
+		return get_instance()->m_Window->is_key_pressed(key);
+	}
+
+	bool Application::is_mouse_pressed(int button)
+	{
+		return get_instance()->m_Window->is_mouse_button_pressed(button);
+	}
+
 	void Application::push_layer(Ref<Layer> layer)
 	{
 		m_LayerStack.push_back(layer);
@@ -146,6 +157,11 @@ namespace Atlas {
 	void Application::queue_event(Event event)
 	{
 		m_QueuedEvents.push_back(event);
+	}
+
+	glm::vec2 &Application::get_viewport_size()
+	{
+		return get_instance()->m_ViewportSize;
 	}
 
 	void Application::on_event(Event &event)
@@ -178,17 +194,9 @@ namespace Atlas {
 	{
 		m_ViewportSize = { e.width, e.height };
 
-		delete m_ColorTexture;
-		delete m_DepthTexture;
-
-		m_ColorTexture = new Texture(e.width, e.height, ColorFormat::R8G8B8A8);
-		m_DepthTexture = new Texture(e.width, e.height, ColorFormat::D32);
+		m_ColorTexture = Texture(e.width, e.height, ColorFormat::R8G8B8A8);
+		m_DepthTexture = Texture(e.width, e.height, ColorFormat::D32);
 
 		return false;
-	}
-
-	void Application::dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func)
-	{
-		m_Engine->dyn_renderpass(*color.get_native(), *depth.get_native(), clearColor, std::move(func));
 	}
 }

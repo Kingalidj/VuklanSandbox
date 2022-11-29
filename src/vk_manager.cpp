@@ -111,10 +111,7 @@ namespace vkutil {
 		vertexBufferInfo.size = size;
 		vertexBufferInfo.usage = flags;
 
-		vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-		VK_CHECK(vmaCreateBuffer(m_Allocator, &vertexBufferInfo, &vmaAllocInfo,
-			&buffer.buffer, &buffer.allocation, nullptr));
+		create_buffer(*this, size, flags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &buffer);
 
 		immediate_submit([=](VkCommandBuffer cmd) {
 			VkBufferCopy copy;
@@ -122,7 +119,7 @@ namespace vkutil {
 		copy.srcOffset = 0;
 		copy.size = size;
 		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
-		});
+			});
 
 		vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 	}
@@ -172,7 +169,7 @@ namespace vkutil {
 
 		m_DeletionQueue.push_function([=]() {
 			vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
-		});
+			});
 
 	}
 
@@ -184,7 +181,7 @@ namespace vkutil {
 
 		m_DeletionQueue.push_function([=]() {
 			vkDestroyFence(m_Device, m_UploadContext.uploadFence, nullptr);
-		});
+			});
 	}
 
 	void VulkanManager::immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func) {

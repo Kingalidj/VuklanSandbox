@@ -5,6 +5,11 @@
 
 namespace vkutil {
 
+	struct Descriptor {
+		VkDescriptorSet set{ VK_NULL_HANDLE };
+		VkDescriptorSetLayout layout{ VK_NULL_HANDLE };
+	};
+
 	class DescriptorAllocator {
 	public:
 

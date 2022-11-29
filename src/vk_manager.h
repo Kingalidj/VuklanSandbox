@@ -2,6 +2,7 @@
 
 #include "vk_types.h"
 #include "vk_textures.h"
+#include "vk_buffer.h"
 #include "vk_scene.h"
 #include "vk_descriptors.h"
 #include "vk_pipeline.h"
@@ -92,16 +93,13 @@ namespace vkutil {
 
 		void cleanup(VulkanManager &manager) {
 
-			for (auto &shader : m_Shaders) {
-				vkDestroyPipeline(manager.device(), shader->pipeline, nullptr);
-			}
-
-			for (auto &texture : m_Textures) {
-				destroy_texture(manager, *texture.get());
-			}
+			for (auto &shader : m_Shaders) vkDestroyPipeline(manager.device(), shader->pipeline, nullptr);
+			for (auto &texture : m_Textures) destroy_texture(manager, *texture.get());
+			for (auto &buffer : m_Buffers) destroy_buffer(manager, *buffer.get());
 
 			m_Shaders.clear();
 			m_Textures.clear();
+			m_Buffers.clear();
 		}
 
 		template<typename ...Args>
@@ -120,6 +118,24 @@ namespace vkutil {
 			return shader;
 		}
 
+		template<typename ...Args>
+		WeakRef<AllocatedBuffer> register_buffer(Args &&...args) {
+			Ref<AllocatedBuffer> buffer = make_ref<AllocatedBuffer>(std::forward<Args>(args)...);
+			m_Buffers.insert(buffer);
+
+			return buffer;
+		}
+
+		void deregister_buffer(Ref<AllocatedBuffer> &buffer) {
+			auto it = m_Buffers.find(buffer);
+
+			if (it == m_Buffers.end()) {
+				CORE_WARN("Buffer was never registered: {}", buffer);
+			}
+
+			m_Buffers.erase(it);
+		}
+
 		void deregister_shader(Ref<Shader> &shader) {
 			auto it = m_Shaders.find(shader);
 
@@ -134,7 +150,7 @@ namespace vkutil {
 			auto it = m_Textures.find(texture);
 
 			if (it == m_Textures.end()) {
-				CORE_WARN("Shader was never registered: {}", texture);
+				CORE_WARN("Texture was never registered: {}", texture);
 			}
 
 			m_Textures.erase(it);
@@ -143,6 +159,7 @@ namespace vkutil {
 	private:
 		std::unordered_set<Ref<Shader>> m_Shaders;
 		std::unordered_set<Ref<Texture>> m_Textures;
+		std::unordered_set<Ref<AllocatedBuffer>> m_Buffers;
 	};
 
 }

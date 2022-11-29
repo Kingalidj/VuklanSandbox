@@ -45,7 +45,7 @@ namespace vkutil {
 	TextureCreateInfo color_texture_create_info(uint32_t w, uint32_t h, VkFormat format);
 	TextureCreateInfo depth_texture_create_info(uint32_t w, uint32_t h, VkFormat format);
 
-	void set_texture_data(Texture &tex, const void *data, VulkanManager &manager);
+	void set_texture_data(Texture &tex, void *data, VulkanManager &manager);
 
 	void destroy_texture(const VulkanManager &manager, Texture &tex);
 

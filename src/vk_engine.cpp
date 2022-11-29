@@ -36,10 +36,10 @@ namespace vkutil {
 		init_pipelines();
 
 
-		load_images();
-		load_meshes();
+		//load_images();
+		//load_meshes();
 
-		init_scene();
+		//init_scene();
 
 		m_IsInitialized = true;
 	}
@@ -54,7 +54,7 @@ namespace vkutil {
 
 		glm::mat4 rotMat = glm::rotate(glm::mat4(1), glm::radians((float)m_FrameNumber * 2.0f), glm::vec3(0, 1, 0));
 
-		GPUCameraData camData;
+		GPUCameraData camData{};
 		camData.proj = projection;
 		camData.view = view;
 		camData.viewProj = projection * view;
@@ -70,7 +70,7 @@ namespace vkutil {
 			RenderObject &object = first[i];
 			objectSSBO[i].modelMatrix = object.transformMatrix * rotMat;
 		}
-		});
+			});
 
 		Ref<Mesh> lastMesh = nullptr;
 		Ref<Material> lastMaterial = nullptr;
@@ -446,7 +446,7 @@ namespace vkutil {
 
 		dyn_renderpass(m_ColorTexture, m_DepthTexture, { 0, 0, 0, 0 }, [&]() {
 			draw_objects(cmd, m_RenderObjects.data(), (uint32_t)m_RenderObjects.size());
-		});
+			});
 
 		//exec_renderpass(m_RenderPass, m_Framebuffers[swapchainImageIndex],
 		//	m_WindowExtent.width, m_WindowExtent.height,
@@ -454,7 +454,7 @@ namespace vkutil {
 		exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 1 },
 			[&]() {
 
-			ImGui::ShowDemoWindow();
+				ImGui::ShowDemoWindow();
 
 		ImGui::Begin("Texture Viewer");
 		Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
@@ -497,7 +497,7 @@ namespace vkutil {
 			m_EventCallback(e);
 		}
 
-		});
+			});
 
 		end_frame(swapchainImageIndex);
 
@@ -595,7 +595,7 @@ namespace vkutil {
 		vkDestroyDevice(m_Device, nullptr);
 		vkb::destroy_debug_utils_messenger(m_Instance, m_DebugMessenger);
 		vkDestroyInstance(m_Instance, nullptr);
-		});
+			});
 	}
 
 	void VulkanEngine::init_swapchain() {
@@ -650,7 +650,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=]() {
 				vkDestroyCommandPool(m_Device, m_FrameData.commandPool, nullptr);
-			});
+				});
 		}
 
 		{
@@ -700,7 +700,7 @@ namespace vkutil {
 
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-		});
+			});
 	}
 
 	uint32_t to_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
@@ -782,7 +782,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroySemaphore(m_Device, m_FrameData.presentSemaphore, nullptr);
 		vkDestroySemaphore(m_Device, m_FrameData.renderSemaphore, nullptr);
-		});
+			});
 	}
 
 	void VulkanEngine::init_pipelines() {
@@ -851,7 +851,7 @@ namespace vkutil {
 			vkDestroyPipeline(m_Device, meshPipeline, nullptr);
 
 		vkDestroyPipeline(m_Device, debugPipeline, nullptr);
-		});
+			});
 	}
 
 	void VulkanEngine::load_meshes() {
@@ -884,7 +884,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vmaDestroyBuffer(m_Allocator, mesh->vertexBuffer.buffer,
 			mesh->vertexBuffer.allocation);
-		});
+			});
 	}
 
 	void VulkanEngine::resize_window(uint32_t w, uint32_t h)
@@ -989,7 +989,7 @@ namespace vkutil {
 
 			destroy_buffer(m_VkManager, m_FrameData.objectBuffer);
 		destroy_buffer(m_VkManager, m_FrameData.cameraBuffer);
-		});
+			});
 	}
 
 	void VulkanEngine::init_imgui(Window &window) {
@@ -1078,7 +1078,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyDescriptorPool(m_Device, imguiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();
-		});
+			});
 	}
 
 	size_t VulkanEngine::pad_uniform_buffer_size(size_t originalSize) {
@@ -1171,7 +1171,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=] {
 				destroy_texture(m_VkManager, *texture);
-			});
+				});
 		}
 
 		{
@@ -1183,7 +1183,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=] {
 				destroy_texture(m_VkManager, *texture);
-			});
+				});
 		}
 	}
 

@@ -5,8 +5,10 @@ layout (location = 1) in vec2 texCoord;
 
 layout (location = 0) out vec4 outFragColor;
 
+layout(set = 0, binding = 1) uniform sampler2D tex;
+
 void main()
 {
-	outFragColor = inColor;
+	outFragColor = texture(tex, texCoord) * inColor;
 }
 

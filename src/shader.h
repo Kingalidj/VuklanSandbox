@@ -1,10 +1,12 @@
 #pragma once
 
 namespace vkutil {
-	struct Shader;
+	class VulkanShader;
 }
 
 namespace Atlas {
+
+	class Descriptor;
 
 	enum class VertexAttribute {
 		INT,
@@ -15,6 +17,11 @@ namespace Atlas {
 		FLOAT2,
 		FLOAT3,
 		FLOAT4,
+	};
+
+	enum class ShaderStage {
+		VERTEX,
+		FRAGMENT,
 	};
 
 	class VertexDescription {
@@ -47,9 +54,11 @@ namespace Atlas {
 		uint32_t m_SizeOfVertex = 0;
 	};
 
-	enum class ShaderType {
-		VERTEX,
-		FRAGMENT,
+	struct ShaderCreateInfo {
+		std::vector<std::pair<const char *, ShaderStage>> shaderPaths;
+		VertexDescription vertexDescription;
+
+		std::vector<Ref<Descriptor>> descriptors;
 	};
 
 	class Shader {
@@ -57,21 +66,21 @@ namespace Atlas {
 
 		Shader() = default;
 
-		Shader(VertexDescription &desc, std::initializer_list<std::pair<const char *, ShaderType>> shaders);
-		Shader(VertexDescription &desc, std::initializer_list<const char *> shaders);
+		Shader(VertexDescription &desc, std::initializer_list<std::pair<const char *, ShaderStage>> shaders);
+
+		Shader(VertexDescription &desc, std::initializer_list<std::pair<const char *, ShaderStage>> shaders,
+			std::initializer_list<Ref<Descriptor>> descriptors);
+
+		Shader(ShaderCreateInfo &info);
+		//Shader(VertexDescription &desc, std::initializer_list<const char * > shaders);
 
 		Shader(const Shader &other) = delete;
 
-		Shader &operator=(Shader other);
-
-		~Shader();
-
-		vkutil::Shader *get_native_shader();
+		void bind();
 
 	private:
 
-		WeakRef<vkutil::Shader> m_Shader;
-
+		Ref<vkutil::VulkanShader> m_Shader;
 	};
 
 }

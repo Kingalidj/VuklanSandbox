@@ -2,13 +2,10 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #include "event.h"
-#include "vk_types.h"
 
-
-#include <string>
-#include <functional>
 
 struct GLFWwindow;
 
@@ -27,19 +24,6 @@ struct WindowInfo {
 using EventCallbackFn = std::function<void(Atlas::Event &)>;
 
 class Window {
-private:
-	void init(const WindowInfo &info);
-
-	GLFWwindow *m_Window;
-
-	struct WindowData {
-		std::string title;
-		uint32_t width, height;
-
-		EventCallbackFn eventCallback;
-	};
-
-	WindowData m_Data;
 
 public:
 	Window(const WindowInfo &props);
@@ -62,4 +46,22 @@ public:
 	inline GLFWwindow *get_native_window() const { return m_Window; }
 
 	const EventCallbackFn &get_event_callback() const { return m_Data.eventCallback; }
+
+	bool is_key_pressed(Atlas::KeyCode key);
+	bool is_mouse_button_pressed(int button);
+	glm::vec2 get_mouse_pos();
+
+private:
+	void init(const WindowInfo &info);
+
+	GLFWwindow *m_Window;
+
+	struct WindowData {
+		std::string title;
+		uint32_t width, height;
+
+		EventCallbackFn eventCallback;
+	};
+
+	WindowData m_Data;
 };

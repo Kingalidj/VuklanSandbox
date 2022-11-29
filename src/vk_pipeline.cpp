@@ -121,9 +121,10 @@ namespace vkutil {
 		return *this;
 	}
 
-	PipelineBuilder &PipelineBuilder::set_descriptor_layouts(std::initializer_list<VkDescriptorSetLayout> layouts)
+	PipelineBuilder &PipelineBuilder::set_descriptor_layouts(std::vector<VkDescriptorSetLayout> layouts)
 	{
-		m_DescriptorSetLayout = std::vector<VkDescriptorSetLayout>(layouts);
+		//m_DescriptorSetLayout = std::vector<VkDescriptorSetLayout>(layouts);
+		m_DescriptorSetLayout = layouts;
 		return *this;
 	}
 
@@ -152,7 +153,7 @@ namespace vkutil {
 		colorBlending.pNext = nullptr;
 
 		colorBlending.logicOpEnable = VK_FALSE;
-		colorBlending.logicOp = VK_LOGIC_OP_COPY;
+		//colorBlending.logicOp = VK_LOGIC_OP_COPY;
 		colorBlending.attachmentCount = 1;
 		colorBlending.pAttachments = &colorBlendAttachment;
 

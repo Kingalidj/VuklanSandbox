@@ -13,6 +13,7 @@ namespace Atlas {
 
 		void init();
 		void cleanup();
+		void set_camera(glm::mat4 viewproj);
 
 		void draw_test_triangle();
 

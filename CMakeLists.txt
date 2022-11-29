@@ -28,6 +28,11 @@ add_subdirectory(vendor)
 
 
 set(SOURCES
+		src/perspective_camera.cpp
+		src/orthographic_camera.cpp
+		src/atl_vk_utils.cpp
+		src/descriptor.cpp
+		src/buffer.cpp
 		src/shader.cpp
 		src/renderer.cpp
 		src/imgui_layer.cpp
@@ -53,6 +58,12 @@ set(HEADERS
 		src/event.h
 		src/layer.h
 
+		src/camera.cpp
+		src/perspective_camera.h
+		src/orthographic_camera.h
+		src/atl_vk_utils.h
+		src/descriptor.h
+		src/buffer.h
 		src/shader.h
 		src/renderer.h
 		src/imgui_layer.h

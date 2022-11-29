@@ -55,7 +55,7 @@ namespace vkutil {
 	}
 
 
-	void set_texture_data(Texture &tex, const void *data, VulkanManager &manager) {
+	void set_texture_data(Texture &tex, void *data, VulkanManager &manager) {
 		VkDeviceSize imageSize = tex.width * tex.height * 4;
 
 		VkExtent3D imageExtent{};
@@ -117,7 +117,7 @@ namespace vkutil {
 		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
 			0, nullptr, 1, &imageBarrierToReadable);
-		});
+			});
 
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 	}
@@ -198,7 +198,7 @@ namespace vkutil {
 				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 				range);
-			});
+				});
 		}
 	}
 
@@ -310,7 +310,7 @@ namespace vkutil {
 		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
 			0, nullptr, 1, &imageBarrierToReadable);
-		});
+			});
 
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 

@@ -28,6 +28,13 @@ namespace vkutil {
 		vmaUnmapMemory(manager.get_allocator(), buffer->allocation);
 	}
 
+	void map_memory(VulkanManager &manager, AllocatedBuffer *buffer, void *memory, uint32_t size)
+	{
+		map_memory(manager, buffer, [=](void *data) {
+			memcpy(data, memory, size);
+			});
+	}
+
 	void destroy_buffer(VulkanManager &manager, AllocatedBuffer &buffer)
 	{
 		vmaDestroyBuffer(manager.get_allocator(), buffer.buffer, buffer.allocation);

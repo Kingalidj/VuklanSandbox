@@ -68,7 +68,7 @@ namespace vkutil {
 
 		PipelineBuilder &set_depth_stencil(bool depthTest, bool depthWrite, VkCompareOp compareOp, VkFormat depthFormat);
 
-		PipelineBuilder &set_descriptor_layouts(std::initializer_list<VkDescriptorSetLayout> layouts);
+		PipelineBuilder &set_descriptor_layouts(std::vector<VkDescriptorSetLayout> layouts);
 
 		bool build(VkPipeline *pipeline, VkPipelineLayout *layout);
 		bool build(VkPipeline *pipeline);

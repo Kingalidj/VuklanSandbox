@@ -1,21 +1,31 @@
 #include "renderer.h"
 #include "application.h"
 #include "shader.h"
+#include "buffer.h"
+#include "descriptor.h"
 
 #include "vk_scene.h"
 #include "vk_pipeline.h"
 #include "vk_engine.h"
 
+#include <glm/gtx/transform.hpp>
+
 namespace Atlas {
+
+	struct GPUCameraData {
+		glm::mat4 viewProj;
+	};
 
 	struct RenderData {
 		bool init{ false };
 
-		VertexDescription vertexDescription;
 		Shader defaultShader;
 
-		std::vector<Render2D::Vertex> triangleVertices;
-		vkutil::AllocatedBuffer triangleVertexBuffer;
+		Buffer triangleVertexBuffer;
+		Buffer triangleIndexBuffer;
+
+		Ref<Buffer> cameraBuffer;
+		GPUCameraData camera;
 	};
 
 	static RenderData s_Data;
@@ -29,35 +39,55 @@ namespace Atlas {
 
 		s_Data.init = true;
 
-		vkutil::VulkanEngine &engine = Application::get_engine();
-		vkutil::VulkanManager &manager = engine.manager();
-		VkDevice device = manager.device();
-
-		s_Data.vertexDescription = VertexDescription()
+		auto vertexDescription = VertexDescription()
 			.push_attrib(VertexAttribute::FLOAT3, &Vertex::position)
 			.push_attrib(VertexAttribute::FLOAT4, &Vertex::color)
 			.push_attrib(VertexAttribute::FLOAT2, &Vertex::uv);
 
-		s_Data.defaultShader = Shader(s_Data.vertexDescription,
-			{
-				"res/shaders/default.vert",
-				"res/shaders/default.frag",
-			});
+		s_Data.cameraBuffer = make_ref<Buffer>(BufferType::UNIFORM, sizeof(GPUCameraData));
 
-		s_Data.triangleVertices.resize(3);
-		s_Data.triangleVertices[0].position = glm::vec3(1, 0, 0);
-		s_Data.triangleVertices[0].color = glm::vec4(1, 0, 0, 1);
+		Ref<Texture> texture = make_ref<Texture>("res/images/uv_check.png");
 
-		s_Data.triangleVertices[1].position = glm::vec3(0, 1, 0);
-		s_Data.triangleVertices[1].color = glm::vec4(0, 1, 0, 1);
+		DescriptorCreateInfo descInfo;
+		descInfo.bindings = {
+			{s_Data.cameraBuffer, ShaderStage::VERTEX},
+			{texture, ShaderStage::FRAGMENT},
+		};
+		Ref<Descriptor> desc = make_ref<Descriptor>(descInfo);
 
-		s_Data.triangleVertices[2].position = glm::vec3(0, 0, 1);
-		s_Data.triangleVertices[2].color = glm::vec4(1, 0, 1, 1);
+		ShaderCreateInfo shaderInfo{};
+		shaderInfo.shaderPaths = {
+			{"res/shaders/default.vert", ShaderStage::VERTEX},
+			{"res/shaders/default.frag", ShaderStage::FRAGMENT}
+		};
+		shaderInfo.vertexDescription = vertexDescription;
+		shaderInfo.descriptors = { desc };
 
-		Application::get_engine().manager().upload_to_gpu(
-			s_Data.triangleVertices.data(), (uint32_t)s_Data.triangleVertices.size() * sizeof(Vertex),
-			s_Data.triangleVertexBuffer,
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		s_Data.defaultShader = Shader(shaderInfo);
+
+		std::vector<Vertex> vertices;
+		vertices.resize(6);
+		vertices[0].position = glm::vec3(1, 0, 0);
+		vertices[0].color = glm::vec4(1, 0, 0, 1);
+		vertices[0].uv = glm::vec2(1, 0);
+
+		vertices[1].position = glm::vec3(0, 1, 0);
+		vertices[1].color = glm::vec4(0, 1, 0, 1);
+		vertices[1].uv = glm::vec2(0, 1);
+
+		vertices[2].position = glm::vec3(0, 0, -1);
+		vertices[2].color = glm::vec4(0, 0, 1, 1);
+		vertices[2].uv = glm::vec2(0, 0);
+
+		vertices[3].position = glm::vec3(1, 1, 0);
+		vertices[3].color = glm::vec4(0, 0, 0, 1);
+		vertices[3].uv = glm::vec2(1, 1);
+
+		s_Data.triangleVertexBuffer = Buffer(BufferType::VERTEX, vertices.data(), vertices.size() * sizeof(Vertex));
+
+		std::vector<uint16_t> indices = { 0, 1, 2, 0, 3, 1 };
+		s_Data.triangleIndexBuffer = Buffer(BufferType::INDEX_U16, indices.data(), indices.size() * sizeof(uint16_t));
+
 	}
 
 	void Render2D::cleanup()
@@ -67,19 +97,29 @@ namespace Atlas {
 			return;
 		}
 
-		vmaDestroyBuffer(Application::get_engine().manager().get_allocator(), s_Data.triangleVertexBuffer.buffer, s_Data.triangleVertexBuffer.allocation);
+	}
+
+	void Render2D::set_camera(glm::mat4 viewproj)
+	{
+		if (s_Data.camera.viewProj != viewproj) {
+			s_Data.camera.viewProj = viewproj;
+
+			GPUCameraData data{};
+			data.viewProj = viewproj;
+
+			s_Data.cameraBuffer->set_data(&data, sizeof(GPUCameraData));
+		}
 	}
 
 	void Render2D::draw_test_triangle()
 	{
+
+		s_Data.defaultShader.bind();
+		s_Data.triangleVertexBuffer.bind();
+		s_Data.triangleIndexBuffer.bind();
+
 		VkCommandBuffer cmd = Application::get_engine().get_active_command_buffer();
-
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_Data.defaultShader.get_native_shader()->pipeline);
-
-		VkDeviceSize offset = 0;
-		vkCmdBindVertexBuffers(cmd, 0, 1, &s_Data.triangleVertexBuffer.buffer, &offset);
-
-		vkCmdDraw(cmd, s_Data.triangleVertices.size(), 1, 0, 0);
+		vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 	}
 
 }

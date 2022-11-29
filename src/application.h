@@ -28,10 +28,15 @@ namespace Atlas {
 		static vkutil::VulkanEngine &get_engine();
 		static Window &get_window();
 		static Application *get_instance();
+		static glm::vec2 get_mouse();
+		static bool is_key_pressed(KeyCode key);
+		static bool is_mouse_pressed(int button);
 
 		void push_layer(Ref<Layer> layer);
 
 		void queue_event(Event event);
+
+		static glm::vec2 &get_viewport_size();
 
 	private:
 		void on_event(Event &event);
@@ -39,8 +44,6 @@ namespace Atlas {
 		bool on_viewport_resized(ViewportResizedEvent &e);
 
 		void render_viewport();
-
-		void dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func);
 
 		Scope<vkutil::VulkanEngine> m_Engine;
 
@@ -54,9 +57,9 @@ namespace Atlas {
 
 		std::vector<Event> m_QueuedEvents;
 
-		Texture *m_ColorTexture;
-		Texture *m_DepthTexture;
-		glm::ivec2 m_ViewportSize;
+		Texture m_ColorTexture;
+		Texture m_DepthTexture;
+		glm::vec2 m_ViewportSize;
 
 		static Application *s_Instance;
 	};

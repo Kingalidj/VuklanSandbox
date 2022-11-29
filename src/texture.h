@@ -32,12 +32,13 @@ namespace Atlas {
 
 		void *get_id();
 
-		vkutil::Texture *get_native();
+		vkutil::Texture *get_native_texture();
+		inline bool is_init() { return m_Initialized; }
 
 	private:
 
-		//Scope<vkutil::Texture> m_Texture;
 		WeakRef<vkutil::Texture> m_Texture;
+		bool m_Initialized{ false };
 	};
 
 }
