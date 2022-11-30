@@ -37,7 +37,7 @@ namespace Atlas {
 		inline glm::mat4 &get_view_projection() override { return m_ViewProjectionMatrix; }
 	};
 
-	class OrthographicCameraController
+	class OrthographicCameraController : public CameraController
 	{
 	private:
 		float m_AspectRatio = 0.5f;
@@ -55,12 +55,10 @@ namespace Atlas {
 	public:
 		OrthographicCameraController(bool roation = false);
 
-		void on_update(Timestep ts);
-		void on_event(Event &e);
+		void on_update(Timestep ts) override;
+		void on_event(Event &e) override;
 
-		OrthographicCamera &get_camera() { return m_Camera; }
-		const OrthographicCamera &get_camera() const { return m_Camera; }
-
+		OrthographicCamera &get_camera() override { return m_Camera; }
 	};
 
 }

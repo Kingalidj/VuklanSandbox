@@ -186,4 +186,5 @@ target_link_libraries(${PROJECT_NAME}
 	stb_image
 	tinyobjloader
 	imgui
+	implot
 	)

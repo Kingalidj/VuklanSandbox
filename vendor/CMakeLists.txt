@@ -43,7 +43,6 @@ target_sources( imgui
 	imgui/imgui_widgets.cpp
 	imgui/imgui.cpp
 
-	PRIVATE
 	imgui/backends/imgui_impl_vulkan.cpp
 	imgui/backends/imgui_impl_glfw.cpp
 	)
@@ -56,3 +55,20 @@ target_include_directories( imgui
 	)
 
 target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
+
+# == implot ==
+
+add_library(implot STATIC)
+
+target_sources( implot
+	PRIVATE
+	implot/implot.cpp
+	implot/implot_demo.cpp
+	implot/implot_items.cpp
+	)
+
+target_include_directories( implot
+		PUBLIC implot
+	)
+
+target_link_libraries(implot PUBLIC imgui)

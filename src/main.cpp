@@ -4,24 +4,41 @@
 #include "orthographic_camera.h"
 #include "perspective_camera.h"
 
+#include <imgui.h>
+
 class Sandbox : public Atlas::Layer {
 
-	Atlas::OrthographicCameraController orthoCamera{ true };
+	Atlas::OrthographicCameraController orthoCamera;
 	Atlas::PerspectiveCameraController perspectiveCamera;
+
+	bool bOrthoCamera = true;
 
 	void on_update(Atlas::Timestep ts) override {
 
-		orthoCamera.on_update(ts);
-		Atlas::Render2D::set_camera(orthoCamera.get_camera().get_view_projection());
+		if (bOrthoCamera) {
+			orthoCamera.on_update(ts);
+			Atlas::Render2D::set_camera(orthoCamera.get_camera());
+		}
+		else {
+			perspectiveCamera.on_update(ts);
+			Atlas::Render2D::set_camera(perspectiveCamera.get_camera());
+		}
 
 		Atlas::Render2D::draw_test_triangle();
 	}
 
 	void on_imgui() override {
+		ImGui::Begin("Camera Settings");
+		ImGui::Checkbox("OrthoGraphic Camera", &bOrthoCamera);
+		ImGui::End();
 	}
 
 	void on_event(Atlas::Event &e) override {
-		orthoCamera.on_event(e);
+		if (bOrthoCamera)
+			orthoCamera.on_event(e);
+		else
+			perspectiveCamera.on_event(e);
+
 	}
 
 };

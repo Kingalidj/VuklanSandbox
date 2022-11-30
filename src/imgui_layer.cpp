@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 #include <imgui_impl_glfw.h>
+#include <implot.h>
 
 #include <glm/glm.hpp>
 
@@ -15,11 +16,14 @@ namespace Atlas {
 
 	void ImGuiLayer::on_attach()
 	{
+		ImPlot::CreateContext();
+
 		ImGui::SetOneDarkTheme();
 	}
 
 	void ImGuiLayer::on_detach()
 	{
+		ImPlot::DestroyContext();
 	}
 
 	void ImGuiLayer::on_update(Timestep ts)

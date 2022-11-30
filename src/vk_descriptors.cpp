@@ -184,7 +184,7 @@ namespace vkutil {
 		cameraInfo.offset = 0;
 		cameraInfo.range = size;
 
-		m_DescritorInfos.push_back(cameraInfo);
+		auto [it, existed] = m_DescBufferInfos.insert({ m_DescInfoCount++, cameraInfo });
 
 		VkDescriptorSetLayoutBinding bind{};
 		bind.descriptorCount = 1;
@@ -201,7 +201,7 @@ namespace vkutil {
 
 		write.descriptorCount = 1;
 		write.descriptorType = type;
-		//write.pBufferInfo = bufferInfo;
+		write.pBufferInfo = &it->second;
 		write.dstBinding = binding;
 
 		m_Writes.push_back(write);
@@ -216,7 +216,7 @@ namespace vkutil {
 		imageBufferInfo.imageView = image.imageView;
 		imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		m_DescritorInfos.push_back(imageBufferInfo);
+		auto [it, existed] = m_DescImageInfos.insert({ m_DescInfoCount++, imageBufferInfo });
 
 		VkDescriptorSetLayoutBinding bind{};
 		bind.descriptorCount = 1;
@@ -232,7 +232,42 @@ namespace vkutil {
 		write.pNext = nullptr;
 		write.descriptorCount = 1;
 		write.descriptorType = type;
-		//write.pImageInfo = imageInfo;
+		write.pImageInfo = &it->second;
+		write.dstBinding = binding;
+
+		m_Writes.push_back(write);
+		return *this;
+	}
+
+	DescriptorBuilder &DescriptorBuilder::bind_image_array(uint32_t binding, Texture *images, uint32_t imageCount, VkDescriptorType type, VkShaderStageFlags flags)
+	{
+		std::vector<VkDescriptorImageInfo> descImageInfos;
+
+		for (uint32_t i = 0; i < imageCount; i++) {
+			VkDescriptorImageInfo info{};
+			info.sampler = images[i].sampler;
+			info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			info.imageView = images[i].imageView;
+			descImageInfos.push_back(info);
+		}
+
+		auto [it, existed] = m_DescImageArrayInfos.insert({ m_DescInfoCount++, descImageInfos });
+
+		VkDescriptorSetLayoutBinding bind{};
+		bind.descriptorCount = imageCount;
+		bind.descriptorType = type;
+		bind.pImmutableSamplers = nullptr;
+		bind.stageFlags = flags;
+		bind.binding = binding;
+
+		m_Bindings.push_back(bind);
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.pNext = nullptr;
+		write.descriptorCount = imageCount;
+		write.descriptorType = type;
+		write.pImageInfo = it->second.data();
 		write.dstBinding = binding;
 
 		m_Writes.push_back(write);
@@ -254,13 +289,6 @@ namespace vkutil {
 
 		for (uint32_t i = 0; i < m_Writes.size(); i++) {
 			m_Writes.at(i).dstSet = *set;
-
-			if (m_DescritorInfos.at(i).index() == (uint32_t)DescriptorInfoType::BUFFER) {
-				m_Writes.at(i).pBufferInfo = &std::get<VkDescriptorBufferInfo>(m_DescritorInfos.at(i));
-			}
-			else if (m_DescritorInfos.at(i).index() == (uint32_t)DescriptorInfoType::IMAGE) {
-				m_Writes.at(i).pImageInfo = &std::get<VkDescriptorImageInfo>(m_DescritorInfos.at(i));
-			}
 		}
 
 		vkUpdateDescriptorSets(m_Alloc->m_Device, (uint32_t)m_Writes.size(), m_Writes.data(), 0, nullptr);

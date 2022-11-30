@@ -48,7 +48,7 @@ namespace Atlas
 
 	};
 
-	class PerspectiveCameraController
+	class PerspectiveCameraController : public CameraController
 	{
 	private:
 		float m_CameraMoveSpeed = 5.0f, m_CamearSensitivity = 0.2f;
@@ -70,15 +70,15 @@ namespace Atlas
 	public:
 		PerspectiveCameraController(float aspecRatio = 1.5707f);
 
-		void on_update(Timestep ts);
-		void on_event(Event &e);
+		void on_update(Timestep ts) override;
+		void on_event(Event &e) override;
 
 		inline void set_fov(float fov) { m_Camera.set_fov(fov); }
 		inline void set_aspect_ratio(float aspectRatio) { m_Camera.set_aspect_ratio(aspectRatio); }
 
 		inline float get_aspect_ratio() { return m_Camera.get_aspect_ratio(); }
 
-		inline const PerspectiveCamera &get_camera() { return m_Camera; }
+		inline PerspectiveCamera &get_camera() override { return m_Camera; }
 
 		const glm::mat4 &get_view() { return m_Camera.get_view(); }
 		const glm::mat4 &get_projection() { return m_Camera.get_projection(); }

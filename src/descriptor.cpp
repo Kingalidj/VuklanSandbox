@@ -21,7 +21,9 @@ namespace vkutil {
 			uint32_t binding = 0;
 
 			for (auto &pair : info.bindings) {
-				if (pair.first.index() == 0) {
+				uint32_t index = pair.first.index();
+
+				if (index == (uint32_t)Atlas::DescriptorAttachmentType::BUFFER) { //buffer variant
 
 					Ref<Atlas::Buffer> buffer = std::get<Ref<Atlas::Buffer>>(pair.first);
 					if (!buffer->is_init()) {
@@ -34,7 +36,7 @@ namespace vkutil {
 					builder.bind_buffer(binding++, *buffer->get_native_buffer(), buffer->size(),
 						atlas_to_vk_descriptor_type(buffer->get_type()), atlas_to_vk_shaderstage(pair.second));
 				}
-				else if (pair.first.index() == 1) {
+				else if (index == (uint32_t)Atlas::DescriptorAttachmentType::TEXTURE) { //texture variant
 
 					Ref<Atlas::Texture> texture = std::get<Ref<Atlas::Texture>>(pair.first);
 					if (!texture->is_init()) {
@@ -45,6 +47,24 @@ namespace vkutil {
 					m_Textures.push_back(texture);
 
 					builder.bind_image(binding++, *texture->get_native_texture(),
+						VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, atlas_to_vk_shaderstage(pair.second));
+				}
+				else if (index == (uint32_t)Atlas::DescriptorAttachmentType::TEXTURE_ARRAY) {
+					std::vector<Ref<Atlas::Texture>> textures =
+						std::get<std::vector<Ref<Atlas::Texture>>>(pair.first);
+
+					std::vector<Texture> vulkanTextures;
+
+					for (auto &tex : textures) {
+						if (!tex->is_init()) {
+							CORE_WARN("Descriptor: texture is not initialized!");
+							return;
+						}
+						m_Textures.push_back(tex);
+						vulkanTextures.push_back(*tex->get_native_texture());
+					}
+
+					builder.bind_image_array(binding++, vulkanTextures.data(), vulkanTextures.size(),
 						VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, atlas_to_vk_shaderstage(pair.second));
 				}
 			}

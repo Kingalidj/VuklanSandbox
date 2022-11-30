@@ -20,6 +20,7 @@ namespace Atlas {
 	};
 
 	enum class ShaderStage {
+		NONE,
 		VERTEX,
 		FRAGMENT,
 	};
@@ -54,8 +55,22 @@ namespace Atlas {
 		uint32_t m_SizeOfVertex = 0;
 	};
 
+	class ShaderModule {
+	public:
+		ShaderModule(const char *path, ShaderStage stage, bool optimize = false);
+
+		inline ShaderStage get_stage() { return m_Stage; }
+		std::vector<uint32_t> &get_data() { return m_Data; }
+		const char *get_file_path() { return m_Path.c_str(); }
+
+	private:
+		ShaderStage m_Stage{ ShaderStage::NONE };
+		std::vector<uint32_t> m_Data;
+		std::string m_Path;
+	};
+
 	struct ShaderCreateInfo {
-		std::vector<std::pair<const char *, ShaderStage>> shaderPaths;
+		std::vector<ShaderModule *> modules;
 		VertexDescription vertexDescription;
 
 		std::vector<Ref<Descriptor>> descriptors;
@@ -65,15 +80,7 @@ namespace Atlas {
 	public:
 
 		Shader() = default;
-
-		Shader(VertexDescription &desc, std::initializer_list<std::pair<const char *, ShaderStage>> shaders);
-
-		Shader(VertexDescription &desc, std::initializer_list<std::pair<const char *, ShaderStage>> shaders,
-			std::initializer_list<Ref<Descriptor>> descriptors);
-
 		Shader(ShaderCreateInfo &info);
-		//Shader(VertexDescription &desc, std::initializer_list<const char * > shaders);
-
 		Shader(const Shader &other) = delete;
 
 		void bind();

@@ -1,5 +1,7 @@
 #include "imgui_theme.h"
 
+#include <implot.h>
+
 void ImGui::SetOneDarkTheme() {
 	auto ACCENT = RED_COL;
 	auto ACCENT_HOVER = ORANGE_COL;
@@ -70,4 +72,5 @@ void ImGui::SetOneDarkTheme() {
 	colors[ImGuiCol_TitleBg] = GREY_COL;
 	colors[ImGuiCol_TitleBgActive] = LIGHT_GREY_COL;
 	colors[ImGuiCol_TitleBgCollapsed] = DARK_GREY_COL;
+
 }

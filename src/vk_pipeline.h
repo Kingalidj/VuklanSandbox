@@ -98,6 +98,10 @@ namespace vkutil {
 		VkShaderModule *outShaderModule,
 		const VkDevice device);
 
+	std::vector<uint32_t> compile_glsl_to_spirv(const std::string &source_name,
+		VkShaderStageFlagBits stage, const char *source, size_t sourceSize,
+		bool optimize = false);
+
 	bool load_spirv_shader_module(const char *filePath,
 		VkShaderModule *outShaderModule,
 		const VkDevice device);

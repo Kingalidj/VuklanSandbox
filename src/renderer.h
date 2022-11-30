@@ -3,6 +3,8 @@
 
 namespace Atlas {
 
+	class Camera;
+
 	namespace Render2D {
 
 		struct Vertex {
@@ -13,7 +15,7 @@ namespace Atlas {
 
 		void init();
 		void cleanup();
-		void set_camera(glm::mat4 viewproj);
+		void set_camera(Camera &camera);
 
 		void draw_test_triangle();
 

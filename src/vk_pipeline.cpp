@@ -239,7 +239,6 @@ namespace vkutil {
 	}
 
 	bool compile_shader_module(uint32_t *buffer, uint32_t byteSize,
-
 		VkShaderModule *outShaderModule,
 		const VkDevice device) {
 		VkShaderModuleCreateInfo createInfo = {};
@@ -284,6 +283,43 @@ namespace vkutil {
 		return true;
 	}
 
+	std::vector<uint32_t> compile_glsl_to_spirv(const std::string &source_name,
+		VkShaderStageFlagBits stage, const char *source, size_t sourceSize,
+		bool optimize)
+	{
+
+		shaderc_shader_kind kind{};
+
+		switch (stage) {
+		case VK_SHADER_STAGE_VERTEX_BIT:
+			kind = shaderc_vertex_shader;
+			break;
+		case VK_SHADER_STAGE_FRAGMENT_BIT:
+			kind = shaderc_fragment_shader;
+			break;
+		default:
+			CORE_WARN("unknown extension for file: {}", source_name);
+			return {};
+		}
+
+		shaderc::Compiler compiler;
+		shaderc::CompileOptions options;
+
+		options.SetTargetEnvironment(shaderc_target_env_vulkan,
+			shaderc_env_version_vulkan_1_1);
+
+		if (optimize) options.SetOptimizationLevel(shaderc_optimization_level_size);
+
+		shaderc::SpvCompilationResult module =
+			compiler.CompileGlslToSpv(source, sourceSize, kind, source_name.c_str(), options);
+
+		if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
+			CORE_WARN(module.GetErrorMessage());
+		}
+
+		return { module.cbegin(), module.cend() };
+	}
+
 	bool load_glsl_shader_module(const VulkanManager &manager, std::filesystem::path filePath,
 		VkShaderStageFlagBits type,
 		VkShaderModule *outShaderModule) {
@@ -318,29 +354,9 @@ namespace vkutil {
 		file.close();
 
 
-		shaderc::CompileOptions cOptions;
-		cOptions.SetTargetEnvironment(shaderc_target_env_vulkan,
-			shaderc_env_version_vulkan_1_1);
-		const bool optimize = false;
-
-		if (optimize)
-			cOptions.SetOptimizationLevel(shaderc_optimization_level_performance);
-
-		shaderc::Compiler compiler;
-
-		shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(
-			source, kind, (char *)filePath.c_str(), cOptions);
-		if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
-			CORE_WARN("shaderc compilation error: {}", module.GetErrorMessage());
-			//std::cerr << module.GetErrorMessage() << std::endl;
-			return false;
-		}
-
-		std::vector<uint32_t> buffer =
-			std::vector<uint32_t>(module.cbegin(), module.cend());
+		std::vector<uint32_t> buffer = compile_glsl_to_spirv(filePath.u8string(), type, source.data(), fileSize);
 
 		if (!compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t),
-
 			outShaderModule, manager.device())) {
 			CORE_WARN("Could not compile shader: {}", filePath);
 			return false;

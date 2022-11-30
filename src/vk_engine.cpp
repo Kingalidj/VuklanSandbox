@@ -6,6 +6,9 @@
 #include "vk_pipeline.h"
 #include "vk_types.h"
 
+#include <imgui_impl_vulkan.h>
+#include <imgui_impl_glfw.h>
+
 const uint8_t c_RobotoRegular[] = {
 #include "robot_regular.embed"
 };

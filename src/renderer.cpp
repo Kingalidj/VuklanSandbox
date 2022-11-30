@@ -3,6 +3,7 @@
 #include "shader.h"
 #include "buffer.h"
 #include "descriptor.h"
+#include "camera.h"
 
 #include "vk_scene.h"
 #include "vk_pipeline.h"
@@ -39,54 +40,62 @@ namespace Atlas {
 
 		s_Data.init = true;
 
-		auto vertexDescription = VertexDescription()
-			.push_attrib(VertexAttribute::FLOAT3, &Vertex::position)
-			.push_attrib(VertexAttribute::FLOAT4, &Vertex::color)
-			.push_attrib(VertexAttribute::FLOAT2, &Vertex::uv);
+		{
+			auto vertexDescription = VertexDescription();
+			vertexDescription
+				.push_attrib(VertexAttribute::FLOAT3, &Vertex::position)
+				.push_attrib(VertexAttribute::FLOAT4, &Vertex::color)
+				.push_attrib(VertexAttribute::FLOAT2, &Vertex::uv);
 
-		s_Data.cameraBuffer = make_ref<Buffer>(BufferType::UNIFORM, sizeof(GPUCameraData));
+			s_Data.cameraBuffer = make_ref<Buffer>(BufferType::UNIFORM, sizeof(GPUCameraData));
 
-		Ref<Texture> texture = make_ref<Texture>("res/images/uv_check.png");
+			Ref<Texture> tex1 = make_ref<Texture>("res/images/uv_checker_v1.png", FilterOptions::NEAREST);
+			Ref<Texture> tex2 = make_ref<Texture>("res/images/uv_checker_v2.png", FilterOptions::NEAREST);
 
-		DescriptorCreateInfo descInfo;
-		descInfo.bindings = {
-			{s_Data.cameraBuffer, ShaderStage::VERTEX},
-			{texture, ShaderStage::FRAGMENT},
-		};
-		Ref<Descriptor> desc = make_ref<Descriptor>(descInfo);
+			std::vector<Ref<Texture>> textureArr = { tex1, tex2 };
 
-		ShaderCreateInfo shaderInfo{};
-		shaderInfo.shaderPaths = {
-			{"res/shaders/default.vert", ShaderStage::VERTEX},
-			{"res/shaders/default.frag", ShaderStage::FRAGMENT}
-		};
-		shaderInfo.vertexDescription = vertexDescription;
-		shaderInfo.descriptors = { desc };
+			DescriptorCreateInfo descInfo;
+			descInfo.bindings = {
+				{s_Data.cameraBuffer, ShaderStage::VERTEX},
+				{tex1, ShaderStage::FRAGMENT},
+			};
 
-		s_Data.defaultShader = Shader(shaderInfo);
+			Ref<Descriptor> descriptorSet = make_ref<Descriptor>(descInfo);
 
-		std::vector<Vertex> vertices;
-		vertices.resize(6);
-		vertices[0].position = glm::vec3(1, 0, 0);
-		vertices[0].color = glm::vec4(1, 0, 0, 1);
-		vertices[0].uv = glm::vec2(1, 0);
+			ShaderModule vertModule = ShaderModule("res/shaders/default.vert.spv", ShaderStage::VERTEX);
+			ShaderModule fragModule = ShaderModule("res/shaders/default.frag.spv", ShaderStage::FRAGMENT);
 
-		vertices[1].position = glm::vec3(0, 1, 0);
-		vertices[1].color = glm::vec4(0, 1, 0, 1);
-		vertices[1].uv = glm::vec2(0, 1);
+			ShaderCreateInfo shaderInfo{};
+			shaderInfo.modules = { &vertModule, &fragModule };
+			shaderInfo.vertexDescription = vertexDescription;
+			shaderInfo.descriptors = { descriptorSet };
 
-		vertices[2].position = glm::vec3(0, 0, -1);
-		vertices[2].color = glm::vec4(0, 0, 1, 1);
-		vertices[2].uv = glm::vec2(0, 0);
+			s_Data.defaultShader = Shader(shaderInfo);
+		}
 
-		vertices[3].position = glm::vec3(1, 1, 0);
-		vertices[3].color = glm::vec4(0, 0, 0, 1);
-		vertices[3].uv = glm::vec2(1, 1);
+		{
+			std::array<Vertex, 4> vertices{};
+			vertices[0].position = glm::vec3(1, 0, 0);
+			vertices[0].color = glm::vec4(1, 0, 0, 1);
+			vertices[0].uv = glm::vec2(1, 0);
 
-		s_Data.triangleVertexBuffer = Buffer(BufferType::VERTEX, vertices.data(), vertices.size() * sizeof(Vertex));
+			vertices[1].position = glm::vec3(0, 1, 0);
+			vertices[1].color = glm::vec4(0, 1, 0, 1);
+			vertices[1].uv = glm::vec2(0, 1);
 
-		std::vector<uint16_t> indices = { 0, 1, 2, 0, 3, 1 };
-		s_Data.triangleIndexBuffer = Buffer(BufferType::INDEX_U16, indices.data(), indices.size() * sizeof(uint16_t));
+			vertices[2].position = glm::vec3(0, 0, -1);
+			vertices[2].color = glm::vec4(0, 0, 1, 1);
+			vertices[2].uv = glm::vec2(0, 0);
+
+			vertices[3].position = glm::vec3(1, 1, 0);
+			vertices[3].color = glm::vec4(0, 0, 0, 1);
+			vertices[3].uv = glm::vec2(1, 1);
+
+			s_Data.triangleVertexBuffer = Buffer(BufferType::VERTEX, vertices.data(), vertices.size() * sizeof(Vertex));
+
+			std::array<uint16_t, 6> indices = { 0, 1, 2, 0, 3, 1 };
+			s_Data.triangleIndexBuffer = Buffer(BufferType::INDEX_U16, indices.data(), indices.size() * sizeof(uint16_t));
+		}
 
 	}
 
@@ -99,15 +108,11 @@ namespace Atlas {
 
 	}
 
-	void Render2D::set_camera(glm::mat4 viewproj)
+	void Render2D::set_camera(Camera &camera)
 	{
-		if (s_Data.camera.viewProj != viewproj) {
-			s_Data.camera.viewProj = viewproj;
-
-			GPUCameraData data{};
-			data.viewProj = viewproj;
-
-			s_Data.cameraBuffer->set_data(&data, sizeof(GPUCameraData));
+		if (s_Data.camera.viewProj != camera.get_view_projection()) {
+			s_Data.camera.viewProj = camera.get_view_projection();
+			s_Data.cameraBuffer->set_data(&s_Data.camera, sizeof(GPUCameraData));
 		}
 	}
 

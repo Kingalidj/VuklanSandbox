@@ -50,7 +50,7 @@ namespace Atlas {
 		Scope<Window> m_Window;
 		bool m_WindowMinimized = false;
 
-		float m_LastFrameTime;
+		float m_LastFrameTime{ 0 };
 
 		Ref<ImGuiLayer> m_ImGuiLayer;
 		std::vector<Ref<Layer>> m_LayerStack;
@@ -60,6 +60,8 @@ namespace Atlas {
 		Texture m_ColorTexture;
 		Texture m_DepthTexture;
 		glm::vec2 m_ViewportSize;
+
+		//float data[100] = { 1, 2, 3, 4, 3, 2, 1 };
 
 		static Application *s_Instance;
 	};

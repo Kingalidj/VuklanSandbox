@@ -40,35 +40,24 @@ namespace vkutil {
 
 			std::vector<VkShaderModule> modules;
 
-			for (auto &pair : info.shaderPaths) {
-				std::filesystem::path file(pair.first);
+			for (auto &m : info.modules) {
+				VkShaderStageFlagBits shaderType = Atlas::atlas_to_vk_shaderstage(m->get_stage());
 
-				if (!std::filesystem::exists(file)) {
-					CORE_WARN("Shader: could not find file: {}", file);
-					continue;
-				}
-
-				VkShaderStageFlagBits shaderType = Atlas::atlas_to_vk_shaderstage(pair.second);
-
-				bool success = false;
+				std::vector<uint32_t> &buffer = m->get_data();
 
 				VkShaderModule module{};
-				if (file.extension() == ".spv")
-					success = vkutil::load_spirv_shader_module(pair.first, &module, manager.device());
-				else
-					success = vkutil::load_glsl_shader_module(manager, file, shaderType, &module);
+				bool success = vkutil::compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t),
+					&module, manager.device());
 
 				if (!success) {
-					CORE_WARN("Shader: unknown error: {}", file);
+					CORE_WARN("Shader: error while compiling shader: {}", m->get_file_path());
 					continue;
 				}
 
 				builder.add_shader_module(module, shaderType);
-
 				modules.push_back(module);
 			}
 
-			//m_Shader = make_scope<vkutil::Shader>();
 			vkutil::Shader shader{};
 			builder.build(&shader);
 
@@ -121,57 +110,42 @@ namespace vkutil {
 
 namespace Atlas {
 
-	Shader::Shader(VertexDescription &desc, std::initializer_list<std::pair<const char *, ShaderStage>> shaders) {
-		ShaderCreateInfo info{};
-		info.vertexDescription = desc;
-		info.shaderPaths = shaders;
+	ShaderModule::ShaderModule(const char *path, ShaderStage stage, bool optimize)
+		:m_Stage(stage), m_Path(path)
+	{
+		auto filePath = std::filesystem::path(path);
+		auto ext = filePath.extension();
 
-		m_Shader = make_ref<vkutil::VulkanShader>(info);
-	}
+		if (!std::filesystem::exists(filePath)) {
+			CORE_WARN("Could not find file: {}", filePath);
+		}
+		std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
-	Shader::Shader(VertexDescription &desc, std::initializer_list<std::pair<const char *, ShaderStage>> shaders,
-		std::initializer_list<Ref<Descriptor>> descriptors) {
+		if (!file.is_open()) {
+			CORE_WARN("Could not open spv file: {}", filePath);
+			return;
+		}
 
-		ShaderCreateInfo info{};
-		info.vertexDescription = desc;
-		info.shaderPaths = shaders;
-		info.descriptors = descriptors;
+		size_t fileSize = (size_t)file.tellg();
+		std::vector<char> data = std::vector<char>(fileSize);
 
-		m_Shader = make_ref<vkutil::VulkanShader>(info);
+		file.seekg(0);
+		file.read((char *)data.data(), fileSize);
+		file.close();
+
+		if (ext == ".spv") {
+			m_Data = std::vector<uint32_t>(fileSize / sizeof(uint32_t));
+			memcpy(m_Data.data(), data.data(), data.size());
+		}
+		else {
+			m_Data = vkutil::compile_glsl_to_spirv(path, atlas_to_vk_shaderstage(stage),
+				(char *)data.data(), fileSize, optimize);
+		}
 	}
 
 	Shader::Shader(ShaderCreateInfo &info) {
 		m_Shader = make_ref<vkutil::VulkanShader>(info);
 	}
-
-
-	//Shader::Shader(VertexDescription &desc, std::initializer_list<const char *> shaders) {
-	//	ShaderCreateInfo info{};
-	//	info.vertexDescription = desc;
-
-	//	for (auto &s : shaders)
-	//	{
-	//		std::filesystem::path path(s);
-	//		if (!std::filesystem::exists(path)) {
-	//			CORE_WARN("Shader: could not find file: {}", path);
-	//			continue;
-	//		}
-
-	//		auto ext = path.extension();
-	//		ShaderStage type{};
-
-	//		if (ext == ".vert") type = ShaderStage::VERTEX;
-	//		else if (ext == ".frag") type = ShaderStage::FRAGMENT;
-	//		else {
-	//			CORE_WARN("Shader: unknown file extension: {}", ext);
-	//			continue;
-	//		}
-
-	//		info.shaderPaths.push_back({ s, type });
-	//	}
-
-	//	m_Shader = make_ref<vkutil::VulkanShader>(info);
-	//}
 
 	void Shader::bind() {
 		m_Shader->bind();

@@ -92,7 +92,9 @@ namespace vkutil {
 			: m_LayoutCache(layoutCache), m_Alloc(allocator) {}
 
 		DescriptorBuilder &bind_buffer(uint32_t binding, AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags);
+
 		DescriptorBuilder &bind_image(uint32_t binding, Texture &image, VkDescriptorType type, VkShaderStageFlags flags);
+		DescriptorBuilder &bind_image_array(uint32_t binding, Texture *images, uint32_t imageCount, VkDescriptorType type, VkShaderStageFlags flags);
 
 		bool build(VkDescriptorSet *set, VkDescriptorSetLayout *layout);
 		bool build(VkDescriptorSet *set);
@@ -101,13 +103,19 @@ namespace vkutil {
 		std::vector<VkWriteDescriptorSet> m_Writes;
 		std::vector<VkDescriptorSetLayoutBinding> m_Bindings;
 
-		using DescriptorInfo = std::variant<VkDescriptorBufferInfo, VkDescriptorImageInfo>;
-		enum class DescriptorInfoType : uint32_t {
-			BUFFER = 0,
-			IMAGE = 1,
-		};
+		uint32_t m_DescInfoCount{ 0 };
+		std::unordered_map<uint32_t, VkDescriptorImageInfo> m_DescImageInfos;
+		std::unordered_map<uint32_t, VkDescriptorBufferInfo> m_DescBufferInfos;
+		std::unordered_map<uint32_t, std::vector<VkDescriptorImageInfo>> m_DescImageArrayInfos;
+		//using DescriptorInfo = std::variant<VkDescriptorBufferInfo, VkDescriptorImageInfo>;
+		//std::unordered_set<DescriptorInfo> m_DescriptorInfos;
 
-		std::vector<DescriptorInfo> m_DescritorInfos;
+		//enum class DescriptorInfoType : uint32_t {
+		//	BUFFER = 0,
+		//	IMAGE = 1,
+		//};
+
+		//std::vector<DescriptorInfo> m_DescritorInfos;
 
 		DescriptorLayoutCache *m_LayoutCache;
 		DescriptorAllocator *m_Alloc;

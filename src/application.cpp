@@ -4,6 +4,9 @@
 #include "vk_engine.h"
 #include "window.h"
 
+#include <imgui.h>
+#include <implot.h>
+
 namespace Atlas {
 
 	Application *Application::s_Instance = nullptr;
@@ -49,11 +52,18 @@ namespace Atlas {
 
 	void Application::run()
 	{
+
+		std::vector<float> data;
+
 		while (!m_Window->should_close()) {
 
 			float time = (float)glfwGetTime();
 			Timestep timestep = time - m_LastFrameTime;
 			m_LastFrameTime = time;
+
+			data.push_back(1 / timestep);
+			if (data.size() >= 250)
+				data.erase(data.begin());
 
 			if (!m_WindowMinimized) {
 
@@ -68,6 +78,17 @@ namespace Atlas {
 					});
 
 				for (auto &layer : m_LayerStack) layer->on_imgui();
+
+				//ImPlot::PlotLine("framerate", m_FrameRates.data(), nullptr, 100);
+				if (ImGui::Begin("Metrics")) {
+					//ImPlot::SetNextAxisLimits(ImAxis_X1, 0, 250);
+					ImPlot::SetNextAxesToFit();
+					ImPlot::BeginPlot("framerate");
+					ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoTickLabels, ImPlotAxisFlags_AutoFit);
+					ImPlot::PlotLine("", data.data(), data.size());
+					ImPlot::EndPlot();
+				}
+				ImGui::End();
 
 				render_viewport();
 
