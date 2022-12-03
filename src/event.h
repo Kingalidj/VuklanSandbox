@@ -160,12 +160,12 @@ namespace Atlas {
 
 	struct KeyPressedEvent {
 		int keyCode;
-		int repeatCount;
+		bool repeat;
 
 		std::string to_string() const {
 			std::stringstream ss;
 			ss << "KeyPressed: "
-				<< keyCode << " (repeat:  " << repeatCount << ")";
+				<< keyCode << " (repeat:  " << (repeat ? "True" : "False") << ")";
 			return ss.str();
 		}
 	};

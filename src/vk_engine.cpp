@@ -35,8 +35,8 @@ namespace vkutil {
 
 		init_vp_framebuffers();
 
-		init_descriptors();
-		init_pipelines();
+		//init_descriptors();
+		//init_pipelines();
 
 
 		//load_images();
@@ -606,7 +606,8 @@ namespace vkutil {
 		vkb::Swapchain vkbSwapchain =
 			vkb::SwapchainBuilder(m_PhysicalDevice, m_Device, m_Surface)
 			.set_desired_format({ VK_FORMAT_B8G8R8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR })
-			.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+			//.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+			.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR)
 			.set_desired_extent(m_WindowExtent.width, m_WindowExtent.height)
 			.build()
 			.value();

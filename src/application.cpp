@@ -54,6 +54,13 @@ namespace Atlas {
 	{
 
 		std::vector<float> data;
+		std::pair<float, uint32_t> averageFrameTime = { 0, 0 };
+		float frameTime = 0;
+
+		const uint32_t averageFrameCount = 10;
+		const uint32_t metricsSize = 100;
+
+		m_LastFrameTime = (float)glfwGetTime();
 
 		while (!m_Window->should_close()) {
 
@@ -61,9 +68,19 @@ namespace Atlas {
 			Timestep timestep = time - m_LastFrameTime;
 			m_LastFrameTime = time;
 
-			data.push_back(1 / timestep);
-			if (data.size() >= 250)
-				data.erase(data.begin());
+			averageFrameTime.first += timestep;
+			averageFrameTime.second++;
+
+			if (averageFrameTime.second == averageFrameCount) {
+				frameTime = averageFrameTime.first / averageFrameCount;
+				data.push_back(1 / frameTime);
+				averageFrameTime = { 0, 0 };
+
+				if (data.size() >= metricsSize)
+					data.erase(data.begin());
+			}
+
+			//data.push_back(1 / timestep);
 
 			if (!m_WindowMinimized) {
 
@@ -81,18 +98,20 @@ namespace Atlas {
 
 				//ImPlot::PlotLine("framerate", m_FrameRates.data(), nullptr, 100);
 				if (ImGui::Begin("Metrics")) {
-					//ImPlot::SetNextAxisLimits(ImAxis_X1, 0, 250);
 					ImPlot::SetNextAxesToFit();
-					ImPlot::BeginPlot("framerate");
+					ImPlot::BeginPlot("Framerate");
 					ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoTickLabels, ImPlotAxisFlags_AutoFit);
+					ImPlot::SetupAxis(ImAxis_Y1, "FPS");
 					ImPlot::PlotLine("", data.data(), data.size());
 					ImPlot::EndPlot();
+
+					ImGui::Text("average: %.3f ms/frame (%.1f FPS)", frameTime * 1000, 1 / frameTime);
 				}
 				ImGui::End();
 
 				render_viewport();
 
-				m_Engine->exec_swapchain_renderpass(swapchainImageIndex, { 1, 0, 0, 0 }, [&]() {
+				m_Engine->exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 0 }, [&]() {
 					m_ImGuiLayer->on_imgui();
 					});
 

@@ -111,7 +111,7 @@ namespace vkutil {
 namespace Atlas {
 
 	ShaderModule::ShaderModule(const char *path, ShaderStage stage, bool optimize)
-		:m_Stage(stage), m_Path(path)
+		:m_Stage(stage), m_Path(path), m_Optimization(optimize)
 	{
 		auto filePath = std::filesystem::path(path);
 		auto ext = filePath.extension();

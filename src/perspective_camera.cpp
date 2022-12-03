@@ -103,6 +103,14 @@ namespace Atlas
 	{
 		bool updated = false;
 
+		if (Application::is_key_pressed(KeyCode::LEFT_SHIFT))
+		{
+			m_CameraMoveSpeed = 50.0f;
+		}
+		else {
+			m_CameraMoveSpeed = 5.0f;
+		}
+
 		if (Application::is_key_pressed(KeyCode::S))
 		{
 			m_CameraPosition -= m_Camera.get_front() * (m_CameraMoveSpeed * ts);

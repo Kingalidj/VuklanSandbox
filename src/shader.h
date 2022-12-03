@@ -59,6 +59,7 @@ namespace Atlas {
 	public:
 		ShaderModule(const char *path, ShaderStage stage, bool optimize = false);
 
+
 		inline ShaderStage get_stage() { return m_Stage; }
 		std::vector<uint32_t> &get_data() { return m_Data; }
 		const char *get_file_path() { return m_Path.c_str(); }
@@ -67,6 +68,7 @@ namespace Atlas {
 		ShaderStage m_Stage{ ShaderStage::NONE };
 		std::vector<uint32_t> m_Data;
 		std::string m_Path;
+		bool m_Optimization{ false };
 	};
 
 	struct ShaderCreateInfo {
@@ -75,6 +77,8 @@ namespace Atlas {
 
 		std::vector<Ref<Descriptor>> descriptors;
 	};
+
+	std::optional<ShaderCreateInfo> load_shader_module(const char *path, ShaderStage stage, bool optimize = false);
 
 	class Shader {
 	public:
@@ -89,5 +93,4 @@ namespace Atlas {
 
 		Ref<vkutil::VulkanShader> m_Shader;
 	};
-
 }

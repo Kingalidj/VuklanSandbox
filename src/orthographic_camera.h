@@ -19,10 +19,14 @@ namespace Atlas {
 		glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };
 		float m_Rotation = 0.0f;
 
+		float m_Near = -1.0f;
+		float m_Far = 1.0;
+
 		void recalculate_view();
 
 	public:
 		OrthographicCamera(float left, float right, float bottom, float top);
+		OrthographicCamera(float left, float right, float bottom, float top, float near, float far);
 
 		inline glm::vec3 &get_position() override { return m_Position; }
 		void set_position(const glm::vec3 &position) override { m_Position = position; recalculate_view(); }

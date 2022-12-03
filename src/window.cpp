@@ -104,7 +104,7 @@ void Window::init(const WindowInfo &props) {
 	}
 	case GLFW_REPEAT:
 	{
-		KeyPressedEvent event{ key, 1 };
+		KeyPressedEvent event{ key, true };
 		Event e(event);
 		data.eventCallback(e);
 		break;
