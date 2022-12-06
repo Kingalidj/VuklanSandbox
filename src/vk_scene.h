@@ -102,7 +102,7 @@ namespace vkutil {
 	struct RenderObject {
 		Ref<Mesh> mesh;
 		Ref<Material> material;
-		glm::mat4 transformMatrix;
+		glm::mat4 transformMatrix{};
 	};
 
 }

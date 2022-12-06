@@ -29,15 +29,15 @@ namespace vkutil {
 		VkFence renderFence;
 
 		VkCommandPool commandPool;
-		VkCommandBuffer mainCommandBuffer;
+		VkCommandBuffer renderCommandBuffer;
 
 		VkCommandBuffer activeCommandBuffer{ VK_NULL_HANDLE };
 
 		AllocatedBuffer cameraBuffer;
 		AllocatedBuffer objectBuffer;
 
-		VkDescriptorSet cameraDescriptor;
-		VkDescriptorSet objectDescriptor;
+		VkDescriptorSet cameraDescriptor{ VK_NULL_HANDLE };
+		VkDescriptorSet objectDescriptor{ VK_NULL_HANDLE };
 	};
 
 	class  VulkanEngine {
@@ -61,6 +61,10 @@ namespace vkutil {
 
 		void dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func);
 		void dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func);
+
+		void begin_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor);
+		void begin_renderpass(Texture &color, glm::vec4 clearColor);
+		void end_renderpass(Texture &color);
 
 		void draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count);
 		size_t pad_uniform_buffer_size(size_t originalSize);

@@ -9,11 +9,11 @@ namespace vkutil {
 
 	struct AllocatedImage {
 		VkImage image{ VK_NULL_HANDLE };
-		VmaAllocation allocation;
+		VmaAllocation allocation{ VK_NULL_HANDLE };
 	};
 
 	struct AllocatedBuffer {
 		VkBuffer buffer{ VK_NULL_HANDLE };
-		VmaAllocation allocation;
+		VmaAllocation allocation{ VK_NULL_HANDLE };
 	};
 }

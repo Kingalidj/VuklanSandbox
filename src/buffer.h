@@ -29,6 +29,7 @@ namespace Atlas {
 		Buffer() = default;
 		Buffer(BufferType type, void *data, uint32_t size, bool constMemory = false);
 		Buffer(BufferType type, uint32_t size);
+		Buffer(const Buffer &other) = delete;
 
 		void set_data(void *data, uint32_t size);
 		void bind(uint64_t offset = 0);
@@ -43,7 +44,6 @@ namespace Atlas {
 
 		Ref<vkutil::VulkanBuffer> m_Buffer;
 		bool m_Initialized{ false };
-		BufferType m_Type;
+		BufferType m_Type{ BufferType::NONE };
 	};
-
 }

@@ -21,7 +21,7 @@ namespace vkutil {
 			uint32_t binding = 0;
 
 			for (auto &pair : info.bindings) {
-				uint32_t index = pair.first.index();
+				uint32_t index = (uint32_t)pair.first.index();
 
 				if (index == (uint32_t)Atlas::DescriptorAttachmentType::BUFFER) { //buffer variant
 
@@ -64,7 +64,7 @@ namespace vkutil {
 						vulkanTextures.push_back(*tex->get_native_texture());
 					}
 
-					builder.bind_image_array(binding++, vulkanTextures.data(), vulkanTextures.size(),
+					builder.bind_image_array(binding++, vulkanTextures.data(), (uint32_t)vulkanTextures.size(),
 						VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, atlas_to_vk_shaderstage(pair.second));
 				}
 			}
@@ -77,7 +77,7 @@ namespace vkutil {
 		}
 
 		uint32_t get_descriptor_count() {
-			return m_Buffers.size() + m_Textures.size();
+			return (uint32_t)(m_Buffers.size() + m_Textures.size());
 		}
 
 	private:

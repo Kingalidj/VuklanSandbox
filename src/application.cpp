@@ -27,8 +27,8 @@ namespace Atlas {
 		m_ImGuiLayer = make_ref<ImGuiLayer>();
 		m_ImGuiLayer->on_attach();
 
-		m_ColorTexture = Texture(m_ViewportSize.x, m_ViewportSize.y, ColorFormat::R8G8B8A8);
-		m_DepthTexture = Texture(m_ViewportSize.x, m_ViewportSize.y, ColorFormat::D32);
+		m_ColorTexture = Texture((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, ColorFormat::R8G8B8A8);
+		m_DepthTexture = Texture((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, ColorFormat::D32);
 
 		Render2D::init();
 	}
@@ -54,7 +54,7 @@ namespace Atlas {
 	{
 
 		std::vector<float> data;
-		std::pair<float, uint32_t> averageFrameTime = { 0, 0 };
+		std::pair<float, uint32_t> averageFrameTime = { 0.0f, 0 };
 		float frameTime = 0;
 
 		const uint32_t averageFrameCount = 10;
@@ -74,7 +74,7 @@ namespace Atlas {
 			if (averageFrameTime.second == averageFrameCount) {
 				frameTime = averageFrameTime.first / averageFrameCount;
 				data.push_back(1 / frameTime);
-				averageFrameTime = { 0, 0 };
+				averageFrameTime = { 0.0f, 0 };
 
 				if (data.size() >= metricsSize)
 					data.erase(data.begin());
@@ -88,11 +88,14 @@ namespace Atlas {
 				uint32_t swapchainImageIndex;
 				m_Engine->prepare_frame(&swapchainImageIndex);
 
-				m_Engine->dyn_renderpass(*m_ColorTexture.get_native_texture(), *m_DepthTexture.get_native_texture(), { 1, 1, 1, 1 }, [&]() {
-					for (auto &layer : m_LayerStack) {
-						layer->on_update(timestep);
-					}
-					});
+				glm::vec4 clearColor = { 1, 1, 1, 1 };
+				Render2D::begin(m_ColorTexture, m_DepthTexture, clearColor);
+
+				for (auto &layer : m_LayerStack) {
+					layer->on_update(timestep);
+				}
+
+				Render2D::end(m_ColorTexture);
 
 				for (auto &layer : m_LayerStack) layer->on_imgui();
 
@@ -102,7 +105,7 @@ namespace Atlas {
 					ImPlot::BeginPlot("Framerate");
 					ImPlot::SetupAxes(NULL, NULL, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoTickLabels, ImPlotAxisFlags_AutoFit);
 					ImPlot::SetupAxis(ImAxis_Y1, "FPS");
-					ImPlot::PlotLine("", data.data(), data.size());
+					ImPlot::PlotLine("", data.data(), (int)data.size());
 					ImPlot::EndPlot();
 
 					ImGui::Text("average: %.3f ms/frame (%.1f FPS)", frameTime * 1000, 1 / frameTime);
@@ -113,7 +116,7 @@ namespace Atlas {
 
 				m_Engine->exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 0 }, [&]() {
 					m_ImGuiLayer->on_imgui();
-					});
+				});
 
 				m_Engine->end_frame(swapchainImageIndex);
 				m_ImGuiLayer->end();

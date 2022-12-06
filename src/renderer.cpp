@@ -26,7 +26,7 @@ namespace Atlas {
 		Buffer triangleIndexBuffer;
 
 		Ref<Buffer> cameraBuffer;
-		GPUCameraData camera;
+		GPUCameraData camera{};
 	};
 
 	static RenderData s_Data;
@@ -43,30 +43,30 @@ namespace Atlas {
 		{
 			auto vertexDescription = VertexDescription();
 			vertexDescription
-				.push_attrib(VertexAttribute::FLOAT3, &Vertex::position);
-			//.push_attrib(VertexAttribute::FLOAT4, &Vertex::color)
-			//.push_attrib(VertexAttribute::FLOAT2, &Vertex::uv);
+				.push_attrib(VertexAttribute::FLOAT3, &Vertex::position)
+				.push_attrib(VertexAttribute::FLOAT4, &Vertex::color)
+				.push_attrib(VertexAttribute::FLOAT2, &Vertex::uv);
 
-			s_Data.cameraBuffer = make_ref<Buffer>(BufferType::UNIFORM, sizeof(GPUCameraData));
+			s_Data.cameraBuffer = make_ref<Buffer>(BufferType::UNIFORM, (uint32_t)sizeof(GPUCameraData));
 
-			//Ref<Texture> tex1 = make_ref<Texture>("res/images/uv_checker_v1.png", FilterOptions::NEAREST);
-			//Ref<Texture> tex2 = make_ref<Texture>("res/images/uv_checker_v2.png", FilterOptions::NEAREST);
+			Ref<Texture> tex1 = make_ref<Texture>("res/images/uv_checker_v1.png", FilterOptions::NEAREST);
+			Ref<Texture> tex2 = make_ref<Texture>("res/images/uv_checker_v2.png", FilterOptions::NEAREST);
 
-			//std::vector<Ref<Texture>> textureArr = { tex1, tex2 };
+			std::vector<Ref<Texture>> textureArr = { tex1, tex2 };
 
 			DescriptorCreateInfo descInfo;
 			descInfo.bindings = {
 				{s_Data.cameraBuffer, ShaderStage::VERTEX},
-				//{tex1, ShaderStage::FRAGMENT},
+				{tex1, ShaderStage::FRAGMENT},
 			};
 
-			Ref<Descriptor> descriptorSet = make_ref<Descriptor>(descInfo);
+			Descriptor descriptorSet = Descriptor(descInfo);
 
-			ShaderModule vertModule = ShaderModule("res/shaders/instance.vert", ShaderStage::VERTEX, true);
-			ShaderModule fragModule = ShaderModule("res/shaders/instance.frag", ShaderStage::FRAGMENT, true);
+			ShaderModule vertModule = load_shader_module("res/shaders/default.vert", ShaderStage::VERTEX, true).value();
+			ShaderModule fragModule = load_shader_module("res/shaders/default.frag", ShaderStage::FRAGMENT, true).value();
 
 			ShaderCreateInfo shaderInfo{};
-			shaderInfo.modules = { &vertModule, &fragModule };
+			shaderInfo.modules = { vertModule, fragModule };
 			shaderInfo.vertexDescription = vertexDescription;
 			shaderInfo.descriptors = { descriptorSet };
 
@@ -76,25 +76,25 @@ namespace Atlas {
 		{
 			std::array<Vertex, 4> vertices{};
 			vertices[0].position = glm::vec3(1, 0, 0);
-			//vertices[0].color = glm::vec4(1, 0, 0, 1);
-			//vertices[0].uv = glm::vec2(1, 0);
+			vertices[0].color = glm::vec4(1, 0, 0, 1);
+			vertices[0].uv = glm::vec2(1, 0);
 
 			vertices[1].position = glm::vec3(0, 1, 0);
-			//vertices[1].color = glm::vec4(0, 1, 0, 1);
-			//vertices[1].uv = glm::vec2(0, 1);
+			vertices[1].color = glm::vec4(0, 1, 0, 1);
+			vertices[1].uv = glm::vec2(0, 1);
 
 			vertices[2].position = glm::vec3(0, 0, 0);
-			//vertices[2].color = glm::vec4(0, 0, 1, 1);
-			//vertices[2].uv = glm::vec2(0, 0);
+			vertices[2].color = glm::vec4(0, 0, 1, 1);
+			vertices[2].uv = glm::vec2(0, 0);
 
 			vertices[3].position = glm::vec3(1, 1, 0);
-			//vertices[3].color = glm::vec4(0, 0, 0, 1);
-			//vertices[3].uv = glm::vec2(1, 1);
+			vertices[3].color = glm::vec4(0, 0, 0, 1);
+			vertices[3].uv = glm::vec2(1, 1);
 
-			s_Data.triangleVertexBuffer = Buffer(BufferType::VERTEX, vertices.data(), vertices.size() * sizeof(Vertex));
+			s_Data.triangleVertexBuffer = Buffer(BufferType::VERTEX, vertices.data(), (uint32_t)(vertices.size() * sizeof(Vertex)));
 
 			std::array<uint16_t, 6> indices = { 0, 1, 2, 0, 3, 1 };
-			s_Data.triangleIndexBuffer = Buffer(BufferType::INDEX_U16, indices.data(), indices.size() * sizeof(uint16_t));
+			s_Data.triangleIndexBuffer = Buffer(BufferType::INDEX_U16, indices.data(), (uint32_t)(indices.size() * sizeof(uint16_t)));
 		}
 	}
 
@@ -123,8 +123,23 @@ namespace Atlas {
 		s_Data.triangleIndexBuffer.bind();
 
 		VkCommandBuffer cmd = Application::get_engine().get_active_command_buffer();
-		vkCmdDrawIndexed(cmd, 6, 10000000, 0, 0, 0);
+		vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 		//vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+	}
+
+	void Render2D::begin(Texture &color, Texture &depth, glm::vec4 &clearColor)
+	{
+		Application::get_engine().begin_renderpass(*color.get_native_texture(), *depth.get_native_texture(), clearColor);
+	}
+
+	void Render2D::begin(Texture &color, glm::vec4 &clearColor)
+	{
+		Application::get_engine().begin_renderpass(*color.get_native_texture(), clearColor);
+	}
+
+	void Render2D::end(Texture &color)
+	{
+		Application::get_engine().end_renderpass(*color.get_native_texture());
 	}
 
 }

@@ -9,6 +9,47 @@
 
 namespace vkutil {
 
+	class ShaderIncluder : public shaderc::CompileOptions::IncluderInterface
+	{
+		shaderc_include_result *GetInclude(
+			const char *requested_source,
+			shaderc_include_type type,
+			const char *requesting_source,
+			size_t include_depth)
+		{
+			const std::string name = requested_source;
+
+			std::ifstream is(name);
+			std::stringstream buffer;
+			buffer << is.rdbuf();
+
+			std::string contents = buffer.str();
+
+			auto container = new std::array<std::string, 2>;
+			(*container)[0] = name;
+			(*container)[1] = contents;
+
+			auto data = new shaderc_include_result;
+
+			data->user_data = container;
+
+			data->source_name = (*container)[0].data();
+			data->source_name_length = (*container)[0].size();
+
+			data->content = (*container)[1].data();
+			data->content_length = (*container)[1].size();
+
+			return data;
+		};
+
+		void ReleaseInclude(shaderc_include_result *data) override
+		{
+			delete static_cast<std::array<std::string, 2> *>(data->user_data);
+			delete data;
+		};
+	};
+
+
 	VkPipelineLayout PipelineLayoutCache::create_pipeline_layout(VkPipelineLayoutCreateInfo &info)
 	{
 		CORE_ASSERT(m_Device, "PipelineLayoutCache is not initialized");
@@ -225,9 +266,9 @@ namespace vkutil {
 		CORE_TRACE("Uniform buffers:");
 		for (const auto &resource : resources.uniform_buffers) {
 			const auto &bufferType = compiler.get_type(resource.base_type_id);
-			uint32_t bufferSize = compiler.get_declared_struct_size(bufferType);
+			uint32_t bufferSize = (uint32_t)compiler.get_declared_struct_size(bufferType);
 			uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
-			int memberCount = bufferType.member_types.size();
+			uint32_t memberCount = (uint32_t)bufferType.member_types.size();
 
 			CORE_TRACE("  {0}", resource.name);
 			CORE_TRACE("    Size = {0}", bufferSize);
@@ -274,7 +315,7 @@ namespace vkutil {
 		file.read((char *)buffer.data(), fileSize);
 		file.close();
 
-		if (!compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t),
+		if (!compile_shader_module(buffer.data(), (uint32_t)(buffer.size() * sizeof(uint32_t)),
 			outShaderModule, device)) {
 			CORE_WARN("Could not compile shader: {}", filePath);
 			return false;
@@ -305,10 +346,21 @@ namespace vkutil {
 		shaderc::Compiler compiler;
 		shaderc::CompileOptions options;
 
+		options.SetIncluder(std::make_unique<ShaderIncluder>());
+
 		options.SetTargetEnvironment(shaderc_target_env_vulkan,
 			shaderc_env_version_vulkan_1_3);
 
 		if (optimize) options.SetOptimizationLevel(shaderc_optimization_level_size);
+
+		shaderc::PreprocessedSourceCompilationResult preRes =
+			compiler.PreprocessGlsl(source, sourceSize, kind, source_name.c_str(), options);
+
+		if (preRes.GetCompilationStatus() != shaderc_compilation_status_success) {
+			CORE_WARN("Preprocess failed for file: {}\n{}", source, preRes.GetErrorMessage());
+		}
+
+		std::string prePassedSource(preRes.begin());
 
 		shaderc::SpvCompilationResult module =
 			compiler.CompileGlslToSpv(source, sourceSize, kind, source_name.c_str(), options);
@@ -356,7 +408,7 @@ namespace vkutil {
 
 		std::vector<uint32_t> buffer = compile_glsl_to_spirv(filePath.u8string(), type, source.data(), fileSize);
 
-		if (!compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t),
+		if (!compile_shader_module(buffer.data(), (uint32_t)(buffer.size() * sizeof(uint32_t)),
 			outShaderModule, manager.device())) {
 			CORE_WARN("Could not compile shader: {}", filePath);
 			return false;

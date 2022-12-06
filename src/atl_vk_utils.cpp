@@ -39,6 +39,8 @@ namespace Atlas {
 		case VertexAttribute::FLOAT4: return vkutil::VertexAttributeType::FLOAT4;
 		default: CORE_ASSERT(false, "never called");
 		}
+
+		return vkutil::VertexAttributeType::INT;
 	}
 
 	VkFilter atlas_to_vk_filter(FilterOptions options) {
@@ -48,7 +50,11 @@ namespace Atlas {
 			return VK_FILTER_LINEAR;
 		case FilterOptions::NEAREST:
 			return VK_FILTER_NEAREST;
+		default:
+			CORE_ASSERT(false, "never called");
 		}
+
+		return VK_FILTER_MAX_ENUM;
 	}
 
 	vkutil::TextureCreateInfo color_format_to_texture_info(ColorFormat f, uint32_t w, uint32_t h) {
@@ -61,7 +67,11 @@ namespace Atlas {
 		case ColorFormat::D32:
 			format = Atlas::Application::get_engine().get_depth_format();
 			return vkutil::depth_texture_create_info(w, h, format);
+		default:
+			CORE_ASSERT(false, "undefined color format");
 		}
+
+		return vkutil::TextureCreateInfo{};
 	}
 
 }

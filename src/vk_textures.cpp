@@ -21,7 +21,7 @@ namespace vkutil {
 		VkImageCreateInfo dimgInfo = vkinit::image_create_info(format, flags, imageExtent);
 
 		VmaAllocationCreateInfo dimgAllocInfo{};
-		dimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		dimgAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 		vmaCreateImage(manager.get_allocator(), &dimgInfo, &dimgAllocInfo, &img->image, &img->allocation, nullptr);
 	}
@@ -117,7 +117,7 @@ namespace vkutil {
 		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
 			0, nullptr, 1, &imageBarrierToReadable);
-			});
+		});
 
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 	}
@@ -198,7 +198,7 @@ namespace vkutil {
 				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 				range);
-				});
+			});
 		}
 	}
 
@@ -310,7 +310,7 @@ namespace vkutil {
 		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
 			0, nullptr, 1, &imageBarrierToReadable);
-			});
+		});
 
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 

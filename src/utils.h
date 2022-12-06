@@ -11,6 +11,29 @@
 
 #define BIND_EVENT_FN(x) std::bind(&x, this, std::placeholders::_1)
 
+template <typename T>
+class Result {
+	using ResultType = std::variant<T, std::string>;
+
+	Result(T res)
+		: m_Data(res) {}
+
+	Result(T &&res)
+		: m_Data(std::forward<T>(res)) {}
+
+	Result(const char *msg)
+		: m_Data(msg) {}
+
+	void has_value() {
+
+	}
+
+private:
+
+	ResultType m_Data;
+
+};
+
 template<typename T>
 using Scope = std::unique_ptr<T>;
 template<typename T, typename ... Args>

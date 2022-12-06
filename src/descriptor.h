@@ -30,8 +30,6 @@ namespace Atlas {
 		Descriptor(std::vector<std::pair<DescriptorAttachment, ShaderStage>> bindings);
 		Descriptor(DescriptorCreateInfo &info);
 
-		Descriptor(Descriptor &other) = delete;
-
 		uint32_t get_descriptor_count();
 
 		//TODO: return void*

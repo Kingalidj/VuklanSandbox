@@ -31,7 +31,7 @@ namespace vkutil {
 
 			std::vector<VkDescriptorSetLayout> layouts;
 			for (auto &d : info.descriptors) {
-				layouts.push_back(d->get_native_descriptor()->layout);
+				layouts.push_back(d.get_native_descriptor()->layout);
 			}
 
 			if (layouts.size() != 0) {
@@ -41,16 +41,16 @@ namespace vkutil {
 			std::vector<VkShaderModule> modules;
 
 			for (auto &m : info.modules) {
-				VkShaderStageFlagBits shaderType = Atlas::atlas_to_vk_shaderstage(m->get_stage());
+				VkShaderStageFlagBits shaderType = Atlas::atlas_to_vk_shaderstage(m.get_stage());
 
-				std::vector<uint32_t> &buffer = m->get_data();
+				std::vector<uint32_t> &buffer = m.get_data();
 
 				VkShaderModule module{};
-				bool success = vkutil::compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t),
+				bool success = vkutil::compile_shader_module(buffer.data(), (uint32_t)(buffer.size() * sizeof(uint32_t)),
 					&module, manager.device());
 
 				if (!success) {
-					CORE_WARN("Shader: error while compiling shader: {}", m->get_file_path());
+					CORE_WARN("Shader: error while compiling shader: {}", m.get_file_path());
 					continue;
 				}
 
@@ -87,8 +87,8 @@ namespace vkutil {
 
 			for (auto &d : m_Descriptors) {
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-					get_native_shader()->layout, 0, m_Descriptors.size(),
-					&d->get_native_descriptor()->set, 0, nullptr);
+					get_native_shader()->layout, 0, (uint32_t)m_Descriptors.size(),
+					&d.get_native_descriptor()->set, 0, nullptr);
 			}
 		}
 
@@ -104,7 +104,7 @@ namespace vkutil {
 
 	private:
 		WeakRef<vkutil::Shader> m_Shader;
-		std::vector<Ref<Atlas::Descriptor>> m_Descriptors;
+		std::vector<Atlas::Descriptor> m_Descriptors;
 	};
 }
 
@@ -134,12 +134,12 @@ namespace Atlas {
 		file.close();
 
 		if (ext == ".spv") {
-			m_Data = std::vector<uint32_t>(fileSize / sizeof(uint32_t));
-			memcpy(m_Data.data(), data.data(), data.size());
+			m_Data = make_ref<std::vector<uint32_t>>(fileSize / sizeof(uint32_t));
+			memcpy(m_Data->data(), data.data(), data.size());
 		}
 		else {
-			m_Data = vkutil::compile_glsl_to_spirv(path, atlas_to_vk_shaderstage(stage),
-				(char *)data.data(), fileSize, optimize);
+			m_Data = make_ref<std::vector<uint32_t>>(vkutil::compile_glsl_to_spirv(path, atlas_to_vk_shaderstage(stage),
+				(char *)data.data(), fileSize, optimize));
 		}
 	}
 
@@ -150,4 +150,43 @@ namespace Atlas {
 	void Shader::bind() {
 		m_Shader->bind();
 	}
+
+	std::optional<ShaderModule> load_shader_module(const char *path, ShaderStage stage, bool optimize)
+	{
+		ShaderModule module;
+		module.m_Path = path;
+		module.m_Stage = stage;
+		module.m_Optimization = optimize;
+
+		auto filePath = std::filesystem::path(path);
+		auto ext = filePath.extension();
+
+		if (!std::filesystem::exists(filePath)) {
+			return std::nullopt;
+		}
+		std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+
+		if (!file.is_open()) {
+			return std::nullopt;
+		}
+
+		size_t fileSize = (size_t)file.tellg();
+		std::vector<char> data = std::vector<char>(fileSize);
+
+		file.seekg(0);
+		file.read((char *)data.data(), fileSize);
+		file.close();
+
+		if (ext == ".spv") {
+			module.m_Data = make_ref<std::vector<uint32_t>>(fileSize / sizeof(uint32_t));
+			memcpy(module.m_Data->data(), data.data(), data.size());
+		}
+		else {
+			module.m_Data = make_ref<std::vector<uint32_t>>(vkutil::compile_glsl_to_spirv(path, atlas_to_vk_shaderstage(stage),
+				(char *)data.data(), fileSize, optimize));
+		}
+
+		return module;
+	}
+
 }

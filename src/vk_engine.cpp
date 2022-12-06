@@ -69,15 +69,15 @@ namespace vkutil {
 		map_memory(m_VkManager, &m_FrameData.objectBuffer, [=](void *data) {
 			GPUObjectData *objectSSBO = (GPUObjectData *)data;
 
-		for (int i = 0; i < count; i++) {
+		for (uint32_t i = 0; i < count; i++) {
 			RenderObject &object = first[i];
 			objectSSBO[i].modelMatrix = object.transformMatrix * rotMat;
 		}
-			});
+		});
 
 		Ref<Mesh> lastMesh = nullptr;
 		Ref<Material> lastMaterial = nullptr;
-		for (int i = 0; i < count; i++) {
+		for (uint32_t i = 0; i < count; i++) {
 			RenderObject &object = first[i];
 
 			//vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
@@ -165,8 +165,14 @@ namespace vkutil {
 			rebuild_swapchain();
 		}
 
+		VK_CHECK(vkWaitForFences(m_Device, 1, &m_FrameData.renderFence, true, UINT64_MAX));
+		VK_CHECK(vkResetFences(m_Device, 1, &m_FrameData.renderFence));
+
+		// since we waited the buffer is empty
+		VK_CHECK(vkResetCommandBuffer(m_FrameData.renderCommandBuffer, 0));
+
 		// we will write to this image index (framebuffer)
-		VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX,
+		VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000,
 			m_FrameData.presentSemaphore, nullptr,
 			swapchainImageIndex);
 
@@ -177,17 +183,11 @@ namespace vkutil {
 
 		VK_CHECK(res);
 
-		VK_CHECK(vkWaitForFences(m_Device, 1, &m_FrameData.renderFence, true, UINT64_MAX));
-		VK_CHECK(vkResetFences(m_Device, 1, &m_FrameData.renderFence));
-
-		// since we waited the buffer is empty
-		VK_CHECK(vkResetCommandBuffer(m_FrameData.mainCommandBuffer, 0));
-
 		VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(
 			VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-		VK_CHECK(vkBeginCommandBuffer(m_FrameData.mainCommandBuffer, &cmdBeginInfo));
-		m_FrameData.activeCommandBuffer = m_FrameData.mainCommandBuffer;
+		VK_CHECK(vkBeginCommandBuffer(m_FrameData.renderCommandBuffer, &cmdBeginInfo));
+		m_FrameData.activeCommandBuffer = m_FrameData.renderCommandBuffer;
 
 		//{
 		//	ImGui_ImplVulkan_NewFrame();
@@ -198,7 +198,7 @@ namespace vkutil {
 
 	void VulkanEngine::end_frame(uint32_t swapchainImageIndex)
 	{
-		VkCommandBuffer cmd = m_FrameData.mainCommandBuffer;
+		VkCommandBuffer cmd = m_FrameData.renderCommandBuffer;
 
 		VK_CHECK(vkEndCommandBuffer(cmd));
 		m_FrameData.activeCommandBuffer = VK_NULL_HANDLE;
@@ -295,6 +295,20 @@ namespace vkutil {
 
 	void VulkanEngine::dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func)
 	{
+		begin_renderpass(color, depth, clearColor);
+		func();
+		end_renderpass(color);
+	}
+
+	void VulkanEngine::dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func)
+	{
+		begin_renderpass(color, clearColor);
+		func();
+		end_renderpass(color);
+	}
+
+	void VulkanEngine::begin_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor)
+	{
 		VkCommandBuffer cmd = get_active_command_buffer();
 
 		VkImageSubresourceRange colorRange{};
@@ -321,15 +335,6 @@ namespace vkutil {
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 
-		VkRenderingAttachmentInfo  depthAttachment{};
-		depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-		depthAttachment.pNext = nullptr;
-		depthAttachment.clearValue = { {1, 1, 1, 1} };
-		depthAttachment.imageView = depth.imageView;
-		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
 		VkRenderingInfo info{};
 		info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
 		info.pNext = nullptr;
@@ -338,13 +343,12 @@ namespace vkutil {
 		info.layerCount = 1;
 		info.colorAttachmentCount = 1;
 		info.pColorAttachments = &colorAttachment;
-		info.pDepthAttachment = &depthAttachment;
 
 		VkViewport viewport{};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.height = color.height;
-		viewport.width = color.width;
+		viewport.height = (float)color.height;
+		viewport.width = (float)color.width;
 		viewport.minDepth = 0;
 		viewport.maxDepth = 1;
 
@@ -356,22 +360,9 @@ namespace vkutil {
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 		vkCmdBeginRendering(cmd, &info);
-		func();
-		vkCmdEndRendering(cmd);
-
-		insert_image_memory_barrier(cmd,
-			color.imageAllocation.image,
-			0,
-			VK_ACCESS_SHADER_READ_BIT,
-			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			colorRange
-		);
 	}
 
-	void VulkanEngine::dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func)
+	void VulkanEngine::begin_renderpass(Texture &color, glm::vec4 clearColor)
 	{
 		VkCommandBuffer cmd = get_active_command_buffer();
 		VkImageSubresourceRange colorRange{};
@@ -410,8 +401,8 @@ namespace vkutil {
 		VkViewport viewport{};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.height = color.height;
-		viewport.width = color.width;
+		viewport.height = (float)color.height;
+		viewport.width = (float)color.width;
 		viewport.minDepth = 0;
 		viewport.maxDepth = 1;
 
@@ -423,8 +414,18 @@ namespace vkutil {
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 		vkCmdBeginRendering(cmd, &info);
-		func();
+	}
+
+	void VulkanEngine::end_renderpass(Texture &color)
+	{
+		VkCommandBuffer cmd = get_active_command_buffer();
+
 		vkCmdEndRendering(cmd);
+
+		VkImageSubresourceRange colorRange{};
+		colorRange.levelCount = 1;
+		colorRange.layerCount = 1;
+		colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
 		insert_image_memory_barrier(cmd,
 			color.imageAllocation.image,
@@ -449,7 +450,7 @@ namespace vkutil {
 
 		dyn_renderpass(m_ColorTexture, m_DepthTexture, { 0, 0, 0, 0 }, [&]() {
 			draw_objects(cmd, m_RenderObjects.data(), (uint32_t)m_RenderObjects.size());
-			});
+		});
 
 		//exec_renderpass(m_RenderPass, m_Framebuffers[swapchainImageIndex],
 		//	m_WindowExtent.width, m_WindowExtent.height,
@@ -457,7 +458,7 @@ namespace vkutil {
 		exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 1 },
 			[&]() {
 
-				ImGui::ShowDemoWindow();
+			ImGui::ShowDemoWindow();
 
 		ImGui::Begin("Texture Viewer");
 		Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
@@ -500,7 +501,7 @@ namespace vkutil {
 			m_EventCallback(e);
 		}
 
-			});
+		});
 
 		end_frame(swapchainImageIndex);
 
@@ -598,7 +599,7 @@ namespace vkutil {
 		vkDestroyDevice(m_Device, nullptr);
 		vkb::destroy_debug_utils_messenger(m_Instance, m_DebugMessenger);
 		vkDestroyInstance(m_Instance, nullptr);
-			});
+		});
 	}
 
 	void VulkanEngine::init_swapchain() {
@@ -606,8 +607,8 @@ namespace vkutil {
 		vkb::Swapchain vkbSwapchain =
 			vkb::SwapchainBuilder(m_PhysicalDevice, m_Device, m_Surface)
 			.set_desired_format({ VK_FORMAT_B8G8R8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR })
-			//.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-			.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR)
+			.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+			//.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR)
 			.set_desired_extent(m_WindowExtent.width, m_WindowExtent.height)
 			.build()
 			.value();
@@ -650,16 +651,14 @@ namespace vkutil {
 				vkinit::command_buffer_allocate_info(m_FrameData.commandPool, 1);
 
 			VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo,
-				&m_FrameData.mainCommandBuffer));
+				&m_FrameData.renderCommandBuffer));
 
 			m_MainDeletionQueue.push_function([=]() {
 				vkDestroyCommandPool(m_Device, m_FrameData.commandPool, nullptr);
-				});
+			});
 		}
 
-		{
-			m_VkManager.init_commands(m_GraphicsQueue, m_GraphicsQueueFamily);
-		}
+		m_VkManager.init_commands(m_GraphicsQueue, m_GraphicsQueueFamily);
 	}
 
 	void VulkanEngine::init_renderpass() {
@@ -704,7 +703,7 @@ namespace vkutil {
 
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-			});
+		});
 	}
 
 	uint32_t to_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
@@ -786,7 +785,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroySemaphore(m_Device, m_FrameData.presentSemaphore, nullptr);
 		vkDestroySemaphore(m_Device, m_FrameData.renderSemaphore, nullptr);
-			});
+		});
 	}
 
 	void VulkanEngine::init_pipelines() {
@@ -855,7 +854,7 @@ namespace vkutil {
 			vkDestroyPipeline(m_Device, meshPipeline, nullptr);
 
 		vkDestroyPipeline(m_Device, debugPipeline, nullptr);
-			});
+		});
 	}
 
 	void VulkanEngine::load_meshes() {
@@ -888,7 +887,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vmaDestroyBuffer(m_Allocator, mesh->vertexBuffer.buffer,
 			mesh->vertexBuffer.allocation);
-			});
+		});
 	}
 
 	void VulkanEngine::resize_window(uint32_t w, uint32_t h)
@@ -993,7 +992,7 @@ namespace vkutil {
 
 			destroy_buffer(m_VkManager, m_FrameData.objectBuffer);
 		destroy_buffer(m_VkManager, m_FrameData.cameraBuffer);
-			});
+		});
 	}
 
 	void VulkanEngine::init_imgui(Window &window) {
@@ -1082,7 +1081,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyDescriptorPool(m_Device, imguiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();
-			});
+		});
 	}
 
 	size_t VulkanEngine::pad_uniform_buffer_size(size_t originalSize) {
@@ -1175,7 +1174,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=] {
 				destroy_texture(m_VkManager, *texture);
-				});
+			});
 		}
 
 		{
@@ -1187,7 +1186,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=] {
 				destroy_texture(m_VkManager, *texture);
-				});
+			});
 		}
 	}
 
