@@ -19,3 +19,6 @@
 [submodule "vendor/implot"]
 	path = vendor/implot
 	url = https://github.com/epezent/implot.git
+[submodule "vendor/optick"]
+	path = vendor/optick
+	url = https://github.com/Kingalidj/optick

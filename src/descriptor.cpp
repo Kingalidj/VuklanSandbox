@@ -14,16 +14,15 @@ namespace vkutil {
 
 		using AttachmentType = Ref<Atlas::Buffer>;
 
-		VulkanDescriptor(Atlas::DescriptorCreateInfo &info) {
+		VulkanDescriptor(Atlas::DescriptorBindings &bindings) {
 
 			auto builder = DescriptorBuilder(Atlas::Application::get_engine().manager());
 
 			uint32_t binding = 0;
 
-			for (auto &pair : info.bindings) {
-				uint32_t index = (uint32_t)pair.first.index();
+			for (auto &pair : bindings) {
 
-				if (index == (uint32_t)Atlas::DescriptorAttachmentType::BUFFER) { //buffer variant
+				if (std::holds_alternative<Ref<Atlas::Buffer>>(pair.first)) { //buffer variant
 
 					Ref<Atlas::Buffer> buffer = std::get<Ref<Atlas::Buffer>>(pair.first);
 					if (!buffer->is_init()) {
@@ -36,7 +35,7 @@ namespace vkutil {
 					builder.bind_buffer(binding++, *buffer->get_native_buffer(), buffer->size(),
 						atlas_to_vk_descriptor_type(buffer->get_type()), atlas_to_vk_shaderstage(pair.second));
 				}
-				else if (index == (uint32_t)Atlas::DescriptorAttachmentType::TEXTURE) { //texture variant
+				else if (std::holds_alternative<Ref<Atlas::Texture>>(pair.first)) { //texture variant
 
 					Ref<Atlas::Texture> texture = std::get<Ref<Atlas::Texture>>(pair.first);
 					if (!texture->is_init()) {
@@ -49,7 +48,8 @@ namespace vkutil {
 					builder.bind_image(binding++, *texture->get_native_texture(),
 						VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, atlas_to_vk_shaderstage(pair.second));
 				}
-				else if (index == (uint32_t)Atlas::DescriptorAttachmentType::TEXTURE_ARRAY) {
+				else if (std::holds_alternative<std::vector<Ref<Atlas::Texture>>>(pair.first)) {
+
 					std::vector<Ref<Atlas::Texture>> textures =
 						std::get<std::vector<Ref<Atlas::Texture>>>(pair.first);
 
@@ -92,19 +92,10 @@ namespace vkutil {
 
 namespace Atlas {
 
-	Descriptor::Descriptor(std::vector<std::pair<DescriptorAttachment, ShaderStage>> bindings)
+	Descriptor::Descriptor(DescriptorBindings &bindings)
 		: m_Initialized(true)
 	{
-		DescriptorCreateInfo info{};
-		info.bindings = bindings;
-
-		m_Descriptor = make_ref<vkutil::VulkanDescriptor>(info);
-	}
-
-	Descriptor::Descriptor(DescriptorCreateInfo &info)
-		: m_Initialized(true)
-	{
-		m_Descriptor = make_ref<vkutil::VulkanDescriptor>(info);
+		m_Descriptor = make_ref<vkutil::VulkanDescriptor>(bindings);
 	}
 
 	uint32_t Descriptor::get_descriptor_count()

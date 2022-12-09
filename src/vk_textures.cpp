@@ -10,6 +10,12 @@
 #include <stb_image.h>
 
 namespace vkutil {
+
+	uint32_t r8g8b9a8_to_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+		uint32_t result = (a << 24) | (b << 16) | (g << 8) | r;
+		return result;
+	}
+
 	void create_image(VulkanManager &manager, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags flags, AllocatedImage *img)
 	{
 
@@ -35,7 +41,8 @@ namespace vkutil {
 		info.createImguiDescriptor = true;
 		info.aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
 		info.filter = VK_FILTER_LINEAR;
-		info.usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		info.usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+			| VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 		return info;
 	}
@@ -48,15 +55,15 @@ namespace vkutil {
 		info.format = format;
 		info.filter = VK_FILTER_LINEAR;
 		info.aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
-		info.usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		info.usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 		info.createImguiDescriptor = false;
 
 		return info;
 	}
 
 
-	void set_texture_data(Texture &tex, void *data, VulkanManager &manager) {
-		VkDeviceSize imageSize = tex.width * tex.height * 4;
+	void set_texture_data(VulkanManager &manager, Texture &tex, void *data) {
+		VkDeviceSize imageSize = (uint64_t)(tex.width * tex.height * 4);
 
 		VkExtent3D imageExtent{};
 		imageExtent.width = tex.width;
@@ -69,7 +76,7 @@ namespace vkutil {
 		map_memory(manager, &stagingBuffer, data, (uint32_t)imageSize);
 
 		manager.immediate_submit([&](VkCommandBuffer cmd) {
-			VkImageSubresourceRange range;
+			VkImageSubresourceRange range{};
 		range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		range.baseMipLevel = 0;
 		range.levelCount = 1;

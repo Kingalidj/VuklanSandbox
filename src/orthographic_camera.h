@@ -19,8 +19,8 @@ namespace Atlas {
 		glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };
 		float m_Rotation = 0.0f;
 
-		float m_Near = -1.0f;
-		float m_Far = 1.0;
+		float m_Near = -20.0f;
+		float m_Far = 20.0;
 
 		void recalculate_view();
 

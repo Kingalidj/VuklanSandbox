@@ -57,14 +57,14 @@ namespace Atlas {
 		return VK_FILTER_MAX_ENUM;
 	}
 
-	vkutil::TextureCreateInfo color_format_to_texture_info(ColorFormat f, uint32_t w, uint32_t h) {
+	vkutil::TextureCreateInfo color_format_to_texture_info(TextureFormat f, uint32_t w, uint32_t h) {
 		VkFormat format{};
 
 		switch (f) {
-		case ColorFormat::R8G8B8A8:
+		case TextureFormat::R8G8B8A8:
 			format = Atlas::Application::get_engine().get_color_format();
 			return vkutil::color_texture_create_info(w, h, format);
-		case ColorFormat::D32:
+		case TextureFormat::D32:
 			format = Atlas::Application::get_engine().get_depth_format();
 			return vkutil::depth_texture_create_info(w, h, format);
 		default:

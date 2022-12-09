@@ -69,8 +69,9 @@ namespace vkutil {
 		~VulkanBuffer()
 		{
 			if (auto shared = m_Buffer.lock()) {
-				Atlas::Application::get_engine().asset_manager().deregister_buffer(shared);
-				vkutil::destroy_buffer(Atlas::Application::get_engine().manager(), *shared.get());
+				Atlas::Application::get_engine().asset_manager().queue_destory_buffer(shared);
+				//Atlas::Application::get_engine().asset_manager().deregister_buffer(shared);
+				//vkutil::destroy_buffer(Atlas::Application::get_engine().manager(), *shared.get());
 			}
 		}
 

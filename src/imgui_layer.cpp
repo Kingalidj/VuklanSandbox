@@ -38,6 +38,7 @@ namespace Atlas {
 
 	void ImGuiLayer::begin()
 	{
+		ATL_EVENT();
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();

@@ -4,10 +4,7 @@
 #include "buffer.h"
 #include "descriptor.h"
 #include "camera.h"
-
-#include "vk_scene.h"
-#include "vk_pipeline.h"
-#include "vk_engine.h"
+#include "orthographic_camera.h"
 
 #include <glm/gtx/transform.hpp>
 
@@ -22,11 +19,16 @@ namespace Atlas {
 
 		Shader defaultShader;
 
-		Buffer triangleVertexBuffer;
-		Buffer triangleIndexBuffer;
+		Buffer vertexBuffer;
+		Buffer indexBuffer;
 
 		Ref<Buffer> cameraBuffer;
 		GPUCameraData camera{};
+
+		Ref<Texture> whiteTexture;
+
+		std::vector<Render2D::Vertex> vertices;
+		std::vector<uint16_t> indices;
 	};
 
 	static RenderData s_Data;
@@ -38,6 +40,8 @@ namespace Atlas {
 			return;
 		}
 
+		ATL_EVENT();
+
 		s_Data.init = true;
 
 		{
@@ -47,20 +51,29 @@ namespace Atlas {
 				.push_attrib(VertexAttribute::FLOAT4, &Vertex::color)
 				.push_attrib(VertexAttribute::FLOAT2, &Vertex::uv);
 
+			GPUCameraData gpuCamera{};
+			gpuCamera.viewProj = OrthographicCamera(-1, 1, -1, 1).get_view_projection();
+
 			s_Data.cameraBuffer = make_ref<Buffer>(BufferType::UNIFORM, (uint32_t)sizeof(GPUCameraData));
+			s_Data.cameraBuffer->set_data(&gpuCamera, sizeof(GPUCameraData));
 
 			Ref<Texture> tex1 = make_ref<Texture>("res/images/uv_checker_v1.png", FilterOptions::NEAREST);
 			Ref<Texture> tex2 = make_ref<Texture>("res/images/uv_checker_v2.png", FilterOptions::NEAREST);
 
+			{
+				s_Data.whiteTexture = make_ref<Texture>(1, 1, FilterOptions::NEAREST);
+				Color data = Color(255, 0, 0);
+				s_Data.whiteTexture->set_data(&data, 1);
+			}
+
 			std::vector<Ref<Texture>> textureArr = { tex1, tex2 };
 
-			DescriptorCreateInfo descInfo;
-			descInfo.bindings = {
+			DescriptorBindings bindings = {
 				{s_Data.cameraBuffer, ShaderStage::VERTEX},
-				{tex1, ShaderStage::FRAGMENT},
+				{s_Data.whiteTexture, ShaderStage::FRAGMENT},
 			};
 
-			Descriptor descriptorSet = Descriptor(descInfo);
+			Descriptor descriptorSet = Descriptor(bindings);
 
 			ShaderModule vertModule = load_shader_module("res/shaders/default.vert", ShaderStage::VERTEX, true).value();
 			ShaderModule fragModule = load_shader_module("res/shaders/default.frag", ShaderStage::FRAGMENT, true).value();
@@ -74,27 +87,50 @@ namespace Atlas {
 		}
 
 		{
-			std::array<Vertex, 4> vertices{};
-			vertices[0].position = glm::vec3(1, 0, 0);
-			vertices[0].color = glm::vec4(1, 0, 0, 1);
-			vertices[0].uv = glm::vec2(1, 0);
+			//std::array<Vertex, 4> vertices{};
+			//vertices[0].position = glm::vec3(1, 0, 0);
+			//vertices[0].color = glm::vec4(1, 1, 1, 1);
+			//vertices[0].uv = glm::vec2(1, 0);
 
-			vertices[1].position = glm::vec3(0, 1, 0);
-			vertices[1].color = glm::vec4(0, 1, 0, 1);
-			vertices[1].uv = glm::vec2(0, 1);
+			//vertices[1].position = glm::vec3(0, 1, 0);
+			//vertices[1].color = glm::vec4(1, 1, 1, 1);
+			//vertices[1].uv = glm::vec2(0, 1);
 
-			vertices[2].position = glm::vec3(0, 0, 0);
-			vertices[2].color = glm::vec4(0, 0, 1, 1);
-			vertices[2].uv = glm::vec2(0, 0);
+			//vertices[2].position = glm::vec3(0, 0, 0);
+			//vertices[2].color = glm::vec4(1, 1, 1, 1);
+			//vertices[2].uv = glm::vec2(0, 0);
 
-			vertices[3].position = glm::vec3(1, 1, 0);
-			vertices[3].color = glm::vec4(0, 0, 0, 1);
-			vertices[3].uv = glm::vec2(1, 1);
+			//vertices[3].position = glm::vec3(1, 1, 0);
+			//vertices[3].color = glm::vec4(1, 1, 1, 1);
+			//vertices[3].uv = glm::vec2(1, 1);
 
-			s_Data.triangleVertexBuffer = Buffer(BufferType::VERTEX, vertices.data(), (uint32_t)(vertices.size() * sizeof(Vertex)));
+			//s_Data.vertexBuffer = Buffer(BufferType::VERTEX, vertices.data(), (uint32_t)(vertices.size() * sizeof(Vertex)));
 
-			std::array<uint16_t, 6> indices = { 0, 1, 2, 0, 3, 1 };
-			s_Data.triangleIndexBuffer = Buffer(BufferType::INDEX_U16, indices.data(), (uint32_t)(indices.size() * sizeof(uint16_t)));
+			//std::array<uint16_t, 6> indices = { 0, 1, 2, 0, 3, 1 };
+			//s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, indices.data(), (uint32_t)(indices.size() * sizeof(uint16_t)));
+
+			Vertex vert{};
+			vert.position = glm::vec3(1, 0, 0);
+			vert.color = glm::vec4(1, 1, 1, 1);
+			vert.uv = glm::vec2(1, 0);
+			s_Data.vertices.push_back(vert);
+
+			vert.position = glm::vec3(0, 1, 0);
+			vert.color = glm::vec4(1, 1, 1, 1);
+			vert.uv = glm::vec2(0, 1);
+			s_Data.vertices.push_back(vert);
+
+			vert.position = glm::vec3(0, 0, 0);
+			vert.color = glm::vec4(1, 1, 1, 1);
+			vert.uv = glm::vec2(0, 0);
+			s_Data.vertices.push_back(vert);
+
+			vert.position = glm::vec3(1, 1, 0);
+			vert.color = glm::vec4(1, 1, 1, 1);
+			vert.uv = glm::vec2(1, 1);
+			s_Data.vertices.push_back(vert);
+
+			s_Data.indices.insert(s_Data.indices.end(), { 0, 1, 2, 0, 3, 1 });
 		}
 	}
 
@@ -117,29 +153,16 @@ namespace Atlas {
 
 	void Render2D::draw_test_triangle()
 	{
+		OPTICK_EVENT();
+
+		auto vertexBuffer = Buffer(BufferType::VERTEX, s_Data.vertices.data(), s_Data.vertices.size() * sizeof(Vertex), true);
+		auto indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.indices.data(), s_Data.indices.size() * sizeof(uint16_t), true);
 
 		s_Data.defaultShader.bind();
-		s_Data.triangleVertexBuffer.bind();
-		s_Data.triangleIndexBuffer.bind();
+		vertexBuffer.bind();
+		indexBuffer.bind();
 
-		VkCommandBuffer cmd = Application::get_engine().get_active_command_buffer();
-		vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
-		//vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
-	}
-
-	void Render2D::begin(Texture &color, Texture &depth, glm::vec4 &clearColor)
-	{
-		Application::get_engine().begin_renderpass(*color.get_native_texture(), *depth.get_native_texture(), clearColor);
-	}
-
-	void Render2D::begin(Texture &color, glm::vec4 &clearColor)
-	{
-		Application::get_engine().begin_renderpass(*color.get_native_texture(), clearColor);
-	}
-
-	void Render2D::end(Texture &color)
-	{
-		Application::get_engine().end_renderpass(*color.get_native_texture());
+		RenderApi::drawIndexed(6, 1);
 	}
 
 }

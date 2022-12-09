@@ -4,6 +4,8 @@
 #include "vk_engine.h"
 #include "window.h"
 
+#include "optick.h"
+
 #include <imgui.h>
 #include <implot.h>
 
@@ -27,8 +29,8 @@ namespace Atlas {
 		m_ImGuiLayer = make_ref<ImGuiLayer>();
 		m_ImGuiLayer->on_attach();
 
-		m_ColorTexture = Texture((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, ColorFormat::R8G8B8A8);
-		m_DepthTexture = Texture((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, ColorFormat::D32);
+		m_ColorTexture = Texture((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, TextureFormat::R8G8B8A8);
+		m_DepthTexture = Texture((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, TextureFormat::D32);
 
 		Render2D::init();
 	}
@@ -64,6 +66,8 @@ namespace Atlas {
 
 		while (!m_Window->should_close()) {
 
+			ATL_FRAME("MainThread");
+
 			float time = (float)glfwGetTime();
 			Timestep timestep = time - m_LastFrameTime;
 			m_LastFrameTime = time;
@@ -84,18 +88,23 @@ namespace Atlas {
 
 			if (!m_WindowMinimized) {
 
+				ATL_EVENT("draw loop");
+
 				m_ImGuiLayer->begin();
 				uint32_t swapchainImageIndex;
 				m_Engine->prepare_frame(&swapchainImageIndex);
 
 				glm::vec4 clearColor = { 1, 1, 1, 1 };
-				Render2D::begin(m_ColorTexture, m_DepthTexture, clearColor);
+				//Render2D::begin(m_ColorTexture, clearColor);
 
-				for (auto &layer : m_LayerStack) {
-					layer->on_update(timestep);
+				{
+					ATL_EVENT("layer::on_update");
+					for (auto &layer : m_LayerStack) {
+						layer->on_update(timestep);
+					}
 				}
 
-				Render2D::end(m_ColorTexture);
+				//Render2D::end(m_ColorTexture);
 
 				for (auto &layer : m_LayerStack) layer->on_imgui();
 
@@ -131,6 +140,8 @@ namespace Atlas {
 
 	void Application::render_viewport()
 	{
+		ATL_EVENT();
+
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::Begin("Viewport");
 		ImGui::PopStyleVar();
@@ -207,10 +218,19 @@ namespace Atlas {
 		return get_instance()->m_ViewportSize;
 	}
 
+	Texture &Application::get_viewport_color_texture()
+	{
+		return get_instance()->m_ColorTexture;
+	}
+
+	Texture &Application::get_viewport_depth_texture()
+	{
+		return get_instance()->m_DepthTexture;
+	}
+
 	void Application::on_event(Event &event)
 	{
-
-		if (!event.in_category(EventCategoryMouse)) CORE_TRACE("event: {}", event);
+		//if (!event.in_category(EventCategoryMouse)) CORE_TRACE("event: {}", event);
 
 		EventDispatcher(event)
 			.dispatch<WindowResizedEvent>(BIND_EVENT_FN(Application::on_window_resized))
@@ -237,8 +257,8 @@ namespace Atlas {
 	{
 		m_ViewportSize = { e.width, e.height };
 
-		m_ColorTexture = Texture(e.width, e.height, ColorFormat::R8G8B8A8);
-		m_DepthTexture = Texture(e.width, e.height, ColorFormat::D32);
+		m_ColorTexture = Texture(e.width, e.height, TextureFormat::R8G8B8A8);
+		m_DepthTexture = Texture(e.width, e.height, TextureFormat::D32);
 
 		return false;
 	}

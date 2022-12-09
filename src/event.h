@@ -182,12 +182,12 @@ namespace Atlas {
 	};
 
 	struct KeyTypedEvent {
-		int keyCode;
+		char key;
 
 		std::string to_string() const {
 			std::stringstream ss;
 			ss << "KeyTyped: "
-				<< (char)keyCode;
+				<< key;
 			return ss.str();
 		}
 	};

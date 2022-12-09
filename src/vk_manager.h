@@ -50,17 +50,17 @@ namespace vkutil {
 		void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func);
 		void upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags);
 
-		void set_texture(const std::string &name, Ref<Texture> tex);
-		void set_mesh(const std::string &name, Ref<Mesh> mesh);
-		void set_material(const std::string &name, Ref<Material> material);
+		//void set_texture(const std::string &name, Ref<Texture> tex);
+		//void set_mesh(const std::string &name, Ref<Mesh> mesh);
+		//void set_material(const std::string &name, Ref<Material> material);
 
 		void cleanup();
 
-		std::optional<Ref<Texture>> get_texture(const std::string &name);
-		std::optional<Ref<Mesh>> get_mesh(const std::string &name);
-		std::optional<Ref<Material>> get_material(const std::string &name);
+		//std::optional<Ref<Texture>> get_texture(const std::string &name);
+		//std::optional<Ref<Mesh>> get_mesh(const std::string &name);
+		//std::optional<Ref<Material>> get_material(const std::string &name);
 
-		std::optional<Ref<Material>> create_material(const std::string &name, VkPipeline pipeline, VkPipelineLayout layout);
+		//std::optional<Ref<Material>> create_material(const std::string &name, VkPipeline pipeline, VkPipelineLayout layout);
 
 		void delete_func(std::function<void()> &&func);
 
@@ -82,25 +82,17 @@ namespace vkutil {
 
 		PipelineLayoutCache m_PipelineLayoutCache;
 
-		std::unordered_map<std::string, Ref<Texture>> m_Textures;
-		std::unordered_map<std::string, Ref<Mesh>> m_Meshes;
-		std::unordered_map<std::string, Ref<Material>> m_Materials;
+		//std::unordered_map<std::string, Ref<Texture>> m_Textures;
+		//std::unordered_map<std::string, Ref<Mesh>> m_Meshes;
+		//std::unordered_map<std::string, Ref<Material>> m_Materials;
 
 	};
 
 	class AssetManager {
 	public:
 
-		void cleanup(VulkanManager &manager) {
-
-			for (auto &shader : m_Shaders) vkDestroyPipeline(manager.device(), shader->pipeline, nullptr);
-			for (auto &texture : m_Textures) destroy_texture(manager, *texture.get());
-			for (auto &buffer : m_Buffers) destroy_buffer(manager, *buffer.get());
-
-			m_Shaders.clear();
-			m_Textures.clear();
-			m_Buffers.clear();
-		}
+		void cleanup(VulkanManager &manager);
+		void destroy_queued(VulkanManager &manager);
 
 		template<typename ...Args>
 		WeakRef<Texture> register_texture(Args &&...args) {
@@ -126,40 +118,21 @@ namespace vkutil {
 			return buffer;
 		}
 
-		void deregister_buffer(Ref<AllocatedBuffer> &buffer) {
-			auto it = m_Buffers.find(buffer);
-
-			if (it == m_Buffers.end()) {
-				CORE_WARN("Buffer was never registered: {}", buffer);
-			}
-
-			m_Buffers.erase(it);
-		}
-
-		void deregister_shader(Ref<Shader> &shader) {
-			auto it = m_Shaders.find(shader);
-
-			if (it == m_Shaders.end()) {
-				CORE_WARN("Shader was never registered: {}", shader);
-			}
-
-			m_Shaders.erase(it);
-		}
-
-		void deregister_texture(Ref<Texture> &texture) {
-			auto it = m_Textures.find(texture);
-
-			if (it == m_Textures.end()) {
-				CORE_WARN("Texture was never registered: {}", texture);
-			}
-
-			m_Textures.erase(it);
-		}
+		void queue_destory_buffer(Ref<AllocatedBuffer> &buffer);
+		void deregister_buffer(Ref<AllocatedBuffer> &buffer);
+		void queue_destroy_shader(Ref<Shader> &shader);
+		void deregister_shader(Ref<Shader> &shader);
+		void queue_destroy_texture(Ref<Texture> &texture);
+		void deregister_texture(Ref<Texture> &texture);
 
 	private:
 		std::unordered_set<Ref<Shader>> m_Shaders;
 		std::unordered_set<Ref<Texture>> m_Textures;
 		std::unordered_set<Ref<AllocatedBuffer>> m_Buffers;
+
+		std::unordered_set<Ref<Shader>> m_DeletedShaders;
+		std::unordered_set<Ref<Texture>> m_DeletedTextures;
+		std::unordered_set<Ref<AllocatedBuffer>> m_DeletedBuffers;
 	};
 
 }

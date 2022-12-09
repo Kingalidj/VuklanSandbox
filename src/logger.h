@@ -7,6 +7,8 @@
 
 #include <sstream>
 
+#include <optick.h>
+
 class Logger {
 
 public:
@@ -58,3 +60,19 @@ private:
 #define CORE_ASSERT(x, ...) { if(!(x)) { CORE_ERROR("Assertion Failed: {0}", __VA_ARGS__); DBREAK(); }}
 #define ASSERT(x, ...) { if(!(x)) { ERROR("Assertion Failed: {0}", __VA_ARGS__); DBREAK(); }}
 #endif
+
+#define PROFILE
+
+#ifdef PROFILE
+#define ATL_EVENT(...) OPTICK_EVENT(__VA_ARGS__)
+#define ATL_FRAME(...) OPTICK_FRAME(__VA_ARGS__)
+#define ATL_GPU_EVENT(...) OPTICK_GPU_EVENT(__VA_ARGS__)
+#define ATL_GPU_INIT_VULKAN(device, physicalDevice, cmdQueues, cmdQueuesFamily, nCmdQueues, functions)  \
+	OPTICK_GPU_INIT_VULKAN(device, physicalDevice, cmdQueues, cmdQueuesFamily, nCmdQueues, functions)
+#else
+#define ATL_EVENT(...)
+#define ATL_FRAME(...)
+#define ATL_GPU_EVENT(...)
+#define ATL_GPU_INIT_VULKAN(...)
+#endif
+

@@ -14,20 +14,20 @@ namespace vkutil {
 		m_PipelineLayoutCache = PipelineLayoutCache(m_Device);
 	}
 
-	void VulkanManager::set_texture(const std::string &name, Ref<Texture> tex) {
-		CORE_ASSERT(m_Device, "ResourceManager not initialized");
-		m_Textures[name] = tex;
-	}
+	//void VulkanManager::set_texture(const std::string &name, Ref<Texture> tex) {
+	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	//	m_Textures[name] = tex;
+	//}
 
-	void VulkanManager::set_mesh(const std::string &name, Ref<Mesh> mesh) {
-		CORE_ASSERT(m_Device, "ResourceManager not initialized");
-		m_Meshes[name] = mesh;
-	}
+	//void VulkanManager::set_mesh(const std::string &name, Ref<Mesh> mesh) {
+	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	//	m_Meshes[name] = mesh;
+	//}
 
-	void VulkanManager::set_material(const std::string &name, Ref<Material> material) {
-		CORE_ASSERT(m_Device, "ResourceManager not initialized");
-		m_Materials[name] = material;
-	}
+	//void VulkanManager::set_material(const std::string &name, Ref<Material> material) {
+	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	//	m_Materials[name] = material;
+	//}
 
 	void VulkanManager::cleanup() {
 		m_DeletionQueue.flush();
@@ -36,53 +36,53 @@ namespace vkutil {
 		m_PipelineLayoutCache.cleanup();
 	}
 
-	std::optional<Ref<Texture>> VulkanManager::get_texture(const std::string &name) {
-		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	//std::optional<Ref<Texture>> VulkanManager::get_texture(const std::string &name) {
+	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
 
-		auto tex = m_Textures.find(name);
+	//	auto tex = m_Textures.find(name);
 
-		if (tex != m_Textures.end()) {
-			return tex->second;
-		}
-		else {
-			return std::nullopt;
-		}
-	}
+	//	if (tex != m_Textures.end()) {
+	//		return tex->second;
+	//	}
+	//	else {
+	//		return std::nullopt;
+	//	}
+	//}
 
-	std::optional<Ref<Mesh>> VulkanManager::get_mesh(const std::string &name) {
-		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	//std::optional<Ref<Mesh>> VulkanManager::get_mesh(const std::string &name) {
+	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
 
-		auto mesh = m_Meshes.find(name);
+	//	auto mesh = m_Meshes.find(name);
 
-		if (mesh != m_Meshes.end()) {
-			return mesh->second;
-		}
-		else {
-			return std::nullopt;
-		}
-	}
+	//	if (mesh != m_Meshes.end()) {
+	//		return mesh->second;
+	//	}
+	//	else {
+	//		return std::nullopt;
+	//	}
+	//}
 
-	std::optional<Ref<Material>> VulkanManager::get_material(const std::string &name) {
-		CORE_ASSERT(m_Device, "ResourceManager not initialized");
+	//std::optional<Ref<Material>> VulkanManager::get_material(const std::string &name) {
+	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
 
-		auto mat = m_Materials.find(name);
+	//	auto mat = m_Materials.find(name);
 
-		if (mat != m_Materials.end()) {
-			return mat->second;
-		}
-		else {
-			return std::nullopt;
-		}
-	}
+	//	if (mat != m_Materials.end()) {
+	//		return mat->second;
+	//	}
+	//	else {
+	//		return std::nullopt;
+	//	}
+	//}
 
-	std::optional<Ref<Material>> VulkanManager::create_material(const std::string &name, VkPipeline pipeline, VkPipelineLayout layout) {
-		Ref<Material> mat = make_ref<Material>();
-		mat->pipeline = pipeline;
-		mat->pipelineLayout = layout;
-		set_material(name, mat);
+	//std::optional<Ref<Material>> VulkanManager::create_material(const std::string &name, VkPipeline pipeline, VkPipelineLayout layout) {
+	//	Ref<Material> mat = make_ref<Material>();
+	//	mat->pipeline = pipeline;
+	//	mat->pipelineLayout = layout;
+	//	set_material(name, mat);
 
-		return mat;
-	}
+	//	return mat;
+	//}
 
 	void VulkanManager::delete_func(std::function<void()> &&func) {
 		m_DeletionQueue.push_function(std::move(func));
@@ -119,7 +119,7 @@ namespace vkutil {
 		copy.srcOffset = 0;
 		copy.size = size;
 		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
-			});
+		});
 
 		vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 	}
@@ -169,7 +169,7 @@ namespace vkutil {
 
 		m_DeletionQueue.push_function([=]() {
 			vkDestroyCommandPool(m_Device, m_UploadContext.commandPool, nullptr);
-			});
+		});
 
 	}
 
@@ -181,7 +181,7 @@ namespace vkutil {
 
 		m_DeletionQueue.push_function([=]() {
 			vkDestroyFence(m_Device, m_UploadContext.uploadFence, nullptr);
-			});
+		});
 	}
 
 	void VulkanManager::immediate_submit(std::function<void(VkCommandBuffer cmd)> &&func) {
@@ -208,5 +208,91 @@ namespace vkutil {
 		vkResetCommandPool(m_Device, m_UploadContext.commandPool, 0);
 	}
 
+
+	void AssetManager::cleanup(VulkanManager &manager) {
+		destroy_queued(manager);
+
+		for (auto &shader : m_Shaders) vkDestroyPipeline(manager.device(), shader->pipeline, nullptr);
+		for (auto &texture : m_Textures) destroy_texture(manager, *texture.get());
+		for (auto &buffer : m_Buffers) destroy_buffer(manager, *buffer.get());
+
+		m_Shaders.clear();
+		m_Textures.clear();
+		m_Buffers.clear();
+	}
+
+	void AssetManager::destroy_queued(VulkanManager &manager)
+	{
+		for (auto &shader : m_DeletedShaders) vkDestroyPipeline(manager.device(), shader->pipeline, nullptr);
+		for (auto &texture : m_DeletedTextures) destroy_texture(manager, *texture.get());
+		for (auto &buffer : m_DeletedBuffers) destroy_buffer(manager, *buffer.get());
+
+		m_DeletedShaders.clear();
+		m_DeletedTextures.clear();
+		m_DeletedBuffers.clear();
+	}
+
+	void AssetManager::queue_destory_buffer(Ref<AllocatedBuffer> &buffer) {
+		auto it = m_Buffers.find(buffer);
+
+		if (it == m_Buffers.end()) {
+			CORE_WARN("Buffer was never registered: {}", buffer);
+		}
+
+		m_Buffers.erase(it);
+		m_DeletedBuffers.insert(buffer);
+	}
+
+	void AssetManager::deregister_buffer(Ref<AllocatedBuffer> &buffer) {
+		auto it = m_Buffers.find(buffer);
+
+		if (it == m_Buffers.end()) {
+			CORE_WARN("Buffer was never registered: {}", buffer);
+		}
+
+		m_Buffers.erase(it);
+	}
+
+	void AssetManager::queue_destroy_shader(Ref<Shader> &shader) {
+		auto it = m_Shaders.find(shader);
+
+		if (it == m_Shaders.end()) {
+			CORE_WARN("Shader was never registered: {}", shader);
+		}
+
+		m_Shaders.erase(it);
+		m_DeletedShaders.insert(shader);
+	}
+
+	void AssetManager::deregister_shader(Ref<Shader> &shader) {
+		auto it = m_Shaders.find(shader);
+
+		if (it == m_Shaders.end()) {
+			CORE_WARN("Shader was never registered: {}", shader);
+		}
+
+		m_Shaders.erase(it);
+	}
+
+	void AssetManager::queue_destroy_texture(Ref<Texture> &texture) {
+		auto it = m_Textures.find(texture);
+
+		if (it == m_Textures.end()) {
+			CORE_WARN("Texture was never registered: {}", texture);
+		}
+
+		m_Textures.erase(it);
+		m_DeletedTextures.insert(texture);
+	}
+
+	void AssetManager::deregister_texture(Ref<Texture> &texture) {
+		auto it = m_Textures.find(texture);
+
+		if (it == m_Textures.end()) {
+			CORE_WARN("Texture was never registered: {}", texture);
+		}
+
+		m_Textures.erase(it);
+	}
 
 }

@@ -24,12 +24,17 @@ namespace vkutil {
 		: m_EventCallback(window.get_event_callback()),
 		m_WindowExtent({ window.get_width(), window.get_height() })
 	{
+
+		ATL_EVENT();
+
 		init_vulkan(window);
 		init_swapchain();
 		init_commands();
 		init_renderpass();
 		init_framebuffers();
 		init_sync_structures();
+
+		//ATL_GPU_INIT_VULKAN(&m_Device, &m_PhysicalDevice, &m_GraphicsQueue, &m_GraphicsQueueFamily, 1, nullptr);
 
 		init_imgui(window);
 
@@ -47,91 +52,91 @@ namespace vkutil {
 		m_IsInitialized = true;
 	}
 
-	void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count) {
-		glm::vec3 camPos = { 0.f, -3.f, -9.f };
+	//void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count) {
+	//	glm::vec3 camPos = { 0.f, -3.f, -9.f };
 
-		glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
-		glm::mat4 projection = glm::perspective(glm::radians(70.f),
-			(float)m_ViewportExtent.width / m_ViewportExtent.height, 0.1f, 200.0f);
-		projection[1][1] *= -1;
+	//	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+	//	glm::mat4 projection = glm::perspective(glm::radians(70.f),
+	//		(float)m_ViewportExtent.width / m_ViewportExtent.height, 0.1f, 200.0f);
+	//	projection[1][1] *= -1;
 
-		glm::mat4 rotMat = glm::rotate(glm::mat4(1), glm::radians((float)m_FrameNumber * 2.0f), glm::vec3(0, 1, 0));
+	//	glm::mat4 rotMat = glm::rotate(glm::mat4(1), glm::radians((float)m_FrameNumber * 2.0f), glm::vec3(0, 1, 0));
 
-		GPUCameraData camData{};
-		camData.proj = projection;
-		camData.view = view;
-		camData.viewProj = projection * view;
+	//	GPUCameraData camData{};
+	//	camData.proj = projection;
+	//	camData.view = view;
+	//	camData.viewProj = projection * view;
 
-		map_memory(m_VkManager, &m_FrameData.cameraBuffer, &camData, sizeof(GPUCameraData));
+	//	map_memory(m_VkManager, &m_FrameData.cameraBuffer, &camData, sizeof(GPUCameraData));
 
-		float framed = (m_FrameNumber / 120.f);
+	//	float framed = (m_FrameNumber / 120.f);
 
-		map_memory(m_VkManager, &m_FrameData.objectBuffer, [=](void *data) {
-			GPUObjectData *objectSSBO = (GPUObjectData *)data;
+	//	map_memory(m_VkManager, &m_FrameData.objectBuffer, [=](void *data) {
+	//		GPUObjectData *objectSSBO = (GPUObjectData *)data;
 
-		for (uint32_t i = 0; i < count; i++) {
-			RenderObject &object = first[i];
-			objectSSBO[i].modelMatrix = object.transformMatrix * rotMat;
-		}
-		});
+	//	for (uint32_t i = 0; i < count; i++) {
+	//		RenderObject &object = first[i];
+	//		objectSSBO[i].modelMatrix = object.transformMatrix * rotMat;
+	//	}
+	//	});
 
-		Ref<Mesh> lastMesh = nullptr;
-		Ref<Material> lastMaterial = nullptr;
-		for (uint32_t i = 0; i < count; i++) {
-			RenderObject &object = first[i];
+	//	Ref<Mesh> lastMesh = nullptr;
+	//	Ref<Material> lastMaterial = nullptr;
+	//	for (uint32_t i = 0; i < count; i++) {
+	//		RenderObject &object = first[i];
 
-			//vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
+	//		//vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
 
-			if (object.material != lastMaterial) {
+	//		if (object.material != lastMaterial) {
 
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
-				lastMaterial = object.material;
+	//			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
+	//			lastMaterial = object.material;
 
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-					object.material->pipelineLayout, 0, 1,
-					&m_FrameData.cameraDescriptor, 0, nullptr);
+	//			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	//				object.material->pipelineLayout, 0, 1,
+	//				&m_FrameData.cameraDescriptor, 0, nullptr);
 
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-					object.material->pipelineLayout, 1, 1,
-					&m_FrameData.objectDescriptor, 0, nullptr);
+	//			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	//				object.material->pipelineLayout, 1, 1,
+	//				&m_FrameData.objectDescriptor, 0, nullptr);
 
-				if (object.material->textureSet != VK_NULL_HANDLE) {
+	//			if (object.material->textureSet != VK_NULL_HANDLE) {
 
-					//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
+	//				//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
 
-					//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-					//	object.material->pipelineLayout, 2, 1,
-					//	&tex->descriptor, 0, nullptr);
+	//				//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	//				//	object.material->pipelineLayout, 2, 1,
+	//				//	&tex->descriptor, 0, nullptr);
 
-					vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-						object.material->pipelineLayout, 2, 1,
-						&object.material->textureSet, 0, nullptr);
-				}
-			}
+	//				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	//					object.material->pipelineLayout, 2, 1,
+	//					&object.material->textureSet, 0, nullptr);
+	//			}
+	//		}
 
-			/* glm::mat4 model = object.transformMatrix * rotMat; */
-			/* glm::mat4 meshMatrix = projection * view * model; */
+	//		/* glm::mat4 model = object.transformMatrix * rotMat; */
+	//		/* glm::mat4 meshMatrix = projection * view * model; */
 
-			/*
-		MeshPushConstants constants;
-		constants.renderMatrix = object.transformMatrix * rotMat;
+	//		/*
+	//	MeshPushConstants constants;
+	//	constants.renderMatrix = object.transformMatrix * rotMat;
 
-		// upload the mesh to the GPU via push constants
-		vkCmdPushConstants(cmd, object.material->pipelineLayout,
-											 VK_SHADER_STAGE_VERTEX_BIT, 0,
-		sizeof(MeshPushConstants), &constants);
-			*/
+	//	// upload the mesh to the GPU via push constants
+	//	vkCmdPushConstants(cmd, object.material->pipelineLayout,
+	//										 VK_SHADER_STAGE_VERTEX_BIT, 0,
+	//	sizeof(MeshPushConstants), &constants);
+	//		*/
 
-			if (object.mesh != lastMesh) {
-				VkDeviceSize offset = 0;
-				vkCmdBindVertexBuffers(cmd, 0, 1, &object.mesh->vertexBuffer.buffer,
-					&offset);
-				lastMesh = object.mesh;
-			}
+	//		if (object.mesh != lastMesh) {
+	//			VkDeviceSize offset = 0;
+	//			vkCmdBindVertexBuffers(cmd, 0, 1, &object.mesh->vertexBuffer.buffer,
+	//				&offset);
+	//			lastMesh = object.mesh;
+	//		}
 
-			vkCmdDraw(cmd, (uint32_t)object.mesh->vertices.size(), 1, 0, i); // TODO: look at first instance
-		}
-	}
+	//		vkCmdDraw(cmd, (uint32_t)object.mesh->vertices.size(), 1, 0, i); // TODO: look at first instance
+	//	}
+	//}
 
 	void VulkanEngine::cleanup() {
 		if (m_IsInitialized) {
@@ -155,6 +160,9 @@ namespace vkutil {
 
 	void VulkanEngine::prepare_frame(uint32_t *swapchainImageIndex)
 	{
+		ATL_EVENT();
+		//ATL_GPU_EVENT("VulkanEngine::prepare_frame");
+
 		if (m_ViewportbufferResized) {
 			m_ViewportbufferResized = false;
 			rebuild_vp_framebuffer();
@@ -170,6 +178,8 @@ namespace vkutil {
 
 		// since we waited the buffer is empty
 		VK_CHECK(vkResetCommandBuffer(m_FrameData.renderCommandBuffer, 0));
+
+		m_AssetManager.destroy_queued(m_VkManager);
 
 		// we will write to this image index (framebuffer)
 		VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000,
@@ -198,6 +208,8 @@ namespace vkutil {
 
 	void VulkanEngine::end_frame(uint32_t swapchainImageIndex)
 	{
+		ATL_EVENT();
+
 		VkCommandBuffer cmd = m_FrameData.renderCommandBuffer;
 
 		VK_CHECK(vkEndCommandBuffer(cmd));
@@ -234,6 +246,8 @@ namespace vkutil {
 
 		m_FrameNumber++;
 
+		//m_AssetManager.destroy_queued(m_VkManager);
+
 		//ImGuiIO &io = ImGui::GetIO();
 
 		//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -248,6 +262,7 @@ namespace vkutil {
 	void VulkanEngine::exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
 		uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func)
 	{
+		ATL_EVENT();
 		VkCommandBuffer cmd = get_active_command_buffer();
 
 		VkRenderPassBeginInfo rpInfo = vkinit::renderpass_begin_info(renderpass, { w, h }, framebuffer);
@@ -335,6 +350,15 @@ namespace vkutil {
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 
+		VkRenderingAttachmentInfo  depthAttachment{};
+		depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+		depthAttachment.pNext = nullptr;
+		depthAttachment.clearValue = { {1, 1, 1, 1} };
+		depthAttachment.imageView = depth.imageView;
+		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
 		VkRenderingInfo info{};
 		info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
 		info.pNext = nullptr;
@@ -343,6 +367,7 @@ namespace vkutil {
 		info.layerCount = 1;
 		info.colorAttachmentCount = 1;
 		info.pColorAttachments = &colorAttachment;
+		info.pDepthAttachment = &depthAttachment;
 
 		VkViewport viewport{};
 		viewport.x = 0;
@@ -439,73 +464,73 @@ namespace vkutil {
 		);
 	}
 
-	void VulkanEngine::draw() {
+	//void VulkanEngine::draw() {
 
-		uint32_t swapchainImageIndex;
-		prepare_frame(&swapchainImageIndex);
+	//	uint32_t swapchainImageIndex;
+	//	prepare_frame(&swapchainImageIndex);
 
-		VkCommandBuffer cmd = get_active_command_buffer();
+	//	VkCommandBuffer cmd = get_active_command_buffer();
 
-		ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+	//	ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
-		dyn_renderpass(m_ColorTexture, m_DepthTexture, { 0, 0, 0, 0 }, [&]() {
-			draw_objects(cmd, m_RenderObjects.data(), (uint32_t)m_RenderObjects.size());
-		});
+	//	dyn_renderpass(m_ColorTexture, m_DepthTexture, { 0, 0, 0, 0 }, [&]() {
+	//		draw_objects(cmd, m_RenderObjects.data(), (uint32_t)m_RenderObjects.size());
+	//	});
 
-		//exec_renderpass(m_RenderPass, m_Framebuffers[swapchainImageIndex],
-		//	m_WindowExtent.width, m_WindowExtent.height,
-		//	1, { 0, 0, 0, 1 }, [&]() {
-		exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 1 },
-			[&]() {
+	//	//exec_renderpass(m_RenderPass, m_Framebuffers[swapchainImageIndex],
+	//	//	m_WindowExtent.width, m_WindowExtent.height,
+	//	//	1, { 0, 0, 0, 1 }, [&]() {
+	//	exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 1 },
+	//		[&]() {
 
-			ImGui::ShowDemoWindow();
+	//		ImGui::ShowDemoWindow();
 
-		ImGui::Begin("Texture Viewer");
-		Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
-		ImGui::Image(tex->imguiDescriptor, ImVec2(1200, 1200));
-		ImGui::End();
+	//	ImGui::Begin("Texture Viewer");
+	//	Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
+	//	ImGui::Image(tex->imguiDescriptor, ImVec2(1200, 1200));
+	//	ImGui::End();
 
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-		ImGui::Begin("Viewport");
-		ImGui::PopStyleVar();
+	//	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	//	ImGui::Begin("Viewport");
+	//	ImGui::PopStyleVar();
 
-		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
-		auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
-		auto viewportOffset = ImGui::GetWindowPos();
-		glm::vec2 viewportBounds[2];
-		viewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
-		viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
-		auto viewportSize = viewportBounds[1] - viewportBounds[0];
+	//	auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
+	//	auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
+	//	auto viewportOffset = ImGui::GetWindowPos();
+	//	glm::vec2 viewportBounds[2];
+	//	viewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
+	//	viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
+	//	auto viewportSize = viewportBounds[1] - viewportBounds[0];
 
-		ImGui::Image(m_ColorTexture.imguiDescriptor, { viewportSize.x, viewportSize.y });
+	//	ImGui::Image(m_ColorTexture.imguiDescriptor, { viewportSize.x, viewportSize.y });
 
-		ImGui::End();
+	//	ImGui::End();
 
-		ImGui::Begin("Settings");
+	//	ImGui::Begin("Settings");
 
-		float resolution = m_RenderResolution;
-		ImGui::SliderFloat("Resolution", &resolution, 0.0f, 1.0f);
-		if (resolution != m_RenderResolution && resolution != 0) {
-			m_ViewportbufferResized = true;
-			m_RenderResolution = resolution;
-		}
+	//	float resolution = m_RenderResolution;
+	//	ImGui::SliderFloat("Resolution", &resolution, 0.0f, 1.0f);
+	//	if (resolution != m_RenderResolution && resolution != 0) {
+	//		m_ViewportbufferResized = true;
+	//		m_RenderResolution = resolution;
+	//	}
 
-		ImGui::End();
+	//	ImGui::End();
 
-		ImGui::Render();
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+	//	ImGui::Render();
+	//	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
-		if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
-			Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
-			Atlas::Event e(event);
-			m_EventCallback(e);
-		}
+	//	if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
+	//		Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
+	//		Atlas::Event e(event);
+	//		m_EventCallback(e);
+	//	}
 
-		});
+	//	});
 
-		end_frame(swapchainImageIndex);
+	//	end_frame(swapchainImageIndex);
 
-	}
+	//}
 
 	VkBool32
 		spdlog_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
@@ -706,19 +731,14 @@ namespace vkutil {
 		});
 	}
 
-	uint32_t to_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-		uint32_t result = (a << 24) | (b << 16) | (g << 8) | r;
-		return result;
-	}
+	//void print_rgb(uint32_t color) {
+	//	uint8_t a = (color & 0xff000000) >> 24;
+	//	uint8_t b = (color & 0x00ff0000) >> 16;
+	//	uint8_t g = (color & 0x0000ff00) >> 8;
+	//	uint8_t r = color & 0x000000ff;
 
-	void print_rgb(uint32_t color) {
-		uint8_t a = (color & 0xff000000) >> 24;
-		uint8_t b = (color & 0x00ff0000) >> 16;
-		uint8_t g = (color & 0x0000ff00) >> 8;
-		uint8_t r = color & 0x000000ff;
-
-		CORE_INFO("(r, g, b, a): {}, {}, {}, {}", r, g, b, a);
-	}
+	//	CORE_INFO("(r, g, b, a): {}, {}, {}, {}", r, g, b, a);
+	//}
 
 	void VulkanEngine::init_vp_framebuffers() {
 
@@ -788,107 +808,107 @@ namespace vkutil {
 		});
 	}
 
-	void VulkanEngine::init_pipelines() {
+	//void VulkanEngine::init_pipelines() {
 
-		VkPipelineLayout layout{};
+	//	VkPipelineLayout layout{};
 
-		VkPipeline meshPipeline{};
-		VkPipeline debugPipeline{};
+	//	VkPipeline meshPipeline{};
+	//	VkPipeline debugPipeline{};
 
-		VertexInputDescription vertexDescription = VertexInputDescriptionBuilder(sizeof(Vertex))
-			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::position)
-			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::normal)
-			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::color)
-			.push_attrib(VertexAttributeType::FLOAT3, &Vertex::uv)
-			.value();
+	//	VertexInputDescription vertexDescription = VertexInputDescriptionBuilder(sizeof(Vertex))
+	//		.push_attrib(VertexAttributeType::FLOAT3, &Vertex::position)
+	//		.push_attrib(VertexAttributeType::FLOAT3, &Vertex::normal)
+	//		.push_attrib(VertexAttributeType::FLOAT3, &Vertex::color)
+	//		.push_attrib(VertexAttributeType::FLOAT3, &Vertex::uv)
+	//		.value();
 
-		{
-			VkShaderModule vertShader;
-			VkShaderModule fragShader;
-			load_spirv_shader_module("res/shaders/textured_lit.vert.spv", &vertShader, m_Device);
-			load_spirv_shader_module("res/shaders/textured_lit.frag.spv", &fragShader, m_Device);
+	//	{
+	//		VkShaderModule vertShader;
+	//		VkShaderModule fragShader;
+	//		load_spirv_shader_module("res/shaders/textured_lit.vert.spv", &vertShader, m_Device);
+	//		load_spirv_shader_module("res/shaders/textured_lit.frag.spv", &fragShader, m_Device);
 
-			VkPipelineLayoutCreateInfo meshPipelineLayoutInfo =
-				vkinit::pipeline_layout_create_info();
+	//		VkPipelineLayoutCreateInfo meshPipelineLayoutInfo =
+	//			vkinit::pipeline_layout_create_info();
 
-			PipelineBuilder(m_VkManager)
-				//.set_renderpass(m_ViewportRenderPass)
-				.set_color_format(m_SwapchainImageFormat)
-				.set_vertex_description(vertexDescription)
-				.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
-				.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
-				.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
-				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, m_DepthFormat)
-				.build(&meshPipeline, &layout);
+	//		PipelineBuilder(m_VkManager)
+	//			//.set_renderpass(m_ViewportRenderPass)
+	//			.set_color_format(m_SwapchainImageFormat)
+	//			.set_vertex_description(vertexDescription)
+	//			.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
+	//			.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
+	//			.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
+	//			.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, m_DepthFormat)
+	//			.build(&meshPipeline, &layout);
 
-			m_VkManager.create_material("textured_mat", meshPipeline, layout);
+	//		m_VkManager.create_material("textured_mat", meshPipeline, layout);
 
-			vkDestroyShaderModule(m_Device, fragShader, nullptr);
-			vkDestroyShaderModule(m_Device, vertShader, nullptr);
-		}
+	//		vkDestroyShaderModule(m_Device, fragShader, nullptr);
+	//		vkDestroyShaderModule(m_Device, vertShader, nullptr);
+	//	}
 
-		{
-			VkShaderModule vertShader;
-			VkShaderModule fragShader;
-			load_spirv_shader_module("res/shaders/debug.vert.spv", &vertShader, m_Device);
-			load_spirv_shader_module("res/shaders/debug.frag.spv", &fragShader, m_Device);
+	//	{
+	//		VkShaderModule vertShader;
+	//		VkShaderModule fragShader;
+	//		load_spirv_shader_module("res/shaders/debug.vert.spv", &vertShader, m_Device);
+	//		load_spirv_shader_module("res/shaders/debug.frag.spv", &fragShader, m_Device);
 
-			PipelineBuilder(m_VkManager)
-				//.set_renderpass(m_ViewportRenderPass)
-				.set_color_format(m_SwapchainImageFormat)
-				.set_vertex_description(vertexDescription)
-				.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
-				.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
-				.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
-				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, m_DepthFormat)
-				.build(&debugPipeline);
+	//		PipelineBuilder(m_VkManager)
+	//			//.set_renderpass(m_ViewportRenderPass)
+	//			.set_color_format(m_SwapchainImageFormat)
+	//			.set_vertex_description(vertexDescription)
+	//			.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
+	//			.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
+	//			.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
+	//			.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, m_DepthFormat)
+	//			.build(&debugPipeline);
 
 
-			m_VkManager.create_material("debug_mat", debugPipeline, layout);
+	//		m_VkManager.create_material("debug_mat", debugPipeline, layout);
 
-			vkDestroyShaderModule(m_Device, fragShader, nullptr);
-			vkDestroyShaderModule(m_Device, vertShader, nullptr);
-		}
+	//		vkDestroyShaderModule(m_Device, fragShader, nullptr);
+	//		vkDestroyShaderModule(m_Device, vertShader, nullptr);
+	//	}
 
-		m_MainDeletionQueue.push_function([=]() {
-			vkDestroyPipeline(m_Device, meshPipeline, nullptr);
+	//	m_MainDeletionQueue.push_function([=]() {
+	//		vkDestroyPipeline(m_Device, meshPipeline, nullptr);
 
-		vkDestroyPipeline(m_Device, debugPipeline, nullptr);
-		});
-	}
+	//	vkDestroyPipeline(m_Device, debugPipeline, nullptr);
+	//	});
+	//}
 
-	void VulkanEngine::load_meshes() {
-		Ref<Mesh> empire = load_mesh_from_obj("res/models/lost_empire.obj").value();
+	//void VulkanEngine::load_meshes() {
+	//	Ref<Mesh> empire = load_mesh_from_obj("res/models/lost_empire.obj").value();
 
-		Ref<Mesh> triangle = make_ref<Mesh>();
-		triangle->vertices.resize(3);
-		triangle->vertices[0].position = { 0.5f, 0.5f, 0.0f };
-		triangle->vertices[1].position = { -0.5f, 0.5f, 0.0f };
-		triangle->vertices[2].position = { 0.f, -0.5f, 0.0f };
+	//	Ref<Mesh> triangle = make_ref<Mesh>();
+	//	triangle->vertices.resize(3);
+	//	triangle->vertices[0].position = { 0.5f, 0.5f, 0.0f };
+	//	triangle->vertices[1].position = { -0.5f, 0.5f, 0.0f };
+	//	triangle->vertices[2].position = { 0.f, -0.5f, 0.0f };
 
-		triangle->vertices[0].color = { 1.f, 0.f, 0.0f };
-		triangle->vertices[1].color = { 0.f, 1.f, 0.0f };
-		triangle->vertices[2].color = { 0.f, 0.f, 1.0f };
+	//	triangle->vertices[0].color = { 1.f, 0.f, 0.0f };
+	//	triangle->vertices[1].color = { 0.f, 1.f, 0.0f };
+	//	triangle->vertices[2].color = { 0.f, 0.f, 1.0f };
 
-		upload_mesh(empire);
-		upload_mesh(triangle);
+	//	upload_mesh(empire);
+	//	upload_mesh(triangle);
 
-		m_VkManager.set_mesh("empire", empire);
-		m_VkManager.set_mesh("triangle", triangle);
-	}
+	//	m_VkManager.set_mesh("empire", empire);
+	//	m_VkManager.set_mesh("triangle", triangle);
+	//}
 
-	void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
+	//void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
 
-		m_VkManager.upload_to_gpu(mesh->vertices.data(), (uint32_t)mesh->vertices.size() * sizeof(Vertex),
-			mesh->vertexBuffer,
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-			VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+	//	m_VkManager.upload_to_gpu(mesh->vertices.data(), (uint32_t)mesh->vertices.size() * sizeof(Vertex),
+	//		mesh->vertexBuffer,
+	//		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+	//		VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-		m_MainDeletionQueue.push_function([=]() {
-			vmaDestroyBuffer(m_Allocator, mesh->vertexBuffer.buffer,
-			mesh->vertexBuffer.allocation);
-		});
-	}
+	//	m_MainDeletionQueue.push_function([=]() {
+	//		vmaDestroyBuffer(m_Allocator, mesh->vertexBuffer.buffer,
+	//		mesh->vertexBuffer.allocation);
+	//	});
+	//}
 
 	void VulkanEngine::resize_window(uint32_t w, uint32_t h)
 	{
@@ -912,88 +932,88 @@ namespace vkutil {
 		else m_ViewportMinimized = false;
 	}
 
-	void VulkanEngine::init_scene() {
-		RenderObject empire;
-		empire.mesh = m_VkManager.get_mesh("empire").value();
-		empire.material = m_VkManager.get_material("textured_mat").value();
-		empire.transformMatrix = glm::translate(glm::vec3{ 5, -10, 0 });
+	//void VulkanEngine::init_scene() {
+	//	RenderObject empire;
+	//	empire.mesh = m_VkManager.get_mesh("empire").value();
+	//	empire.material = m_VkManager.get_material("textured_mat").value();
+	//	empire.transformMatrix = glm::translate(glm::vec3{ 5, -10, 0 });
 
-		m_RenderObjects.push_back(empire);
+	//	m_RenderObjects.push_back(empire);
 
-		Ref<Material> texturedMat = m_VkManager.get_material("textured_mat").value();
+	//	Ref<Material> texturedMat = m_VkManager.get_material("textured_mat").value();
 
-		Ref<Texture> texture = m_VkManager.get_texture("empire_diffuse").value();
+	//	Ref<Texture> texture = m_VkManager.get_texture("empire_diffuse").value();
 
-		DescriptorBuilder(m_VkManager)
-			.bind_image(0, *texture.get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-			.build(&texturedMat->textureSet);
+	//	DescriptorBuilder(m_VkManager)
+	//		.bind_image(0, *texture.get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+	//		.build(&texturedMat->textureSet);
 
-		for (int x = -20; x <= 20; x++) {
-			for (int y = -20; y <= 20; y++) {
+	//	for (int x = -20; x <= 20; x++) {
+	//		for (int y = -20; y <= 20; y++) {
 
-				RenderObject tri;
-				tri.mesh = m_VkManager.get_mesh("triangle").value();
-				tri.material = m_VkManager.get_material("debug_mat").value();
-				glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(x, 3, y));
-				glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
-				tri.transformMatrix = translation * scale;
+	//			RenderObject tri;
+	//			tri.mesh = m_VkManager.get_mesh("triangle").value();
+	//			tri.material = m_VkManager.get_material("debug_mat").value();
+	//			glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(x, 3, y));
+	//			glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
+	//			tri.transformMatrix = translation * scale;
 
-				m_RenderObjects.push_back(tri);
-			}
-		}
+	//			m_RenderObjects.push_back(tri);
+	//		}
+	//	}
 
-	}
+	//}
 
-	void VulkanEngine::init_descriptors() {
+	//void VulkanEngine::init_descriptors() {
 
-		{
-			VkDescriptorSetLayoutBinding textureBind =
-				vkinit::descriptorset_layout_binding(
-					VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-					VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+	//	{
+	//		VkDescriptorSetLayoutBinding textureBind =
+	//			vkinit::descriptorset_layout_binding(
+	//				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+	//				VK_SHADER_STAGE_FRAGMENT_BIT, 0);
 
-			VkDescriptorSetLayoutCreateInfo setInfo{};
-			setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-			setInfo.pNext = nullptr;
-			setInfo.bindingCount = 1;
-			setInfo.flags = 0;
-			setInfo.pBindings = &textureBind;
+	//		VkDescriptorSetLayoutCreateInfo setInfo{};
+	//		setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	//		setInfo.pNext = nullptr;
+	//		setInfo.bindingCount = 1;
+	//		setInfo.flags = 0;
+	//		setInfo.pBindings = &textureBind;
 
-			m_SingleTextureSetLayout =
-				m_VkManager.get_descriptor_layout_cache().create_descriptor_layout(setInfo);
-		}
+	//		m_SingleTextureSetLayout =
+	//			m_VkManager.get_descriptor_layout_cache().create_descriptor_layout(setInfo);
+	//	}
 
-		// const size_t sceneParamBufferSize =
-		// pad_uniform_buffer_size(sizeof(GPUSceneData));
-		const int MAX_OBJECTS = 10000; // TODO: dynamic object buffer?
+	//	// const size_t sceneParamBufferSize =
+	//	// pad_uniform_buffer_size(sizeof(GPUSceneData));
+	//	const int MAX_OBJECTS = 10000; // TODO: dynamic object buffer?
 
-		create_buffer(m_VkManager, sizeof(GPUObjectData) * MAX_OBJECTS,
-			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-			&m_FrameData.objectBuffer);
+	//	create_buffer(m_VkManager, sizeof(GPUObjectData) * MAX_OBJECTS,
+	//		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+	//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+	//		&m_FrameData.objectBuffer);
 
-		create_buffer(m_VkManager, sizeof(GPUCameraData),
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-			&m_FrameData.cameraBuffer
-		);
+	//	create_buffer(m_VkManager, sizeof(GPUCameraData),
+	//		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+	//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+	//		&m_FrameData.cameraBuffer
+	//	);
 
-		DescriptorBuilder(m_VkManager)
-			.bind_buffer(0, m_FrameData.cameraBuffer, sizeof(GPUCameraData),
-				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-			.build(&m_FrameData.cameraDescriptor, &m_CameraSetLayout);
+	//	DescriptorBuilder(m_VkManager)
+	//		.bind_buffer(0, m_FrameData.cameraBuffer, sizeof(GPUCameraData),
+	//			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+	//		.build(&m_FrameData.cameraDescriptor, &m_CameraSetLayout);
 
-		DescriptorBuilder(m_VkManager)
-			.bind_buffer(0, m_FrameData.objectBuffer, sizeof(GPUObjectData) * MAX_OBJECTS,
-				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-			.build(&m_FrameData.objectDescriptor, &m_ObjectSetLayout);
+	//	DescriptorBuilder(m_VkManager)
+	//		.bind_buffer(0, m_FrameData.objectBuffer, sizeof(GPUObjectData) * MAX_OBJECTS,
+	//			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+	//		.build(&m_FrameData.objectDescriptor, &m_ObjectSetLayout);
 
-		m_MainDeletionQueue.push_function([&]() {
+	//	m_MainDeletionQueue.push_function([&]() {
 
-			destroy_buffer(m_VkManager, m_FrameData.objectBuffer);
-		destroy_buffer(m_VkManager, m_FrameData.cameraBuffer);
-		});
-	}
+	//		destroy_buffer(m_VkManager, m_FrameData.objectBuffer);
+	//	destroy_buffer(m_VkManager, m_FrameData.cameraBuffer);
+	//	});
+	//}
 
 	void VulkanEngine::init_imgui(Window &window) {
 		// 1: create descriptor pool for IMGUI
@@ -1164,30 +1184,30 @@ namespace vkutil {
 		VK_CHECK(vkDeviceWaitIdle(m_Device));
 	}
 
-	void VulkanEngine::load_images() {
-		{
-			auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-			Ref<Texture> texture = make_ref<Texture>();
-			load_texture("res/images/lost_empire.png", m_VkManager, info, texture.get());
+	//void VulkanEngine::load_images() {
+	//	{
+	//		auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+	//		Ref<Texture> texture = make_ref<Texture>();
+	//		load_texture("res/images/lost_empire.png", m_VkManager, info, texture.get());
 
-			m_VkManager.set_texture("empire_diffuse", texture);
+	//		m_VkManager.set_texture("empire_diffuse", texture);
 
-			m_MainDeletionQueue.push_function([=] {
-				destroy_texture(m_VkManager, *texture);
-			});
-		}
+	//		m_MainDeletionQueue.push_function([=] {
+	//			destroy_texture(m_VkManager, *texture);
+	//		});
+	//	}
 
-		{
-			auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-			Ref<Texture> texture = make_ref<Texture>();
-			load_texture("res/images/rgb_test.png", m_VkManager, info, texture.get());
+	//	{
+	//		auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+	//		Ref<Texture> texture = make_ref<Texture>();
+	//		load_texture("res/images/rgb_test.png", m_VkManager, info, texture.get());
 
-			m_VkManager.set_texture("rgb_test", texture);
+	//		m_VkManager.set_texture("rgb_test", texture);
 
-			m_MainDeletionQueue.push_function([=] {
-				destroy_texture(m_VkManager, *texture);
-			});
-		}
-	}
+	//		m_MainDeletionQueue.push_function([=] {
+	//			destroy_texture(m_VkManager, *texture);
+	//		});
+	//	}
+	//}
 
 }

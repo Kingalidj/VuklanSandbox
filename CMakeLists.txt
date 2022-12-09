@@ -17,17 +17,16 @@ macro(print_all_variables)
 	message(STATUS "print_all_variables------------------------------------------}")
 endmacro()
 
-
-# add_compile_options( -g )
-
 set(SRC_DIR src)
 set(RES_DIR res)
 
 find_package(Vulkan 1.3 REQUIRED FATAL_ERROR)
 add_subdirectory(vendor)
 
+find_package(Optick)
 
 set(SOURCES
+		src/render_api.cpp
 		src/perspective_camera.cpp
 		src/orthographic_camera.cpp
 		src/atl_vk_utils.cpp
@@ -58,6 +57,7 @@ set(HEADERS
 		src/event.h
 		src/layer.h
 
+		src/render_api.cpp
 		src/camera.cpp
 		src/perspective_camera.h
 		src/orthographic_camera.h
@@ -156,6 +156,7 @@ if (WIN32)
 	set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/ignore:4099")
 
 	target_link_libraries(${PROJECT_NAME} 
+	PRIVATE
 		$<$<CONFIG:Debug>:${SHADERC_D}>
 		$<$<CONFIG:Debug>:${SPIRV_CROSS_D}>
 
@@ -171,12 +172,14 @@ else()
 	message(STATUS ${SPIRV_CROSS})
 
 	target_link_libraries(${PROJECT_NAME} 
+	PRIVATE
 		${SHADERC}
 		${SPIRV_CROSS}
 		)
 endif()
 
 target_link_libraries(${PROJECT_NAME} 
+PRIVATE
 	Vulkan::Vulkan 
 	glfw
 	vk-bootstrap::vk-bootstrap
@@ -187,4 +190,6 @@ target_link_libraries(${PROJECT_NAME}
 	tinyobjloader
 	imgui
 	implot
+	OptickCore
 	)
+

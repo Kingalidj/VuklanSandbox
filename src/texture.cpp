@@ -6,7 +6,21 @@
 #include "vk_initializers.h"
 #include "vk_engine.h"
 
+uint32_t to_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+	uint32_t result = (a << 24) | (r << 16) | (g << 8) | b;
+	return result;
+}
+
 namespace Atlas {
+	Color::Color()
+		: m_Data(to_rgb(255, 255, 255, 255)) {}
+	Color::Color(uint8_t v)
+		: m_Data(to_rgb(v, v, v, 255)) {}
+	Color::Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+		: m_Data(to_rgb(r, g, b, a)) {}
+	Color::Color(uint8_t r, uint8_t g, uint8_t b)
+		: m_Data(to_rgb(r, g, b, 255)) {}
+
 	Texture::Texture(const char *path, FilterOptions options)
 		: m_Initialized(true)
 	{
@@ -24,13 +38,25 @@ namespace Atlas {
 		m_Texture = Application::get_engine().asset_manager().register_texture(texture);
 	}
 
-	Texture::Texture(uint32_t width, uint32_t height, ColorFormat f, FilterOptions options)
+	Texture::Texture(uint32_t width, uint32_t height, FilterOptions options)
 		: m_Initialized(true)
 	{
-		vkutil::TextureCreateInfo info = color_format_to_texture_info(f, width, height);
+		vkutil::TextureCreateInfo info =
+			color_format_to_texture_info(TextureFormat::R8G8B8A8, width, height);
 		info.filter = atlas_to_vk_filter(options);
 
-		//m_Texture = make_scope<vkutil::Texture>();
+		vkutil::Texture texture;
+		vkutil::alloc_texture(Application::get_engine().manager(), info, &texture);
+
+		m_Texture = Application::get_engine().asset_manager().register_texture(texture);
+	}
+
+	Texture::Texture(uint32_t width, uint32_t height, TextureFormat format, FilterOptions options)
+		: m_Initialized(true)
+	{
+		vkutil::TextureCreateInfo info = color_format_to_texture_info(format, width, height);
+		info.filter = atlas_to_vk_filter(options);
+
 		vkutil::Texture texture;
 		vkutil::alloc_texture(Application::get_engine().manager(), info, &texture);
 
@@ -73,6 +99,22 @@ namespace Atlas {
 		CORE_WARN("This texture was never created / or deleted!");
 		return 0;
 	}
+
+	void Texture::set_data(uint32_t *data, uint32_t count)
+	{
+		if (auto texture = m_Texture.lock()) {
+
+			if (count != texture->width * texture->height) CORE_WARN("Texture: {} does not match width * height!", count);
+
+			vkutil::set_texture_data(Application::get_engine().manager(), *texture.get(), data);
+		}
+	}
+
+	void Texture::set_data(Color *data, uint32_t count)
+	{
+		set_data((uint32_t *)data, count);
+	}
+
 	void *Texture::get_id()
 	{
 		if (auto texture = m_Texture.lock()) {

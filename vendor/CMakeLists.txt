@@ -72,3 +72,8 @@ target_include_directories( implot
 	)
 
 target_link_libraries(implot PUBLIC imgui)
+
+# == optick ==
+
+add_subdirectory(optick)
+include_directories(optick/include)

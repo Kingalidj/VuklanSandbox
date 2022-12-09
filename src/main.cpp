@@ -8,23 +8,29 @@
 
 class Sandbox : public Atlas::Layer {
 
+
 	Atlas::OrthographicCameraController orthoCamera;
 	Atlas::PerspectiveCameraController perspectiveCamera;
 
 	bool bOrthoCamera = true;
 
 	void on_update(Atlas::Timestep ts) override {
+		using namespace Atlas;
+
+		RenderApi::begin(Application::get_viewport_color_texture(), Application::get_viewport_depth_texture(), { 0.8, 0.8, 0.8, 1.0 });
 
 		if (bOrthoCamera) {
 			orthoCamera.on_update(ts);
-			Atlas::Render2D::set_camera(orthoCamera.get_camera());
+			Render2D::set_camera(orthoCamera.get_camera());
 		}
 		else {
 			perspectiveCamera.on_update(ts);
-			Atlas::Render2D::set_camera(perspectiveCamera.get_camera());
+			Render2D::set_camera(perspectiveCamera.get_camera());
 		}
 
-		Atlas::Render2D::draw_test_triangle();
+		Render2D::draw_test_triangle();
+
+		RenderApi::end(Application::get_viewport_color_texture());
 	}
 
 	void on_imgui() override {

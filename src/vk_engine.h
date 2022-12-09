@@ -46,7 +46,7 @@ namespace vkutil {
 
 		VulkanEngine(Window &window);
 
-		void draw();
+		//void draw();
 		void cleanup();
 
 		void resize_window(uint32_t w, uint32_t h);
@@ -66,7 +66,7 @@ namespace vkutil {
 		void begin_renderpass(Texture &color, glm::vec4 clearColor);
 		void end_renderpass(Texture &color);
 
-		void draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count);
+		//void draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count);
 		size_t pad_uniform_buffer_size(size_t originalSize);
 
 		VulkanManager &manager();
@@ -87,9 +87,9 @@ namespace vkutil {
 		void init_vulkan(Window &window);
 		void init_commands();
 		void init_sync_structures();
-		void init_pipelines();
-		void init_scene();
-		void init_descriptors();
+		//void init_pipelines();
+		//void init_scene();
+		//void init_descriptors();
 		void init_imgui(Window &window);
 
 		void init_swapchain();
@@ -101,9 +101,9 @@ namespace vkutil {
 		void init_vp_framebuffers();
 		void rebuild_vp_framebuffer();
 
-		void load_meshes();
-		void load_images();
-		void upload_mesh(Ref<Mesh> mesh);
+		//void load_meshes();
+		//void load_images();
+		//void upload_mesh(Ref<Mesh> mesh);
 
 		bool m_IsInitialized{ false };
 		int m_FrameNumber{ 0 };

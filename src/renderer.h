@@ -1,6 +1,7 @@
 #pragma once
 #include <glm/glm.hpp>
 #include "texture.h"
+#include "render_api.h"
 
 namespace Atlas {
 
@@ -19,11 +20,6 @@ namespace Atlas {
 		void set_camera(Camera &camera);
 
 		void draw_test_triangle();
-
-		void begin(Texture &color, Texture &depth, glm::vec4 &clearColor);
-		void begin(Texture &color, glm::vec4 &clearColor);
-		void end(Texture &color);
-
 	}
 
 }

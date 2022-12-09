@@ -38,6 +38,9 @@ namespace Atlas {
 
 		static glm::vec2 &get_viewport_size();
 
+		static Texture &get_viewport_color_texture();
+		static Texture &get_viewport_depth_texture();
+
 	private:
 		void on_event(Event &event);
 		bool on_window_resized(WindowResizedEvent &e);

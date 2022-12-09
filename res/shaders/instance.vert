@@ -23,7 +23,7 @@ vec2 random_vec2(float c) {
 void main()
 {
 	vec3 dp = vec3(random_vec2(gl_InstanceIndex), 0) * SIZE;
-	dp.z = -random(dp.x);
+	dp.z = -random(dp.x) * 20;
 
 	vec3 pos = vPosition + dp;
 	//pos -= vec3(0, 0, random(gl_InstanceIndex) * 2);

@@ -12,23 +12,16 @@ namespace vkutil {
 namespace Atlas {
 
 	using DescriptorAttachment = std::variant<Ref<Buffer>, Ref<Texture>, std::vector<Ref<Texture>>>;
+	using DescriptorBindings = std::vector<std::pair<DescriptorAttachment, ShaderStage>>;
 
-	enum class DescriptorAttachmentType : uint32_t {
-		BUFFER = 0,
-		TEXTURE,
-		TEXTURE_ARRAY,
-	};
-
-	struct DescriptorCreateInfo {
-		std::vector<std::pair<DescriptorAttachment, ShaderStage>> bindings;
-
-	};
+	//struct DescriptorCreateInfo {
+	//	std::vector<std::pair<DescriptorAttachment, ShaderStage>> bindings;
+	//};
 
 	class Descriptor {
 	public:
 
-		Descriptor(std::vector<std::pair<DescriptorAttachment, ShaderStage>> bindings);
-		Descriptor(DescriptorCreateInfo &info);
+		Descriptor(DescriptorBindings &bindings);
 
 		uint32_t get_descriptor_count();
 

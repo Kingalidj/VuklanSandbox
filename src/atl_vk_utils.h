@@ -14,7 +14,7 @@ namespace Atlas {
 	VkShaderStageFlagBits atlas_to_vk_shaderstage(ShaderStage type);
 	vkutil::VertexAttributeType atlas_to_vk_attribute(VertexAttribute &attribute);
 	VkFilter atlas_to_vk_filter(FilterOptions options);
-	vkutil::TextureCreateInfo color_format_to_texture_info(ColorFormat f, uint32_t w, uint32_t h);
+	vkutil::TextureCreateInfo color_format_to_texture_info(TextureFormat f, uint32_t w, uint32_t h);
 
 
 
