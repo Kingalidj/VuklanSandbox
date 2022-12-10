@@ -22,6 +22,8 @@ namespace vkutil {
 
 			for (auto &pair : bindings) {
 
+				auto stage = atlas_to_vk_shaderstage(pair.second);
+
 				if (std::holds_alternative<Ref<Atlas::Buffer>>(pair.first)) { //buffer variant
 
 					Ref<Atlas::Buffer> buffer = std::get<Ref<Atlas::Buffer>>(pair.first);
@@ -30,10 +32,10 @@ namespace vkutil {
 						return;
 					}
 
-					m_Buffers.push_back(buffer);
+					m_Buffers.insert({ binding, buffer });
 
 					builder.bind_buffer(binding++, *buffer->get_native_buffer(), buffer->size(),
-						atlas_to_vk_descriptor_type(buffer->get_type()), atlas_to_vk_shaderstage(pair.second));
+						atlas_to_vk_descriptor_type(buffer->get_type()), stage);
 				}
 				else if (std::holds_alternative<Ref<Atlas::Texture>>(pair.first)) { //texture variant
 
@@ -43,15 +45,16 @@ namespace vkutil {
 						return;
 					}
 
-					m_Textures.push_back(texture);
+					m_Textures.insert({ binding, texture });
 
 					builder.bind_image(binding++, *texture->get_native_texture(),
-						VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, atlas_to_vk_shaderstage(pair.second));
+						VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, stage);
 				}
 				else if (std::holds_alternative<std::vector<Ref<Atlas::Texture>>>(pair.first)) {
 
 					std::vector<Ref<Atlas::Texture>> textures =
 						std::get<std::vector<Ref<Atlas::Texture>>>(pair.first);
+					m_TextureArrays.insert({ binding, textures });
 
 					std::vector<Texture> vulkanTextures;
 
@@ -60,16 +63,49 @@ namespace vkutil {
 							CORE_WARN("Descriptor: texture is not initialized!");
 							return;
 						}
-						m_Textures.push_back(tex);
 						vulkanTextures.push_back(*tex->get_native_texture());
 					}
 
 					builder.bind_image_array(binding++, vulkanTextures.data(), (uint32_t)vulkanTextures.size(),
-						VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, atlas_to_vk_shaderstage(pair.second));
+						VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, stage);
 				}
 			}
 
 			builder.build(&m_Descriptor.set, &m_Descriptor.layout);
+		}
+
+		void update(uint32_t binding, Atlas::DescriptorBinding descBinding) {
+
+			auto stage = atlas_to_vk_shaderstage(descBinding.second);
+
+			if (std::holds_alternative<Ref<Atlas::Buffer>>(descBinding.first)) {
+				Ref<Atlas::Buffer> buffer = std::get<Ref<Atlas::Buffer>>(descBinding.first);
+
+				m_Buffers.at(binding) = buffer;
+
+				descriptor_update_buffer(Atlas::Application::get_engine().manager(), &m_Descriptor.set, binding,
+					*buffer->get_native_buffer(), buffer->size(), atlas_to_vk_descriptor_type(buffer->get_type()), stage);
+			}
+			else if (std::holds_alternative<Ref<Atlas::Texture>>(descBinding.first)) {
+				Ref<Atlas::Texture> texture = std::get<Ref<Atlas::Texture>>(descBinding.first);
+
+				m_Textures.at(binding) = texture;
+
+				descriptor_update_image(Atlas::Application::get_engine().manager(), &m_Descriptor.set, binding,
+					*texture->get_native_texture(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, stage);
+			}
+			else if (std::holds_alternative<std::vector<Ref<Atlas::Texture>>>(descBinding.first)) {
+				std::vector<Ref<Atlas::Texture>> textures =
+					std::get<std::vector<Ref<Atlas::Texture>>>(descBinding.first);
+
+				m_TextureArrays.at(binding) = textures;
+
+				std::vector<Texture> vulkanTextures;
+				for (auto &tex : textures) vulkanTextures.push_back(*tex->get_native_texture());
+
+				descriptor_update_image_array(Atlas::Application::get_engine().manager(), &m_Descriptor.set, binding,
+					vulkanTextures.data(), (uint32_t)vulkanTextures.size(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, stage);
+			}
 		}
 
 		Descriptor *get_native() {
@@ -81,11 +117,11 @@ namespace vkutil {
 		}
 
 	private:
-		std::vector<Ref<Atlas::Buffer>> m_Buffers;
-		std::vector<Ref<Atlas::Texture>> m_Textures;
+		std::unordered_map<uint32_t, Ref<Atlas::Buffer>> m_Buffers;
+		std::unordered_map<uint32_t, Ref<Atlas::Texture>> m_Textures;
+		std::unordered_map<uint32_t, std::vector<Ref<Atlas::Texture>>> m_TextureArrays;
 
 		vkutil::Descriptor m_Descriptor;
-
 	};
 
 }
@@ -106,6 +142,11 @@ namespace Atlas {
 		}
 
 		return m_Descriptor->get_descriptor_count();
+	}
+
+	void Descriptor::update(uint32_t binding, DescriptorBinding descBinding)
+	{
+		m_Descriptor->update(binding, descBinding);
 	}
 
 	vkutil::Descriptor *Descriptor::get_native_descriptor()

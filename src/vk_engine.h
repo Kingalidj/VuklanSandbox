@@ -14,15 +14,15 @@ class Window;
 
 namespace vkutil {
 
-	struct GPUCameraData {
-		glm::mat4 view;
-		glm::mat4 proj;
-		glm::mat4 viewProj;
-	};
+	//struct GPUCameraData {
+	//	glm::mat4 view;
+	//	glm::mat4 proj;
+	//	glm::mat4 viewProj;
+	//};
 
-	struct GPUObjectData {
-		glm::mat4 modelMatrix;
-	};
+	//struct GPUObjectData {
+	//	glm::mat4 modelMatrix;
+	//};
 
 	struct FrameData {
 		VkSemaphore presentSemaphore, renderSemaphore;
@@ -38,6 +38,11 @@ namespace vkutil {
 
 		VkDescriptorSet cameraDescriptor{ VK_NULL_HANDLE };
 		VkDescriptorSet objectDescriptor{ VK_NULL_HANDLE };
+	};
+
+	struct DynRenderpassInfo {
+		VkImage boundImage{ VK_NULL_HANDLE };
+		bool active{ false };
 	};
 
 	class  VulkanEngine {
@@ -64,7 +69,7 @@ namespace vkutil {
 
 		void begin_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor);
 		void begin_renderpass(Texture &color, glm::vec4 clearColor);
-		void end_renderpass(Texture &color);
+		void end_renderpass();
 
 		//void draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count);
 		size_t pad_uniform_buffer_size(size_t originalSize);
@@ -77,6 +82,7 @@ namespace vkutil {
 		VkInstance get_instance();
 		VkPhysicalDevice get_physical_device();
 		VkQueue get_graphics_queue();
+		uint32_t get_queue_family_index();
 		VkRenderPass get_swapchain_renderpass();
 		const VkDevice device();
 		VkCommandBuffer get_active_command_buffer();
@@ -133,6 +139,7 @@ namespace vkutil {
 		VkFormat m_DepthFormat;
 
 		FrameData m_FrameData;
+		DynRenderpassInfo m_DynRenderpassInfo;
 
 		Texture m_ColorTexture;
 		Texture m_DepthTexture;

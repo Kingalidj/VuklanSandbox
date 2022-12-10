@@ -94,17 +94,14 @@ namespace Atlas {
 				uint32_t swapchainImageIndex;
 				m_Engine->prepare_frame(&swapchainImageIndex);
 
-				glm::vec4 clearColor = { 1, 1, 1, 1 };
-				//Render2D::begin(m_ColorTexture, clearColor);
-
 				{
+					Render2D::begin(m_ColorTexture, m_DepthTexture, { 255 });
 					ATL_EVENT("layer::on_update");
 					for (auto &layer : m_LayerStack) {
 						layer->on_update(timestep);
 					}
+					Render2D::end();
 				}
-
-				//Render2D::end(m_ColorTexture);
 
 				for (auto &layer : m_LayerStack) layer->on_imgui();
 
@@ -125,7 +122,7 @@ namespace Atlas {
 
 				m_Engine->exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 0 }, [&]() {
 					m_ImGuiLayer->on_imgui();
-				});
+					});
 
 				m_Engine->end_frame(swapchainImageIndex);
 				m_ImGuiLayer->end();

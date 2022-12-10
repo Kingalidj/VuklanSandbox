@@ -28,7 +28,7 @@ namespace vkutil {
 	class VertexInputDescriptionBuilder {
 	public:
 
-		VertexInputDescriptionBuilder::VertexInputDescriptionBuilder(uint32_t size)
+		VertexInputDescriptionBuilder(uint32_t size)
 		{
 			VkVertexInputBindingDescription mainBinding{};
 			mainBinding.binding = 0;

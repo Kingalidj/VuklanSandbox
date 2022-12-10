@@ -179,12 +179,12 @@ namespace vkutil {
 
 	DescriptorBuilder &DescriptorBuilder::bind_buffer(uint32_t binding, AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags)
 	{
-		VkDescriptorBufferInfo cameraInfo{};
-		cameraInfo.buffer = buffer.buffer;
-		cameraInfo.offset = 0;
-		cameraInfo.range = size;
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = buffer.buffer;
+		bufferInfo.offset = 0;
+		bufferInfo.range = size;
 
-		auto [it, existed] = m_DescBufferInfos.insert({ m_DescInfoCount++, cameraInfo });
+		auto [it, existed] = m_DescBufferInfos.insert({ m_DescInfoCount++, bufferInfo });
 
 		VkDescriptorSetLayoutBinding bind{};
 		bind.descriptorCount = 1;
@@ -299,6 +299,71 @@ namespace vkutil {
 	bool DescriptorBuilder::build(VkDescriptorSet *set) {
 		VkDescriptorSetLayout layout{};
 		return build(set, &layout);
+	}
+
+	void descriptor_update_buffer(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding,
+		AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags)
+	{
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = buffer.buffer;
+		bufferInfo.offset = 0;
+		bufferInfo.range = size;
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.pNext = nullptr;
+		write.descriptorCount = 1;
+		write.descriptorType = type;
+		write.pBufferInfo = &bufferInfo;
+		write.dstBinding = binding;
+		write.dstSet = *set;
+
+		vkUpdateDescriptorSets(manager.device(), 1, &write, 0, nullptr);
+	}
+
+	void descriptor_update_image(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding,
+		Texture &tex, VkDescriptorType type, VkShaderStageFlags flags)
+	{
+		VkDescriptorImageInfo imageBufferInfo{};
+		imageBufferInfo.sampler = tex.sampler;
+		imageBufferInfo.imageView = tex.imageView;
+		imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.pNext = nullptr;
+		write.descriptorCount = 1;
+		write.descriptorType = type;
+		write.pImageInfo = &imageBufferInfo;
+		write.dstBinding = binding;
+		write.dstSet = *set;
+
+		vkUpdateDescriptorSets(manager.device(), 1, &write, 0, nullptr);
+	}
+
+	void descriptor_update_image_array(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding, Texture *tex, uint32_t imgCount, VkDescriptorType type, VkShaderStageFlags flags)
+	{
+		std::vector<VkDescriptorImageInfo> descImageInfos;
+
+		for (uint32_t i = 0; i < imgCount; i++) {
+			VkDescriptorImageInfo info{};
+			info.sampler = tex[i].sampler;
+			info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			info.imageView = tex[i].imageView;
+			descImageInfos.push_back(info);
+		}
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.pNext = nullptr;
+
+		write.descriptorCount = imgCount;
+		write.descriptorType = type;
+		write.pImageInfo = descImageInfos.data();
+		write.dstBinding = binding;
+		write.dstSet = *set;
+
+		vkUpdateDescriptorSets(manager.device(), 1, &write, 0, nullptr);
 	}
 
 } //namespace vkutil

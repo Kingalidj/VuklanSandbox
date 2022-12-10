@@ -92,7 +92,6 @@ namespace vkutil {
 			: m_LayoutCache(layoutCache), m_Alloc(allocator) {}
 
 		DescriptorBuilder &bind_buffer(uint32_t binding, AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags);
-
 		DescriptorBuilder &bind_image(uint32_t binding, Texture &image, VkDescriptorType type, VkShaderStageFlags flags);
 		DescriptorBuilder &bind_image_array(uint32_t binding, Texture *images, uint32_t imageCount, VkDescriptorType type, VkShaderStageFlags flags);
 
@@ -121,5 +120,12 @@ namespace vkutil {
 		DescriptorAllocator *m_Alloc;
 
 	};
+
+	void descriptor_update_buffer(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding,
+		AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags);
+	void descriptor_update_image(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding,
+		Texture &tex, VkDescriptorType type, VkShaderStageFlags flags);
+	void descriptor_update_image_array(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding,
+		Texture *textures, uint32_t imgCount, VkDescriptorType type, VkShaderStageFlags flags);
 
 } // namespace vkutil

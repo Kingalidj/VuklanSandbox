@@ -21,6 +21,47 @@ namespace Atlas {
 	Color::Color(uint8_t r, uint8_t g, uint8_t b)
 		: m_Data(to_rgb(r, g, b, 255)) {}
 
+	inline uint8_t Color::red() const
+	{
+		return m_Data >> 16 & 0xff;
+	}
+
+	inline uint8_t Color::green() const
+	{
+		return m_Data >> 8 & 0xff;
+	}
+
+	inline uint8_t Color::blue() const
+	{
+		return m_Data & 0xff;
+	}
+
+	inline uint8_t Color::alpha() const
+	{
+		return m_Data >> 24;
+	}
+
+	glm::vec4 Color::normalized_vec()
+	{
+		float r = red() / 255.f;
+		float g = green() / 255.f;
+		float b = blue() / 255.f;
+		float a = alpha() / 255.f;
+
+		return { r, g, b, a };
+	}
+
+	Color::operator uint32_t() const
+	{
+		return m_Data;
+	}
+
+	std::ostream &operator<<(std::ostream &os, const Color &c) {
+		os << "{ r: " << (uint32_t)c.red() << ", g: " << (uint32_t)c.green() << ", b: "
+			<< (uint32_t)c.blue() << ", a: " << (uint32_t)c.alpha() << " }";
+		return os;
+	}
+
 	Texture::Texture(const char *path, FilterOptions options)
 		: m_Initialized(true)
 	{
@@ -66,9 +107,10 @@ namespace Atlas {
 	Texture::~Texture()
 	{
 		if (auto shared = m_Texture.lock()) {
-			Application::get_engine().asset_manager().deregister_texture(shared);
-			Application::get_engine().wait_idle(); //TODO: is this right??
-			vkutil::destroy_texture(Application::get_engine().manager(), *shared.get());
+			Application::get_engine().asset_manager().queue_destroy_texture(shared);
+			//Application::get_engine().asset_manager().deregister_texture(shared);
+			//Application::get_engine().wait_idle();
+			//vkutil::destroy_texture(Application::get_engine().manager(), *shared.get());
 		}
 	}
 

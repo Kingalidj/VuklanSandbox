@@ -312,18 +312,23 @@ namespace vkutil {
 	{
 		begin_renderpass(color, depth, clearColor);
 		func();
-		end_renderpass(color);
+		end_renderpass();
 	}
 
 	void VulkanEngine::dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func)
 	{
 		begin_renderpass(color, clearColor);
 		func();
-		end_renderpass(color);
+		end_renderpass();
 	}
 
 	void VulkanEngine::begin_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor)
 	{
+		if (m_DynRenderpassInfo.active) {
+			CORE_WARN("VulkanEngine::begin_renderpass was already called!");
+			return;
+		}
+
 		VkCommandBuffer cmd = get_active_command_buffer();
 
 		VkImageSubresourceRange colorRange{};
@@ -385,10 +390,18 @@ namespace vkutil {
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 		vkCmdBeginRendering(cmd, &info);
+
+		m_DynRenderpassInfo.boundImage = color.imageAllocation.image;
+		m_DynRenderpassInfo.active = true;
 	}
 
 	void VulkanEngine::begin_renderpass(Texture &color, glm::vec4 clearColor)
 	{
+		if (m_DynRenderpassInfo.active) {
+			CORE_WARN("VulkanEngine::begin_renderpass was already called!");
+			return;
+		}
+
 		VkCommandBuffer cmd = get_active_command_buffer();
 		VkImageSubresourceRange colorRange{};
 		colorRange.levelCount = 1;
@@ -439,10 +452,18 @@ namespace vkutil {
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 		vkCmdBeginRendering(cmd, &info);
+
+		m_DynRenderpassInfo.boundImage = color.imageAllocation.image;
+		m_DynRenderpassInfo.active = true;
 	}
 
-	void VulkanEngine::end_renderpass(Texture &color)
+	void VulkanEngine::end_renderpass()
 	{
+		if (!m_DynRenderpassInfo.active) {
+			CORE_WARN("VulkanEngine::begin_renderpass was never called!");
+			return;
+		}
+
 		VkCommandBuffer cmd = get_active_command_buffer();
 
 		vkCmdEndRendering(cmd);
@@ -453,7 +474,7 @@ namespace vkutil {
 		colorRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
 		insert_image_memory_barrier(cmd,
-			color.imageAllocation.image,
+			m_DynRenderpassInfo.boundImage,
 			0,
 			VK_ACCESS_SHADER_READ_BIT,
 			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -462,6 +483,9 @@ namespace vkutil {
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 			colorRange
 		);
+
+		m_DynRenderpassInfo.boundImage = VK_NULL_HANDLE;
+		m_DynRenderpassInfo.active = false;
 	}
 
 	//void VulkanEngine::draw() {
@@ -624,7 +648,7 @@ namespace vkutil {
 		vkDestroyDevice(m_Device, nullptr);
 		vkb::destroy_debug_utils_messenger(m_Instance, m_DebugMessenger);
 		vkDestroyInstance(m_Instance, nullptr);
-		});
+			});
 	}
 
 	void VulkanEngine::init_swapchain() {
@@ -680,7 +704,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=]() {
 				vkDestroyCommandPool(m_Device, m_FrameData.commandPool, nullptr);
-			});
+				});
 		}
 
 		m_VkManager.init_commands(m_GraphicsQueue, m_GraphicsQueueFamily);
@@ -728,7 +752,7 @@ namespace vkutil {
 
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-		});
+			});
 	}
 
 	//void print_rgb(uint32_t color) {
@@ -805,7 +829,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroySemaphore(m_Device, m_FrameData.presentSemaphore, nullptr);
 		vkDestroySemaphore(m_Device, m_FrameData.renderSemaphore, nullptr);
-		});
+			});
 	}
 
 	//void VulkanEngine::init_pipelines() {
@@ -1101,7 +1125,7 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyDescriptorPool(m_Device, imguiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();
-		});
+			});
 	}
 
 	size_t VulkanEngine::pad_uniform_buffer_size(size_t originalSize) {
@@ -1153,6 +1177,11 @@ namespace vkutil {
 	{
 		CORE_ASSERT(m_IsInitialized, "Vulkan engine is not initialized");
 		return m_GraphicsQueue;
+	}
+
+	uint32_t VulkanEngine::get_queue_family_index()
+	{
+		return m_GraphicsQueueFamily;
 	}
 
 	VkRenderPass VulkanEngine::get_swapchain_renderpass()

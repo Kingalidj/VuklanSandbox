@@ -40,6 +40,30 @@ namespace vkutil {
 		vmaDestroyBuffer(manager.get_allocator(), buffer.buffer, buffer.allocation);
 	}
 
+	void insert_buffer_memory_barrier(VkCommandBuffer command_buffer, AllocatedBuffer &buffer, VkAccessFlags src_access_mask, VkAccessFlags dst_access_mask,
+		uint32_t srcQueueFamilyIndx, uint32_t dstQueueFamilyIndx,
+		VkPipelineStageFlags src_stage_mask, VkPipelineStageFlags dst_stage_mask)
+	{
+		VkBufferMemoryBarrier barrier{};
+		//VkImageMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.srcAccessMask = src_access_mask;
+		barrier.dstAccessMask = dst_access_mask;
+		barrier.buffer = buffer.buffer;
 
+		barrier.srcQueueFamilyIndex = srcQueueFamilyIndx;
+		barrier.dstQueueFamilyIndex = dstQueueFamilyIndx;
+
+		vkCmdPipelineBarrier(
+			command_buffer,
+			src_stage_mask,
+			dst_stage_mask,
+			0,
+			0, nullptr,
+			1, &barrier,
+			0, nullptr);
+	}
 
 }

@@ -56,6 +56,7 @@ namespace vkutil {
 
 				if (info.memory != nullptr) {
 					vkutil::map_memory(Atlas::Application::get_engine().manager(), &buffer, info.memory, info.size);
+					//set_data(info.memory, info.size);
 				}
 			}
 			else {

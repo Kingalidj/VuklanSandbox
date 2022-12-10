@@ -20,4 +20,8 @@ namespace vkutil {
 
 	void create_buffer(VulkanManager &manager, size_t allocSize, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryFlags, AllocatedBuffer *buffer);
 
+	void insert_buffer_memory_barrier(VkCommandBuffer command_buffer, AllocatedBuffer &buffer, VkAccessFlags src_access_mask, VkAccessFlags dst_access_mask,
+		uint32_t srcQueueFamilyIndx, uint32_t dstQueueFamilyIndx,
+		VkPipelineStageFlags src_stage_mask, VkPipelineStageFlags dst_stage_mask);
+
 }

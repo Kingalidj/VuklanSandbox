@@ -7,19 +7,20 @@ namespace Atlas {
 
 	namespace RenderApi {
 
-		void begin(Texture &color, Texture &depth, glm::vec4 clearColor)
+		void begin(Texture &color, Texture &depth, Color clearColor)
 		{
-			Application::get_engine().begin_renderpass(*color.get_native_texture(), *depth.get_native_texture(), clearColor);
+			Application::get_engine().begin_renderpass(*color.get_native_texture(), *depth.get_native_texture(),
+				clearColor.normalized_vec());
 		}
 
-		void begin(Texture &color, glm::vec4 clearColor)
+		void begin(Texture &color, Color clearColor)
 		{
-			Application::get_engine().begin_renderpass(*color.get_native_texture(), clearColor);
+			Application::get_engine().begin_renderpass(*color.get_native_texture(), clearColor.normalized_vec());
 		}
 
-		void end(Texture &color)
+		void end()
 		{
-			Application::get_engine().end_renderpass(*color.get_native_texture());
+			Application::get_engine().end_renderpass();
 		}
 
 		void drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance)

@@ -10,41 +10,37 @@ class Sandbox : public Atlas::Layer {
 
 
 	Atlas::OrthographicCameraController orthoCamera;
-	Atlas::PerspectiveCameraController perspectiveCamera;
+	//Atlas::PerspectiveCameraController perspectiveCamera;
+	Ref<Atlas::Texture> tex;
 
-	bool bOrthoCamera = true;
+	void on_attach() override {
+		tex = make_ref<Atlas::Texture>("res/images/uv_checker_v2.png");
+	}
 
 	void on_update(Atlas::Timestep ts) override {
 		using namespace Atlas;
 
-		RenderApi::begin(Application::get_viewport_color_texture(), Application::get_viewport_depth_texture(), { 0.8, 0.8, 0.8, 1.0 });
+		orthoCamera.on_update(ts);
+		Render2D::set_camera(orthoCamera.get_camera());
 
-		if (bOrthoCamera) {
-			orthoCamera.on_update(ts);
-			Render2D::set_camera(orthoCamera.get_camera());
+		Render2D::rect({ -1, -1 }, { 1, 1 }, { 0, 0, 200 });
+		Render2D::rect({ 0, 0 }, { 5, 8 }, tex);
+
+		uint32_t size = 100;
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				bool b = (i + j) % 2;
+				Color c;
+				if (b) c = Color(255, 0, 0);
+				else c = Color(0);
+
+				Render2D::circle({ i, j }, 0.5, c);
+			}
 		}
-		else {
-			perspectiveCamera.on_update(ts);
-			Render2D::set_camera(perspectiveCamera.get_camera());
-		}
-
-		Render2D::draw_test_triangle();
-
-		RenderApi::end(Application::get_viewport_color_texture());
-	}
-
-	void on_imgui() override {
-		ImGui::Begin("Camera Settings");
-		ImGui::Checkbox("OrthoGraphic Camera", &bOrthoCamera);
-		ImGui::End();
 	}
 
 	void on_event(Atlas::Event &e) override {
-		if (bOrthoCamera)
-			orthoCamera.on_event(e);
-		else
-			perspectiveCamera.on_event(e);
-
+		orthoCamera.on_event(e);
 	}
 
 };

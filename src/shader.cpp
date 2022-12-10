@@ -31,6 +31,11 @@ namespace vkutil {
 
 			std::vector<VkDescriptorSetLayout> layouts;
 			for (auto &d : info.descriptors) {
+				if (!d.is_init()) {
+					CORE_WARN("Shader: descriptor was not initialized!");
+					return;
+				}
+
 				layouts.push_back(d.get_native_descriptor()->layout);
 			}
 
@@ -90,6 +95,12 @@ namespace vkutil {
 					get_native_shader()->layout, 0, (uint32_t)m_Descriptors.size(),
 					&d.get_native_descriptor()->set, 0, nullptr);
 			}
+		}
+
+		void update(uint32_t descSet, uint32_t binding, Atlas::DescriptorBinding descBinding) {
+			CORE_ASSERT(descSet > m_Descriptors.size(), "descSet must an index into the descriptor sets");
+
+			m_Descriptors.at(descSet).update(binding, descBinding);
 		}
 
 		vkutil::Shader *get_native_shader()

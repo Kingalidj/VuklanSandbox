@@ -55,6 +55,9 @@ namespace Atlas {
 		uint32_t m_SizeOfVertex = 0;
 	};
 
+	class ShaderModule;
+	std::optional<ShaderModule> load_shader_module(const char *path, ShaderStage stage, bool optimize = true);
+
 	class ShaderModule {
 	public:
 		ShaderModule() = default;
@@ -65,9 +68,9 @@ namespace Atlas {
 		std::vector<uint32_t> &get_data() { return *m_Data.get(); }
 		const char *get_file_path() { return m_Path.c_str(); }
 
-	private:
+		friend std::optional<ShaderModule> load_shader_module(const char *path, ShaderStage stage, bool optimize);
 
-		friend std::optional<ShaderModule> load_shader_module(const char *path, ShaderStage stage, bool optimize = false);
+	private:
 
 		ShaderStage m_Stage{ ShaderStage::NONE };
 		Ref<std::vector<uint32_t>> m_Data;

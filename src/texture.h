@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 namespace vkutil {
 	struct Texture;
 }
@@ -13,11 +15,23 @@ namespace Atlas {
 		Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 		Color(uint8_t r, uint8_t g, uint8_t b);
 
-		operator uint32_t() const { return m_Data; }
+		inline uint8_t red() const;
+		inline uint8_t green() const;
+		inline uint8_t blue() const;
+		inline uint8_t alpha() const;
+
+		glm::vec4 normalized_vec();
+
+		explicit operator uint32_t() const;
+		//operator uint32_t() const { return m_Data; }
+		//operator glm::vec4() const;
+
 
 	private:
 		uint32_t m_Data;
 	};
+
+	std::ostream &operator<<(std::ostream &os, const Color &c);
 
 	enum class FilterOptions {
 		LINEAR,
@@ -44,8 +58,8 @@ namespace Atlas {
 		uint32_t width();
 		uint32_t height();
 
-		void set_data(uint32_t *data, uint32_t count);
 		void set_data(Color *data, uint32_t count);
+		void set_data(uint32_t *data, uint32_t count);
 
 		void *get_id();
 

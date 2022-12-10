@@ -6,6 +6,9 @@
 #include "camera.h"
 #include "orthographic_camera.h"
 
+#include "vk_buffer.h"
+#include "vk_engine.h"
+
 #include <glm/gtx/transform.hpp>
 
 namespace Atlas {
@@ -17,21 +20,54 @@ namespace Atlas {
 	struct RenderData {
 		bool init{ false };
 
-		Shader defaultShader;
+		uint32_t maxVertices{ 1 };
+		uint32_t maxIndices{ 1 };
+		//static const uint32_t MAX_VERTICES = 4;
+		//static const uint32_t MAX_INDICES = 6;
+		static const uint32_t MAX_TEXTURE_SLOTS = 32;
 
+		Shader defaultShader;
+		Descriptor defaultDescriptor;
+		Ref<Texture> whiteTexture;
 		Buffer vertexBuffer;
 		Buffer indexBuffer;
 
 		Ref<Buffer> cameraBuffer;
 		GPUCameraData camera{};
 
-		Ref<Texture> whiteTexture;
-
 		std::vector<Render2D::Vertex> vertices;
 		std::vector<uint16_t> indices;
+		std::vector<Ref<Texture>> textureSlots{};
+		//Render2D::Vertex *vertexPtr;
+		//uint16_t *indexPtr;
+		uint32_t textureSlotIndex = 1;
 	};
 
-	static RenderData s_Data;
+	static RenderData s_Data{};
+
+	void Render2D::begin(Texture &color, Texture &depth, Color clearColor)
+	{
+		s_Data.defaultShader.bind();
+		s_Data.vertexBuffer.bind();
+		s_Data.indexBuffer.bind();
+
+		RenderApi::begin(color, depth, clearColor);
+	}
+
+	void Render2D::begin(Texture &color, Color clearColor)
+	{
+		s_Data.defaultShader.bind();
+		s_Data.vertexBuffer.bind();
+		s_Data.indexBuffer.bind();
+
+		RenderApi::begin(color, clearColor);
+	}
+
+	void Render2D::end()
+	{
+		flush();
+		RenderApi::end();
+	}
 
 	void Render2D::init()
 	{
@@ -44,94 +80,56 @@ namespace Atlas {
 
 		s_Data.init = true;
 
-		{
-			auto vertexDescription = VertexDescription();
-			vertexDescription
-				.push_attrib(VertexAttribute::FLOAT3, &Vertex::position)
-				.push_attrib(VertexAttribute::FLOAT4, &Vertex::color)
-				.push_attrib(VertexAttribute::FLOAT2, &Vertex::uv);
+		//s_Data.vertexPtr = s_Data.vertices.data();
+		//s_Data.indexPtr = s_Data.indices.data();
 
-			GPUCameraData gpuCamera{};
-			gpuCamera.viewProj = OrthographicCamera(-1, 1, -1, 1).get_view_projection();
+		s_Data.textureSlots.resize(RenderData::MAX_TEXTURE_SLOTS);
+		//s_Data.vertices = std::vector<Vertex>(s_Data.vertexCount, Vertex());
+		//s_Data.indices = std::vector<uint16_t>(s_Data.indexCount, 0);
 
-			s_Data.cameraBuffer = make_ref<Buffer>(BufferType::UNIFORM, (uint32_t)sizeof(GPUCameraData));
-			s_Data.cameraBuffer->set_data(&gpuCamera, sizeof(GPUCameraData));
+		auto vertexDescription = VertexDescription();
+		vertexDescription
+			.push_attrib(VertexAttribute::FLOAT3, &Vertex::position)
+			.push_attrib(VertexAttribute::FLOAT4, &Vertex::color)
+			.push_attrib(VertexAttribute::FLOAT2, &Vertex::uv)
+			.push_attrib(VertexAttribute::INT, &Vertex::texID)
+			.push_attrib(VertexAttribute::FLOAT, &Vertex::sqrRadius);
 
-			Ref<Texture> tex1 = make_ref<Texture>("res/images/uv_checker_v1.png", FilterOptions::NEAREST);
-			Ref<Texture> tex2 = make_ref<Texture>("res/images/uv_checker_v2.png", FilterOptions::NEAREST);
+		GPUCameraData gpuCamera{};
+		gpuCamera.viewProj = OrthographicCamera(-1, 1, -1, 1).get_view_projection();
 
-			{
-				s_Data.whiteTexture = make_ref<Texture>(1, 1, FilterOptions::NEAREST);
-				Color data = Color(255, 0, 0);
-				s_Data.whiteTexture->set_data(&data, 1);
-			}
-
-			std::vector<Ref<Texture>> textureArr = { tex1, tex2 };
-
-			DescriptorBindings bindings = {
-				{s_Data.cameraBuffer, ShaderStage::VERTEX},
-				{s_Data.whiteTexture, ShaderStage::FRAGMENT},
-			};
-
-			Descriptor descriptorSet = Descriptor(bindings);
-
-			ShaderModule vertModule = load_shader_module("res/shaders/default.vert", ShaderStage::VERTEX, true).value();
-			ShaderModule fragModule = load_shader_module("res/shaders/default.frag", ShaderStage::FRAGMENT, true).value();
-
-			ShaderCreateInfo shaderInfo{};
-			shaderInfo.modules = { vertModule, fragModule };
-			shaderInfo.vertexDescription = vertexDescription;
-			shaderInfo.descriptors = { descriptorSet };
-
-			s_Data.defaultShader = Shader(shaderInfo);
-		}
+		s_Data.cameraBuffer = make_ref<Buffer>(BufferType::UNIFORM, (uint32_t)sizeof(GPUCameraData));
+		s_Data.cameraBuffer->set_data(&gpuCamera, sizeof(GPUCameraData));
 
 		{
-			//std::array<Vertex, 4> vertices{};
-			//vertices[0].position = glm::vec3(1, 0, 0);
-			//vertices[0].color = glm::vec4(1, 1, 1, 1);
-			//vertices[0].uv = glm::vec2(1, 0);
+			s_Data.whiteTexture = make_ref<Texture>(1, 1, FilterOptions::NEAREST);
+			Color data = Color(255);
+			s_Data.whiteTexture->set_data((uint32_t *)&data, 1);
 
-			//vertices[1].position = glm::vec3(0, 1, 0);
-			//vertices[1].color = glm::vec4(1, 1, 1, 1);
-			//vertices[1].uv = glm::vec2(0, 1);
-
-			//vertices[2].position = glm::vec3(0, 0, 0);
-			//vertices[2].color = glm::vec4(1, 1, 1, 1);
-			//vertices[2].uv = glm::vec2(0, 0);
-
-			//vertices[3].position = glm::vec3(1, 1, 0);
-			//vertices[3].color = glm::vec4(1, 1, 1, 1);
-			//vertices[3].uv = glm::vec2(1, 1);
-
-			//s_Data.vertexBuffer = Buffer(BufferType::VERTEX, vertices.data(), (uint32_t)(vertices.size() * sizeof(Vertex)));
-
-			//std::array<uint16_t, 6> indices = { 0, 1, 2, 0, 3, 1 };
-			//s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, indices.data(), (uint32_t)(indices.size() * sizeof(uint16_t)));
-
-			Vertex vert{};
-			vert.position = glm::vec3(1, 0, 0);
-			vert.color = glm::vec4(1, 1, 1, 1);
-			vert.uv = glm::vec2(1, 0);
-			s_Data.vertices.push_back(vert);
-
-			vert.position = glm::vec3(0, 1, 0);
-			vert.color = glm::vec4(1, 1, 1, 1);
-			vert.uv = glm::vec2(0, 1);
-			s_Data.vertices.push_back(vert);
-
-			vert.position = glm::vec3(0, 0, 0);
-			vert.color = glm::vec4(1, 1, 1, 1);
-			vert.uv = glm::vec2(0, 0);
-			s_Data.vertices.push_back(vert);
-
-			vert.position = glm::vec3(1, 1, 0);
-			vert.color = glm::vec4(1, 1, 1, 1);
-			vert.uv = glm::vec2(1, 1);
-			s_Data.vertices.push_back(vert);
-
-			s_Data.indices.insert(s_Data.indices.end(), { 0, 1, 2, 0, 3, 1 });
+			for (auto &tex : s_Data.textureSlots) tex = s_Data.whiteTexture;
 		}
+
+		DescriptorBindings bindings = {
+			{s_Data.cameraBuffer, ShaderStage::VERTEX},
+			{s_Data.textureSlots, ShaderStage::FRAGMENT},
+		};
+
+		s_Data.defaultDescriptor = Descriptor(bindings);
+
+		ShaderModule vertModule = load_shader_module("res/shaders/default.vert", ShaderStage::VERTEX, true).value();
+		ShaderModule fragModule = load_shader_module("res/shaders/default.frag", ShaderStage::FRAGMENT, true).value();
+
+		ShaderCreateInfo shaderInfo{};
+		shaderInfo.modules = { vertModule, fragModule };
+		shaderInfo.vertexDescription = vertexDescription;
+		shaderInfo.descriptors = { s_Data.defaultDescriptor };
+
+		s_Data.defaultShader = Shader(shaderInfo);
+
+		s_Data.vertexBuffer = Buffer(BufferType::VERTEX, s_Data.maxVertices * sizeof(Vertex));
+		s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.maxIndices * sizeof(uint16_t));
+
+
 	}
 
 	void Render2D::cleanup()
@@ -143,6 +141,47 @@ namespace Atlas {
 
 	}
 
+	void Render2D::flush()
+	{
+		ATL_EVENT();
+
+		if (s_Data.indices.size() == 0) return;
+
+		if (s_Data.vertices.size() <= s_Data.maxVertices) {
+			uint32_t size = (uint32_t)(s_Data.vertices.size() * sizeof(Vertex));
+			s_Data.vertexBuffer.set_data(s_Data.vertices.data(), size);
+		}
+		else {
+			s_Data.maxVertices = s_Data.vertices.size() * 1.5;
+			uint32_t size = (uint32_t)(s_Data.vertices.size() * sizeof(Vertex));
+			s_Data.vertexBuffer = Buffer(BufferType::VERTEX, s_Data.vertices.data(), size);
+			s_Data.vertexBuffer.bind();
+		}
+
+		if (s_Data.indices.size() <= s_Data.maxIndices) {
+			uint32_t size = (uint32_t)(s_Data.indices.size() * sizeof(uint16_t));
+			s_Data.indexBuffer.set_data(s_Data.indices.data(), size);
+		}
+		else {
+			s_Data.maxIndices = s_Data.maxIndices * 1.5;
+			uint32_t size = (uint32_t)(s_Data.indices.size() * sizeof(uint16_t));
+			s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.indices.data(), size);
+			s_Data.indexBuffer.bind();
+		}
+
+		s_Data.defaultDescriptor.update(1, { s_Data.textureSlots, ShaderStage::FRAGMENT });
+
+		RenderApi::drawIndexed(s_Data.indices.size());
+
+		s_Data.textureSlotIndex = 1;
+		s_Data.vertices.clear();
+		s_Data.indices.clear();
+		s_Data.vertices.reserve(s_Data.maxVertices);
+		s_Data.vertices.reserve(s_Data.maxIndices);
+		//s_Data.vertexPtr = s_Data.vertices.data();
+		//s_Data.indexPtr = s_Data.indices.data();
+	}
+
 	void Render2D::set_camera(Camera &camera)
 	{
 		if (s_Data.camera.viewProj != camera.get_view_projection()) {
@@ -151,18 +190,105 @@ namespace Atlas {
 		}
 	}
 
-	void Render2D::draw_test_triangle()
+	void Render2D::rect(const glm::vec2 &pos, const glm::vec2 &size, Color color, uint32_t textureIndx, float radius)
 	{
-		OPTICK_EVENT();
+		//if (s_Data.vertexCount + 4 > RenderData::MAX_VERTICES) flush();
+		//if (s_Data.indexCount + 6 > RenderData::maxIndices) flush();
 
-		auto vertexBuffer = Buffer(BufferType::VERTEX, s_Data.vertices.data(), s_Data.vertices.size() * sizeof(Vertex), true);
-		auto indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.indices.data(), s_Data.indices.size() * sizeof(uint16_t), true);
+		glm::vec4 col = color.normalized_vec();
 
-		s_Data.defaultShader.bind();
-		vertexBuffer.bind();
-		indexBuffer.bind();
+		Vertex vert{};
 
-		RenderApi::drawIndexed(6, 1);
+		vert.position = glm::vec3(pos, 0.0f);
+		vert.color = col;
+		vert.uv = { 0, 0 };
+		vert.texID = textureIndx;
+		vert.sqrRadius = radius;
+		s_Data.vertices.push_back(vert);
+		//s_Data.vertexPtr++;
+
+		vert.position = { pos.x + size.x, pos.y, 0 };
+		vert.color = col;
+		vert.uv = { 1, 0 };
+		vert.texID = textureIndx;
+		vert.sqrRadius = radius;
+		s_Data.vertices.push_back(vert);
+		//s_Data.vertexPtr++;
+
+		vert.position = { pos.x + size.x, pos.y + size.y, 0 };
+		vert.color = col;
+		vert.uv = { 1, 1 };
+		vert.texID = textureIndx;
+		vert.sqrRadius = radius;
+		s_Data.vertices.push_back(vert);
+		//s_Data.vertexPtr++;
+
+		vert.position = { pos.x, pos.y + size.y, 0 };
+		vert.color = col;
+		vert.uv = { 0, 1 };
+		vert.texID = textureIndx;
+		vert.sqrRadius = radius;
+		s_Data.vertices.push_back(vert);
+		//s_Data.vertexPtr++;
+
+		s_Data.indices.push_back(s_Data.vertices.size() + 0);
+		s_Data.indices.push_back(s_Data.vertices.size() + 1);
+		s_Data.indices.push_back(s_Data.vertices.size() + 2);
+		s_Data.indices.push_back(s_Data.vertices.size() + 2);
+		s_Data.indices.push_back(s_Data.vertices.size() + 3);
+		s_Data.indices.push_back(s_Data.vertices.size() + 0);
+		//*s_Data.indexPtr++ = s_Data.vertexCount + 0;
+		//*s_Data.indexPtr++ = s_Data.vertexCount + 1;
+		//*s_Data.indexPtr++ = s_Data.vertexCount + 2;
+		//*s_Data.indexPtr++ = s_Data.vertexCount + 2;
+		//*s_Data.indexPtr++ = s_Data.vertexCount + 3;
+		//*s_Data.indexPtr++ = s_Data.vertexCount + 0;
+	}
+
+	void Render2D::rect(const glm::vec2 &pos, const glm::vec2 &size, Color color)
+	{
+		rect(pos, size, color, 0, 2);
+	}
+
+	void Render2D::rect(const glm::vec2 &pos, const glm::vec2 &size, Ref<Texture> texture)
+	{
+
+		int textureIndx = 0;
+
+		for (uint32_t i = 1; i < s_Data.textureSlotIndex; i++) {
+			if (s_Data.textureSlots.at(i) == texture) {
+				textureIndx = i;
+				break;
+			}
+		}
+
+		if (textureIndx == 0 && s_Data.textureSlotIndex + 1 > RenderData::MAX_TEXTURE_SLOTS) {
+			CORE_WARN("Render2D: not more than {} texture slots supported!", RenderData::MAX_TEXTURE_SLOTS);
+			return;
+		}
+
+		if (textureIndx == 0) {
+			textureIndx = s_Data.textureSlotIndex++;
+			s_Data.textureSlots[textureIndx] = texture;
+		}
+
+		rect(pos, size, { 255 }, textureIndx, 2);
+	}
+
+	void Render2D::round_rect(const glm::vec2 &pos, const glm::vec2 &size, float radius, Color color)
+	{
+		rect(pos, size, color, 0, radius);
+	}
+
+	void Render2D::round_rect(const glm::vec2 &pos, const glm::vec2 &size, float radius, Ref<Texture> texture)
+	{
+		rect(pos, size, { 255 }, 0, radius);
+	}
+
+	void Render2D::circle(const glm::vec2 &pos, const float radius, Color color)
+	{
+		glm::vec2 size = { radius, radius };
+		rect(pos - size, glm::vec2(radius * 2, radius * 2), color, 0, 1);
 	}
 
 }

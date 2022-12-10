@@ -23,8 +23,6 @@ set(RES_DIR res)
 find_package(Vulkan 1.3 REQUIRED FATAL_ERROR)
 add_subdirectory(vendor)
 
-find_package(Optick)
-
 set(SOURCES
 		src/render_api.cpp
 		src/perspective_camera.cpp
