@@ -41,32 +41,38 @@ namespace Atlas {
 		//Render2D::Vertex *vertexPtr;
 		//uint16_t *indexPtr;
 		uint32_t textureSlotIndex = 1;
+
+		Color clearColor{ 255 };
 	};
 
 	static RenderData s_Data{};
 
-	void Render2D::begin(Texture &color, Texture &depth, Color clearColor)
+	void Render2D::begin(Texture &color, Texture &depth)
 	{
 		s_Data.defaultShader.bind();
 		s_Data.vertexBuffer.bind();
 		s_Data.indexBuffer.bind();
 
-		RenderApi::begin(color, depth, clearColor);
+		RenderApi::begin(color, depth, s_Data.clearColor);
 	}
 
-	void Render2D::begin(Texture &color, Color clearColor)
+	void Render2D::begin(Texture &color)
 	{
 		s_Data.defaultShader.bind();
 		s_Data.vertexBuffer.bind();
 		s_Data.indexBuffer.bind();
 
-		RenderApi::begin(color, clearColor);
+		RenderApi::begin(color, s_Data.clearColor);
 	}
 
 	void Render2D::end()
 	{
 		flush();
 		RenderApi::end();
+	}
+
+	void Render2D::clear_color(Color color) {
+		s_Data.clearColor = color;
 	}
 
 	void Render2D::init()
@@ -153,8 +159,8 @@ namespace Atlas {
 		}
 		else {
 			s_Data.maxVertices = s_Data.vertices.size() * 1.5;
-			uint32_t size = (uint32_t)(s_Data.vertices.size() * sizeof(Vertex));
-			s_Data.vertexBuffer = Buffer(BufferType::VERTEX, s_Data.vertices.data(), size);
+			s_Data.vertexBuffer = Buffer(BufferType::VERTEX, s_Data.maxVertices * sizeof(Vertex));
+			s_Data.vertexBuffer.set_data(s_Data.vertices.data(), s_Data.vertices.size() * sizeof(Vertex));
 			s_Data.vertexBuffer.bind();
 		}
 
@@ -163,9 +169,9 @@ namespace Atlas {
 			s_Data.indexBuffer.set_data(s_Data.indices.data(), size);
 		}
 		else {
-			s_Data.maxIndices = s_Data.maxIndices * 1.5;
-			uint32_t size = (uint32_t)(s_Data.indices.size() * sizeof(uint16_t));
-			s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.indices.data(), size);
+			s_Data.maxIndices = s_Data.indices.size() * 1.5;
+			s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.maxIndices * sizeof(uint16_t));
+			s_Data.indexBuffer.set_data(s_Data.indices.data(), s_Data.indices.size() * sizeof(uint16_t));
 			s_Data.indexBuffer.bind();
 		}
 
@@ -197,8 +203,9 @@ namespace Atlas {
 
 		glm::vec4 col = color.normalized_vec();
 
-		Vertex vert{};
+		uint32_t vertOffset = (uint32_t)s_Data.vertices.size();
 
+		Vertex vert{};
 		vert.position = glm::vec3(pos, 0.0f);
 		vert.color = col;
 		vert.uv = { 0, 0 };
@@ -231,12 +238,12 @@ namespace Atlas {
 		s_Data.vertices.push_back(vert);
 		//s_Data.vertexPtr++;
 
-		s_Data.indices.push_back(s_Data.vertices.size() + 0);
-		s_Data.indices.push_back(s_Data.vertices.size() + 1);
-		s_Data.indices.push_back(s_Data.vertices.size() + 2);
-		s_Data.indices.push_back(s_Data.vertices.size() + 2);
-		s_Data.indices.push_back(s_Data.vertices.size() + 3);
-		s_Data.indices.push_back(s_Data.vertices.size() + 0);
+		s_Data.indices.push_back((uint16_t)(vertOffset + 0));
+		s_Data.indices.push_back((uint16_t)(vertOffset + 1));
+		s_Data.indices.push_back((uint16_t)(vertOffset + 2));
+		s_Data.indices.push_back((uint16_t)(vertOffset + 2));
+		s_Data.indices.push_back((uint16_t)(vertOffset + 3));
+		s_Data.indices.push_back((uint16_t)(vertOffset + 0));
 		//*s_Data.indexPtr++ = s_Data.vertexCount + 0;
 		//*s_Data.indexPtr++ = s_Data.vertexCount + 1;
 		//*s_Data.indexPtr++ = s_Data.vertexCount + 2;

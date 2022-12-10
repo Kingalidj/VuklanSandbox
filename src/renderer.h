@@ -29,9 +29,11 @@ namespace Atlas {
 		void flush();
 		void set_camera(Camera &camera);
 
-		void begin(Texture &color, Texture &depth, Color clearColor);
-		void begin(Texture &color, Color clearColor);
+		void begin(Texture &color, Texture &depth);
+		void begin(Texture &color);
 		void end();
+
+		void clear_color(Color color);
 
 		void init();
 		void cleanup();

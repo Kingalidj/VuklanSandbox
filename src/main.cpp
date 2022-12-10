@@ -15,6 +15,8 @@ class Sandbox : public Atlas::Layer {
 
 	void on_attach() override {
 		tex = make_ref<Atlas::Texture>("res/images/uv_checker_v2.png");
+
+		Atlas::Render2D::clear_color(Atlas::Color(255));
 	}
 
 	void on_update(Atlas::Timestep ts) override {
@@ -23,20 +25,15 @@ class Sandbox : public Atlas::Layer {
 		orthoCamera.on_update(ts);
 		Render2D::set_camera(orthoCamera.get_camera());
 
-		Render2D::rect({ -1, -1 }, { 1, 1 }, { 0, 0, 200 });
-		Render2D::rect({ 0, 0 }, { 5, 8 }, tex);
-
-		uint32_t size = 100;
+		uint32_t size = 1000;
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
-				bool b = (i + j) % 2;
-				Color c;
-				if (b) c = Color(255, 0, 0);
-				else c = Color(0);
-
-				Render2D::circle({ i, j }, 0.5, c);
+				Render2D::circle({ i, j }, 0.5, Color(i / (float)size * 255, j / (float)size * 255, 100));
 			}
 		}
+
+		Render2D::rect({ -1, -1 }, { 2, 2 }, tex);
+
 	}
 
 	void on_event(Atlas::Event &e) override {

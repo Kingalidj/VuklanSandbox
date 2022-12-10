@@ -638,6 +638,7 @@ namespace vkutil {
 		allocatorInfo.physicalDevice = m_PhysicalDevice;
 		allocatorInfo.device = m_Device;
 		allocatorInfo.instance = m_Instance;
+		allocatorInfo.flags = VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT;
 		vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
 		m_VkManager.init(m_Device, m_Allocator);

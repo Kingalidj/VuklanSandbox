@@ -61,7 +61,7 @@ namespace vkutil {
 			}
 			else {
 				Atlas::Application::get_engine().manager().upload_to_gpu(info.memory, info.size, buffer,
-					bufferUsage | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+					bufferUsage);
 			}
 
 			m_Buffer = Atlas::Application::get_engine().asset_manager().register_buffer(buffer);
