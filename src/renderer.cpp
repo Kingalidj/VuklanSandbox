@@ -135,6 +135,11 @@ namespace Atlas {
 		s_Data.vertexBuffer = Buffer(BufferType::VERTEX, s_Data.maxVertices * sizeof(Vertex));
 		s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.maxIndices * sizeof(uint16_t));
 
+		ShaderModule compModule = load_shader_module("res/shaders/particles.comp", ShaderStage::COMPUTE, false).value();
+		ShaderCreateInfo compInfo{};
+		compInfo.modules = { compModule };
+		auto compute = Shader(compInfo);
+
 
 	}
 

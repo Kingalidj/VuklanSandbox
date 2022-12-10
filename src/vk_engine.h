@@ -24,6 +24,8 @@ namespace vkutil {
 	//	glm::mat4 modelMatrix;
 	//};
 
+	void memory_barrier(VkCommandBuffer cmd, VkAccessFlagBits srcAccessBit, VkAccessFlagBits dstAccessBit, VkPipelineStageFlagBits srcStageBit, VkPipelineStageFlagBits dstStageBit);
+
 	struct FrameData {
 		VkSemaphore presentSemaphore, renderSemaphore;
 		VkFence renderFence;

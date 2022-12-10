@@ -22,6 +22,8 @@ namespace Atlas {
 			return VK_SHADER_STAGE_VERTEX_BIT;
 		case ShaderStage::FRAGMENT:
 			return VK_SHADER_STAGE_FRAGMENT_BIT;
+		case ShaderStage::COMPUTE:
+			return VK_SHADER_STAGE_COMPUTE_BIT;
 		default:
 			return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
 		}

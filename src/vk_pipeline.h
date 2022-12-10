@@ -112,4 +112,5 @@ namespace vkutil {
 
 	bool load_glsl_shader_module(const VulkanManager &manager, std::filesystem::path filePath, VkShaderModule *outShaderModule);
 
+	void create_compute_shader(VulkanManager &manager, VkShaderModule module, std::vector<VkDescriptorSetLayout> layouts, VkPipeline *pipeline, VkPipelineLayout *pipelineLayout);
 } //namespace vkutil

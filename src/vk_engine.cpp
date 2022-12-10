@@ -616,6 +616,8 @@ namespace vkutil {
 
 		vkb::PhysicalDevice physicalDevice = selection.value();
 
+		CORE_INFO("PhysicalDevice: {}", physicalDevice.name);
+
 		VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParametersFeatures{};
 		shaderDrawParametersFeatures.sType =
 			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
@@ -1239,5 +1241,15 @@ namespace vkutil {
 	//		});
 	//	}
 	//}
+
+	void memory_barrier(VkCommandBuffer cmd, VkAccessFlagBits srcAccessBit, VkAccessFlagBits dstAccessBit, VkPipelineStageFlagBits srcStageBit, VkPipelineStageFlagBits dstStageBit)
+	{
+		VkMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		barrier.srcAccessMask = srcAccessBit;
+		barrier.dstAccessMask = dstAccessBit;
+
+		vkCmdPipelineBarrier(cmd, srcStageBit, dstStageBit, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+	}
 
 }

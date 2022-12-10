@@ -23,6 +23,7 @@ namespace Atlas {
 		NONE,
 		VERTEX,
 		FRAGMENT,
+		COMPUTE,
 	};
 
 	class VertexDescription {
@@ -43,6 +44,7 @@ namespace Atlas {
 		std::vector<std::pair<VertexAttribute, uint32_t>> get_attributes() { return m_Attributes; }
 
 		inline uint32_t get_stride() { return m_SizeOfVertex; }
+		uint64_t size() { return m_Attributes.size(); }
 
 	private:
 

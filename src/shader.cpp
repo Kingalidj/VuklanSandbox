@@ -17,18 +17,6 @@ namespace vkutil {
 			vkutil::VulkanEngine &engine = Atlas::Application::get_engine();
 			vkutil::VulkanManager &manager = engine.manager();
 
-			vkutil::VertexInputDescriptionBuilder vertexBuilder(info.vertexDescription.get_stride());
-			for (auto &pair : info.vertexDescription.get_attributes()) {
-				vertexBuilder.push_attrib(atlas_to_vk_attribute(pair.first), pair.second);
-			}
-
-			vkutil::VertexInputDescription vertexInputDescription = vertexBuilder.value();
-
-			vkutil::PipelineBuilder builder(manager);
-			builder.set_vertex_description(vertexInputDescription)
-				.set_color_format(engine.get_color_format())
-				.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, engine.get_depth_format());
-
 			std::vector<VkDescriptorSetLayout> layouts;
 			for (auto &d : info.descriptors) {
 				if (!d.is_init()) {
@@ -39,15 +27,15 @@ namespace vkutil {
 				layouts.push_back(d.get_native_descriptor()->layout);
 			}
 
-			if (layouts.size() != 0) {
-				builder.set_descriptor_layouts(layouts);
-			}
+			vkutil::Shader shader{};
 
-			std::vector<VkShaderModule> modules;
+			//----------------------- compute ------------------------------------
+			if (info.vertexDescription.size() == 0 && info.modules.size() == 1
+				&& info.modules.at(0).get_stage() == Atlas::ShaderStage::COMPUTE) {
 
-			for (auto &m : info.modules) {
-				VkShaderStageFlagBits shaderType = Atlas::atlas_to_vk_shaderstage(m.get_stage());
+				auto &m = info.modules.at(0);
 
+				VkShaderStageFlagBits shaderType = Atlas::atlas_to_vk_shaderstage(Atlas::ShaderStage::COMPUTE);
 				std::vector<uint32_t> &buffer = m.get_data();
 
 				VkShaderModule module{};
@@ -56,17 +44,55 @@ namespace vkutil {
 
 				if (!success) {
 					CORE_WARN("Shader: error while compiling shader: {}", m.get_file_path());
-					continue;
+					return;
 				}
 
-				builder.add_shader_module(module, shaderType);
-				modules.push_back(module);
+				vkutil::create_compute_shader(manager, module, layouts, &shader.pipeline, &shader.layout);
+				vkDestroyShaderModule(manager.device(), module, nullptr);
+			}
+			//----------------------- else ------------------------------------
+			else {
+				vkutil::VertexInputDescriptionBuilder vertexBuilder(info.vertexDescription.get_stride());
+				for (auto &pair : info.vertexDescription.get_attributes()) {
+					vertexBuilder.push_attrib(atlas_to_vk_attribute(pair.first), pair.second);
+				}
+
+				vkutil::VertexInputDescription vertexInputDescription = vertexBuilder.value();
+
+				vkutil::PipelineBuilder builder(manager);
+
+				if (layouts.size() != 0) {
+					builder.set_descriptor_layouts(layouts);
+				}
+
+				builder.set_vertex_description(vertexInputDescription)
+					.set_color_format(engine.get_color_format())
+					.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, engine.get_depth_format());
+
+				std::vector<VkShaderModule> modules;
+
+				for (auto &m : info.modules) {
+					VkShaderStageFlagBits shaderType = Atlas::atlas_to_vk_shaderstage(m.get_stage());
+
+					std::vector<uint32_t> &buffer = m.get_data();
+
+					VkShaderModule module{};
+					bool success = vkutil::compile_shader_module(buffer.data(), (uint32_t)(buffer.size() * sizeof(uint32_t)),
+						&module, manager.device());
+
+					if (!success) {
+						CORE_WARN("Shader: error while compiling shader: {}", m.get_file_path());
+						continue;
+					}
+
+					builder.add_shader_module(module, shaderType);
+					modules.push_back(module);
+				}
+
+				builder.build(&shader);
+				for (auto &module : modules) vkDestroyShaderModule(manager.device(), module, nullptr);
 			}
 
-			vkutil::Shader shader{};
-			builder.build(&shader);
-
-			for (auto &module : modules) vkDestroyShaderModule(manager.device(), module, nullptr);
 
 			m_Shader = engine.asset_manager().register_shader(shader);
 		}

@@ -338,6 +338,9 @@ namespace vkutil {
 		case VK_SHADER_STAGE_FRAGMENT_BIT:
 			kind = shaderc_fragment_shader;
 			break;
+		case VK_SHADER_STAGE_COMPUTE_BIT:
+			kind = shaderc_compute_shader;
+			break;
 		default:
 			CORE_WARN("unknown extension for file: {}", source_name);
 			return {};
@@ -349,7 +352,7 @@ namespace vkutil {
 		options.SetIncluder(std::make_unique<ShaderIncluder>());
 
 		options.SetTargetEnvironment(shaderc_target_env_vulkan,
-			shaderc_env_version_vulkan_1_3);
+			shaderc_env_version_vulkan_1_1);
 
 		if (optimize) options.SetOptimizationLevel(shaderc_optimization_level_size);
 
@@ -384,6 +387,9 @@ namespace vkutil {
 			break;
 		case VK_SHADER_STAGE_FRAGMENT_BIT:
 			kind = shaderc_fragment_shader;
+			break;
+		case VK_SHADER_STAGE_COMPUTE_BIT:
+			kind = shaderc_compute_shader;
 			break;
 		default:
 			CORE_WARN("unknown extension for file: {}", filePath);
@@ -427,12 +433,35 @@ namespace vkutil {
 		else if (ext == ".frag") {
 			type = VK_SHADER_STAGE_FRAGMENT_BIT;
 		}
+		else if (ext == ".comp") {
+			type = VK_SHADER_STAGE_COMPUTE_BIT;
+		}
 		else {
 			CORE_WARN("unknown extension for file: {}", filePath);
 			return false;
 		}
 
 		return load_glsl_shader_module(manager, filePath, type, outShaderModule);
+	}
+
+	void create_compute_shader(VulkanManager &manager, VkShaderModule module, std::vector<VkDescriptorSetLayout> layouts, VkPipeline *pipeline, VkPipelineLayout *pipelineLayout) {
+
+		VkPipelineLayoutCreateInfo layoutInfo = vkinit::pipeline_layout_create_info();
+		layoutInfo.pSetLayouts = layouts.data();
+		layoutInfo.setLayoutCount = (uint32_t)layouts.size();
+
+		VkPipelineLayout layout = manager.get_pipeline_layout_cache().create_pipeline_layout(layoutInfo);
+		*pipelineLayout = layout;
+
+		VkComputePipelineCreateInfo info{};
+		info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+		info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+		info.stage.module = module;
+		info.stage.pName = "main";
+		info.layout = layout;
+
+		VK_CHECK(vkCreateComputePipelines(manager.device(), VK_NULL_HANDLE, 1, &info, nullptr, pipeline));
 	}
 
 
