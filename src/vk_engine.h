@@ -91,6 +91,8 @@ namespace vkutil {
 
 		void wait_idle();
 
+		PFN_vkCmdPushDescriptorSetKHR vkCmdPushDescriptorSetKHR;
+
 	private:
 		void init_vulkan(Window &window);
 		void init_commands();

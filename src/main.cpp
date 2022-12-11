@@ -25,6 +25,8 @@ class Sandbox : public Atlas::Layer {
 		orthoCamera.on_update(ts);
 		Render2D::set_camera(orthoCamera.get_camera());
 
+		Render2D::begin(Application::get_viewport_color_texture());
+
 		uint32_t size = 100;
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
@@ -34,6 +36,7 @@ class Sandbox : public Atlas::Layer {
 
 		Render2D::rect({ -1, -1 }, { 2, 2 }, tex);
 
+		Render2D::end();
 	}
 
 	void on_event(Atlas::Event &e) override {

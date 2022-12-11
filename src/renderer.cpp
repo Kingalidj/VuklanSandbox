@@ -20,8 +20,8 @@ namespace Atlas {
 	struct RenderData {
 		bool init{ false };
 
-		uint32_t maxVertices{ 1 };
-		uint32_t maxIndices{ 1 };
+		uint32_t maxVertices{ 500 };
+		uint32_t maxIndices{ 300 };
 		//static const uint32_t MAX_VERTICES = 4;
 		//static const uint32_t MAX_INDICES = 6;
 		static const uint32_t MAX_TEXTURE_SLOTS = 32;

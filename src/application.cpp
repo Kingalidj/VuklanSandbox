@@ -95,12 +95,10 @@ namespace Atlas {
 				m_Engine->prepare_frame(&swapchainImageIndex);
 
 				{
-					Render2D::begin(m_ColorTexture, m_DepthTexture);
 					ATL_EVENT("layer::on_update");
 					for (auto &layer : m_LayerStack) {
 						layer->on_update(timestep);
 					}
-					Render2D::end();
 				}
 
 				for (auto &layer : m_LayerStack) layer->on_imgui();

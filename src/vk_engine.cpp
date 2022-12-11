@@ -589,6 +589,7 @@ namespace vkutil {
 			.request_validation_layers(true)
 			.require_api_version(1, 3, 0)
 			.set_debug_callback(spdlog_debug_callback)
+			.enable_extension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)
 			.build();
 
 		CORE_ASSERT(res, "could not select a suitable Instance. Error: {}", res.error().message());
@@ -610,6 +611,7 @@ namespace vkutil {
 			.set_minimum_version(1, 3)
 			.set_surface(m_Surface)
 			.set_required_features_13(features)
+			.add_required_extensions({ VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME })
 			.select();
 
 		CORE_ASSERT(selection, "could not select a suitable Physical Device. Error: {}", selection.error().message());
@@ -644,6 +646,8 @@ namespace vkutil {
 		vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
 		m_VkManager.init(m_Device, m_Allocator);
+
+		vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(m_Device, "vkCmdPushDescriptorSetKHR");
 
 		m_MainDeletionQueue.push_function([=]() {
 			vmaDestroyAllocator(m_Allocator);
