@@ -14,7 +14,7 @@ class Sandbox : public Atlas::Layer {
 	Ref<Atlas::Texture> tex;
 
 	void on_attach() override {
-		tex = make_ref<Atlas::Texture>("res/images/uv_checker_v2.png");
+		tex = make_ref<Atlas::Texture>("res/images/uv_checker_v2.png", Atlas::FilterOptions::LINEAR);
 
 		Atlas::Render2D::clear_color(Atlas::Color(255));
 	}
@@ -27,10 +27,11 @@ class Sandbox : public Atlas::Layer {
 
 		Render2D::begin(Application::get_viewport_color_texture());
 
-		uint32_t size = 200;
+		uint32_t size = 50;
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				Render2D::circle({ i, j }, 0.5, Color(i / (float)size * 255, j / (float)size * 255, 100));
+				//Render2D::rect({ i, j }, { 1, 1 }, tex);
 			}
 		}
 

@@ -592,7 +592,7 @@ namespace vkutil {
 			.enable_extension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)
 			.build();
 
-		CORE_ASSERT(res, "could not select a suitable Instance. Error: {}", res.error().message());
+		CORE_ASSERT(res.has_value(), "could not select a suitable Instance. Error: {}", res.error().message());
 
 		vkb::Instance vkb_inst = res.value();
 
@@ -614,11 +614,11 @@ namespace vkutil {
 			.add_required_extensions({ VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME })
 			.select();
 
-		CORE_ASSERT(selection, "could not select a suitable Physical Device. Error: {}", selection.error().message());
+		CORE_ASSERT(selection.has_value(), "could not select a suitable Physical Device. Error: {}", selection.error().message());
 
 		vkb::PhysicalDevice physicalDevice = selection.value();
 
-		CORE_INFO("PhysicalDevice: {}", physicalDevice.name);
+		CORE_TRACE("PhysicalDevice: {}", physicalDevice.name);
 
 		VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParametersFeatures{};
 		shaderDrawParametersFeatures.sType =
@@ -648,6 +648,21 @@ namespace vkutil {
 		m_VkManager.init(m_Device, m_Allocator);
 
 		vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(m_Device, "vkCmdPushDescriptorSetKHR");
+
+		VkPhysicalDeviceMemoryProperties prop{};
+		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &prop);
+
+		for (int i = 0; i < prop.memoryHeapCount; i++) {
+			CORE_TRACE("Heap {}", i);
+			VkMemoryHeap memHeap = prop.memoryHeaps[i];
+
+			CORE_TRACE("flags:");
+			if (memHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) CORE_TRACE("	VK_MEMORY_HEAP_DEVICE_LOCAL_BIT");
+			if (memHeap.flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) CORE_TRACE("	VK_MEMORY_HEAP_MULTI_INSTANCE_BIT");
+			if (memHeap.flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR) CORE_TRACE("	VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR");
+
+			CORE_TRACE("size: {}", memHeap.size);
+		}
 
 		m_MainDeletionQueue.push_function([=]() {
 			vmaDestroyAllocator(m_Allocator);

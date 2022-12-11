@@ -46,6 +46,7 @@ namespace Atlas {
 	};
 
 	static RenderData s_Data{};
+	const uint32_t RenderData::MAX_TEXTURE_SLOTS;
 
 	void Render2D::begin(Texture &color, Texture &depth)
 	{

@@ -53,13 +53,8 @@ private:
 #define DBREAK() abort()
 #endif
 
-#ifdef NDEBUG
-#define CORE_ASSERT(x, ...) assert(x);
-#define ASSERT(x, ...) assert(x);
-#else
 #define CORE_ASSERT(x, ...) { if(!(x)) { CORE_ERROR("Assertion Failed: {0}", __VA_ARGS__); DBREAK(); }}
 #define ASSERT(x, ...) { if(!(x)) { ERROR("Assertion Failed: {0}", __VA_ARGS__); DBREAK(); }}
-#endif
 
 #define PROFILE
 
