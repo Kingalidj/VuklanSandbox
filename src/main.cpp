@@ -25,7 +25,7 @@ class Sandbox : public Atlas::Layer {
 		orthoCamera.on_update(ts);
 		Render2D::set_camera(orthoCamera.get_camera());
 
-		uint32_t size = 100;
+		uint32_t size = 200;
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				Render2D::circle({ i, j }, 0.5, Color(i / (float)size * 255, j / (float)size * 255, 100));

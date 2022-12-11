@@ -36,7 +36,7 @@ namespace Atlas {
 		GPUCameraData camera{};
 
 		std::vector<Render2D::Vertex> vertices;
-		std::vector<uint16_t> indices;
+		std::vector<uint32_t> indices;
 		std::vector<Ref<Texture>> textureSlots{};
 		//Render2D::Vertex *vertexPtr;
 		//uint16_t *indexPtr;
@@ -133,7 +133,7 @@ namespace Atlas {
 		s_Data.defaultShader = Shader(shaderInfo);
 
 		s_Data.vertexBuffer = Buffer(BufferType::VERTEX, s_Data.maxVertices * sizeof(Vertex));
-		s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.maxIndices * sizeof(uint16_t));
+		s_Data.indexBuffer = Buffer(BufferType::INDEX_U32, s_Data.maxIndices * sizeof(uint32_t));
 
 		ShaderModule compModule = load_shader_module("res/shaders/particles.comp", ShaderStage::COMPUTE, false).value();
 		ShaderCreateInfo compInfo{};
@@ -170,13 +170,13 @@ namespace Atlas {
 		}
 
 		if (s_Data.indices.size() <= s_Data.maxIndices) {
-			uint32_t size = (uint32_t)(s_Data.indices.size() * sizeof(uint16_t));
+			uint32_t size = (uint32_t)(s_Data.indices.size() * sizeof(uint32_t));
 			s_Data.indexBuffer.set_data(s_Data.indices.data(), size);
 		}
 		else {
 			s_Data.maxIndices = s_Data.indices.size() * 1.5;
-			s_Data.indexBuffer = Buffer(BufferType::INDEX_U16, s_Data.maxIndices * sizeof(uint16_t));
-			s_Data.indexBuffer.set_data(s_Data.indices.data(), s_Data.indices.size() * sizeof(uint16_t));
+			s_Data.indexBuffer = Buffer(BufferType::INDEX_U32, s_Data.maxIndices * sizeof(uint32_t));
+			s_Data.indexBuffer.set_data(s_Data.indices.data(), s_Data.indices.size() * sizeof(uint32_t));
 			s_Data.indexBuffer.bind();
 		}
 
@@ -243,12 +243,12 @@ namespace Atlas {
 		s_Data.vertices.push_back(vert);
 		//s_Data.vertexPtr++;
 
-		s_Data.indices.push_back((uint16_t)(vertOffset + 0));
-		s_Data.indices.push_back((uint16_t)(vertOffset + 1));
-		s_Data.indices.push_back((uint16_t)(vertOffset + 2));
-		s_Data.indices.push_back((uint16_t)(vertOffset + 2));
-		s_Data.indices.push_back((uint16_t)(vertOffset + 3));
-		s_Data.indices.push_back((uint16_t)(vertOffset + 0));
+		s_Data.indices.push_back((uint32_t)(vertOffset + 0));
+		s_Data.indices.push_back((uint32_t)(vertOffset + 1));
+		s_Data.indices.push_back((uint32_t)(vertOffset + 2));
+		s_Data.indices.push_back((uint32_t)(vertOffset + 2));
+		s_Data.indices.push_back((uint32_t)(vertOffset + 3));
+		s_Data.indices.push_back((uint32_t)(vertOffset + 0));
 		//*s_Data.indexPtr++ = s_Data.vertexCount + 0;
 		//*s_Data.indexPtr++ = s_Data.vertexCount + 1;
 		//*s_Data.indexPtr++ = s_Data.vertexCount + 2;
