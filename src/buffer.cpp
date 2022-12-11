@@ -19,6 +19,7 @@ VkBufferUsageFlagBits atlas_to_vk_buffer_type(Atlas::BufferType type) {
 	case Atlas::BufferType::VERTEX:
 		return VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 		break;
+	case Atlas::BufferType::INDEX_U32:
 	case Atlas::BufferType::INDEX_U16:
 		return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 		break;
@@ -112,6 +113,9 @@ namespace vkutil {
 				break;
 			case Atlas::BufferType::INDEX_U16:
 				vkCmdBindIndexBuffer(cmd, get_native_buffer()->buffer, offset, VK_INDEX_TYPE_UINT16);
+				break;
+			case Atlas::BufferType::INDEX_U32:
+				vkCmdBindIndexBuffer(cmd, get_native_buffer()->buffer, offset, VK_INDEX_TYPE_UINT32);
 				break;
 			default:
 				CORE_WARN("can't bind this type of buffer: {}", (uint32_t)m_Type);

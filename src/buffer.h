@@ -11,6 +11,7 @@ namespace Atlas {
 		NONE = 0,
 		VERTEX,
 		INDEX_U16,
+		INDEX_U32,
 		UNIFORM,
 		STORAGE,
 	};
