@@ -63,11 +63,11 @@ namespace Atlas {
 
 		if (Application::is_key_pressed(KeyCode::S))
 		{
-			m_CameraPosition.y += m_CameraTranslationSpeed * timestep;
+			m_CameraPosition.y -= m_CameraTranslationSpeed * timestep;
 		}
 		else if (Application::is_key_pressed(KeyCode::W))
 		{
-			m_CameraPosition.y -= m_CameraTranslationSpeed * timestep;
+			m_CameraPosition.y += m_CameraTranslationSpeed * timestep;
 		}
 
 		if (m_Rotation)

@@ -2,7 +2,6 @@
 #include "application.h"
 
 #include "atl_vk_utils.h"
-#include "vk_textures.h"
 #include "vk_initializers.h"
 #include "vk_engine.h"
 
@@ -72,7 +71,7 @@ namespace Atlas {
 
 		VkFilter filter = atlas_to_vk_filter(options);
 
-		vkutil::Texture texture;
+		vkutil::VkTexture texture;
 		VkSamplerCreateInfo info = vkinit::sampler_create_info(filter);
 		vkutil::load_texture(path, Application::get_engine().manager(), info, &texture);
 
@@ -86,7 +85,7 @@ namespace Atlas {
 			color_format_to_texture_info(TextureFormat::R8G8B8A8, width, height);
 		info.filter = atlas_to_vk_filter(options);
 
-		vkutil::Texture texture;
+		vkutil::VkTexture texture;
 		vkutil::alloc_texture(Application::get_engine().manager(), info, &texture);
 
 		m_Texture = Application::get_engine().asset_manager().register_texture(texture);
@@ -98,7 +97,7 @@ namespace Atlas {
 		vkutil::TextureCreateInfo info = color_format_to_texture_info(format, width, height);
 		info.filter = atlas_to_vk_filter(options);
 
-		vkutil::Texture texture;
+		vkutil::VkTexture texture;
 		vkutil::alloc_texture(Application::get_engine().manager(), info, &texture);
 
 		m_Texture = Application::get_engine().asset_manager().register_texture(texture);
@@ -171,7 +170,7 @@ namespace Atlas {
 		CORE_WARN("This texture was never created / or deleted!");
 		return nullptr;
 	}
-	vkutil::Texture *Texture::get_native_texture()
+	vkutil::VkTexture *Texture::get_native_texture()
 	{
 		if (auto texture = m_Texture.lock()) {
 			return texture.get();

@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 
 namespace vkutil {
-	struct Texture;
+	struct VkTexture;
 }
 
 namespace Atlas {
@@ -63,12 +63,12 @@ namespace Atlas {
 
 		void *get_id();
 
-		vkutil::Texture *get_native_texture();
+		vkutil::VkTexture *get_native_texture();
 		inline bool is_init() { return m_Initialized; }
 
 	private:
 
-		WeakRef<vkutil::Texture> m_Texture;
+		WeakRef<vkutil::VkTexture> m_Texture;
 		bool m_Initialized{ false };
 	};
 

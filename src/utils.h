@@ -11,6 +11,8 @@
 
 #define BIND_EVENT_FN(x) std::bind(&x, this, std::placeholders::_1)
 
+#define BIT(x) 1 << x
+
 template <typename T>
 class Result {
 	using ResultType = std::variant<T, std::string>;
@@ -50,3 +52,4 @@ constexpr Ref<T> make_ref(Args&& ... args) {
 
 template<typename T>
 using WeakRef = std::weak_ptr<T>;
+

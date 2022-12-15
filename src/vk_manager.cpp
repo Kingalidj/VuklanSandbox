@@ -1,7 +1,5 @@
 #include "vk_manager.h"
-
 #include "vk_initializers.h"
-#include "vk_buffer.h"
 
 namespace vkutil {
 
@@ -14,21 +12,6 @@ namespace vkutil {
 		m_PipelineLayoutCache = PipelineLayoutCache(m_Device);
 	}
 
-	//void VulkanManager::set_texture(const std::string &name, Ref<Texture> tex) {
-	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	//	m_Textures[name] = tex;
-	//}
-
-	//void VulkanManager::set_mesh(const std::string &name, Ref<Mesh> mesh) {
-	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	//	m_Meshes[name] = mesh;
-	//}
-
-	//void VulkanManager::set_material(const std::string &name, Ref<Material> material) {
-	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-	//	m_Materials[name] = material;
-	//}
-
 	void VulkanManager::cleanup() {
 		m_DeletionQueue.flush();
 		m_DescriptorLayoutCache.cleanup();
@@ -36,92 +19,8 @@ namespace vkutil {
 		m_PipelineLayoutCache.cleanup();
 	}
 
-	//std::optional<Ref<Texture>> VulkanManager::get_texture(const std::string &name) {
-	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-
-	//	auto tex = m_Textures.find(name);
-
-	//	if (tex != m_Textures.end()) {
-	//		return tex->second;
-	//	}
-	//	else {
-	//		return std::nullopt;
-	//	}
-	//}
-
-	//std::optional<Ref<Mesh>> VulkanManager::get_mesh(const std::string &name) {
-	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-
-	//	auto mesh = m_Meshes.find(name);
-
-	//	if (mesh != m_Meshes.end()) {
-	//		return mesh->second;
-	//	}
-	//	else {
-	//		return std::nullopt;
-	//	}
-	//}
-
-	//std::optional<Ref<Material>> VulkanManager::get_material(const std::string &name) {
-	//	CORE_ASSERT(m_Device, "ResourceManager not initialized");
-
-	//	auto mat = m_Materials.find(name);
-
-	//	if (mat != m_Materials.end()) {
-	//		return mat->second;
-	//	}
-	//	else {
-	//		return std::nullopt;
-	//	}
-	//}
-
-	//std::optional<Ref<Material>> VulkanManager::create_material(const std::string &name, VkPipeline pipeline, VkPipelineLayout layout) {
-	//	Ref<Material> mat = make_ref<Material>();
-	//	mat->pipeline = pipeline;
-	//	mat->pipelineLayout = layout;
-	//	set_material(name, mat);
-
-	//	return mat;
-	//}
-
 	void VulkanManager::delete_func(std::function<void()> &&func) {
 		m_DeletionQueue.push_function(std::move(func));
-	}
-
-	void VulkanManager::upload_to_gpu(void *copyData, uint32_t size, AllocatedBuffer &buffer, VkBufferUsageFlags flags) {
-
-		VkBufferCreateInfo stagingBufferInfo{};
-		stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		stagingBufferInfo.pNext = nullptr;
-		stagingBufferInfo.size = size;
-		stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
-		VmaAllocationCreateInfo vmaAllocInfo{};
-		vmaAllocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-
-		AllocatedBuffer stagingBuffer;
-
-		create_buffer(*this, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer);
-
-		map_memory(*this, &stagingBuffer, copyData, size);
-
-		VkBufferCreateInfo vertexBufferInfo{};
-		vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		vertexBufferInfo.pNext = nullptr;
-		vertexBufferInfo.size = size;
-		vertexBufferInfo.usage = flags;
-
-		create_buffer(*this, size, flags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &buffer);
-
-		immediate_submit([=](VkCommandBuffer cmd) {
-			VkBufferCopy copy;
-		copy.dstOffset = 0;
-		copy.srcOffset = 0;
-		copy.size = size;
-		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
-		});
-
-		vmaDestroyBuffer(m_Allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 	}
 
 	const VkDevice VulkanManager::device() const {
@@ -274,7 +173,7 @@ namespace vkutil {
 		m_Shaders.erase(it);
 	}
 
-	void AssetManager::queue_destroy_texture(Ref<Texture> &texture) {
+	void AssetManager::queue_destroy_texture(Ref<VkTexture> &texture) {
 		auto it = m_Textures.find(texture);
 
 		if (it == m_Textures.end()) {
@@ -285,7 +184,7 @@ namespace vkutil {
 		m_DeletedTextures.insert(texture);
 	}
 
-	void AssetManager::deregister_texture(Ref<Texture> &texture) {
+	void AssetManager::deregister_texture(Ref<VkTexture> &texture) {
 		auto it = m_Textures.find(texture);
 
 		if (it == m_Textures.end()) {

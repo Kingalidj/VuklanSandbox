@@ -1,6 +1,7 @@
 #pragma once
 
 namespace vkutil {
+	struct Shader;
 	class VulkanShader;
 }
 
@@ -58,7 +59,7 @@ namespace Atlas {
 	};
 
 	class ShaderModule;
-	std::optional<ShaderModule> load_shader_module(const char *path, ShaderStage stage, bool optimize = true);
+	std::optional<ShaderModule> load(const char *path, ShaderStage stage, bool optimize = true);
 
 	class ShaderModule {
 	public:
@@ -70,7 +71,7 @@ namespace Atlas {
 		std::vector<uint32_t> &get_data() { return *m_Data.get(); }
 		const char *get_file_path() { return m_Path.c_str(); }
 
-		friend std::optional<ShaderModule> load_shader_module(const char *path, ShaderStage stage, bool optimize);
+		static std::optional<ShaderModule> load(const char *path, ShaderStage stage, bool optimize);
 
 	private:
 
@@ -93,7 +94,9 @@ namespace Atlas {
 
 		Shader() = default;
 		Shader(ShaderCreateInfo &info);
-		Shader(const Shader &other) = delete;
+
+		static std::optional<Shader> compute(const char *path, bool optimize = true);
+		vkutil::Shader *get_native_shader();
 
 		void bind();
 

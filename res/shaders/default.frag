@@ -7,7 +7,7 @@ layout (location = 3) in float radius;
 
 layout (location = 0) out vec4 outFragColor;
 
-layout(set = 0, binding = 1) uniform sampler2D textures[32];
+layout(set = 0, binding = 1) uniform sampler2D textures[25];
 
 void main()
 {

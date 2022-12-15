@@ -6,31 +6,33 @@
 
 namespace vkutil {
 	class VulkanDescriptor;
-	struct Descriptor;
+	struct VkDescriptor;
 }
 
 namespace Atlas {
 
-	using DescriptorAttachment = std::variant<Ref<Buffer>, Ref<Texture>, std::vector<Ref<Texture>>>;
-	using DescriptorBinding = std::pair<DescriptorAttachment, ShaderStage>;
-	using DescriptorBindings = std::vector<DescriptorBinding>;
-
-	//struct DescriptorCreateInfo {
-	//	std::vector<std::pair<DescriptorAttachment, ShaderStage>> bindings;
-	//};
-
 	class Descriptor {
 	public:
 
+		using BufferAttachment = Ref<Buffer>;
+		using TextureAttachment = Ref<Texture>;
+		using TextureArrayAttachment = std::vector<Ref<Texture>>;
+		using Attachment = std::variant<BufferAttachment, TextureAttachment, TextureArrayAttachment>;
+		using Binding = std::pair<Attachment, ShaderStage>;
+		using Bindings = std::vector<Binding>;
+
 		Descriptor() = default;
 
-		Descriptor(DescriptorBindings &bindings);
-		uint32_t get_descriptor_count();
-		void update(uint32_t binding, DescriptorBinding descBinding);
+		Descriptor(std::vector<Binding> &bindings, bool pushable = false);
+		uint32_t get_set_count();
+
+		void update(uint32_t binding, Binding descBinding);
+		void bind(Shader &shader);
+		void push(Shader &shader, uint32_t set);
 
 		inline bool is_init() { return m_Initialized; }
 
-		vkutil::Descriptor *get_native_descriptor();
+		vkutil::VkDescriptor *get_native_descriptor();
 
 	private:
 

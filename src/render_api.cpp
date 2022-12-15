@@ -7,15 +7,15 @@ namespace Atlas {
 
 	namespace RenderApi {
 
-		void begin(Texture &color, Texture &depth, Color clearColor)
+		void begin(Ref<Texture> color, Ref<Texture> depth, Color clearColor)
 		{
-			Application::get_engine().begin_renderpass(*color.get_native_texture(), *depth.get_native_texture(),
+			Application::get_engine().begin_renderpass(*color->get_native_texture(), *depth->get_native_texture(),
 				clearColor.normalized_vec());
 		}
 
-		void begin(Texture &color, Color clearColor)
+		void begin(Ref<Texture> color, Color clearColor, bool clearScreen)
 		{
-			Application::get_engine().begin_renderpass(*color.get_native_texture(), clearColor.normalized_vec());
+			Application::get_engine().begin_renderpass(*color->get_native_texture(), clearColor.normalized_vec());
 		}
 
 		void end()

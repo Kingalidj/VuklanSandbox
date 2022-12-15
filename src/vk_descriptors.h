@@ -1,11 +1,14 @@
 #pragma once
-
 #include "vk_types.h"
-#include "vk_textures.h"
 
 namespace vkutil {
+	class VulkanManager;
 
-	struct Descriptor {
+	VkDescriptorImageInfo descriptor_image_info(VkTexture &texture);
+	VkDescriptorBufferInfo descriptor_buffer_info(AllocatedBuffer &buffer, uint32_t size);
+	std::vector<VkDescriptorImageInfo> descriptor_image_array_info(VkTexture *texture, uint32_t size);
+
+	struct VkDescriptor {
 		VkDescriptorSet set{ VK_NULL_HANDLE };
 		VkDescriptorSetLayout layout{ VK_NULL_HANDLE };
 	};
@@ -92,11 +95,14 @@ namespace vkutil {
 			: m_LayoutCache(layoutCache), m_Alloc(allocator) {}
 
 		DescriptorBuilder &bind_buffer(uint32_t binding, AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags);
-		DescriptorBuilder &bind_image(uint32_t binding, Texture &image, VkDescriptorType type, VkShaderStageFlags flags);
-		DescriptorBuilder &bind_image_array(uint32_t binding, Texture *images, uint32_t imageCount, VkDescriptorType type, VkShaderStageFlags flags);
+		DescriptorBuilder &bind_image(uint32_t binding, VkTexture &image, VkDescriptorType type, VkShaderStageFlags flags);
+		DescriptorBuilder &bind_image_array(uint32_t binding, VkTexture *images, uint32_t imageCount, VkDescriptorType type, VkShaderStageFlags flags);
+		DescriptorBuilder &enable_push_descriptor();
 
 		bool build(VkDescriptorSet *set, VkDescriptorSetLayout *layout);
 		bool build(VkDescriptorSet *set);
+
+		uint32_t get_layout_count();
 
 	private:
 		std::vector<VkWriteDescriptorSet> m_Writes;
@@ -106,26 +112,19 @@ namespace vkutil {
 		std::unordered_map<uint32_t, VkDescriptorImageInfo> m_DescImageInfos;
 		std::unordered_map<uint32_t, VkDescriptorBufferInfo> m_DescBufferInfos;
 		std::unordered_map<uint32_t, std::vector<VkDescriptorImageInfo>> m_DescImageArrayInfos;
-		//using DescriptorInfo = std::variant<VkDescriptorBufferInfo, VkDescriptorImageInfo>;
-		//std::unordered_set<DescriptorInfo> m_DescriptorInfos;
-
-		//enum class DescriptorInfoType : uint32_t {
-		//	BUFFER = 0,
-		//	IMAGE = 1,
-		//};
-
-		//std::vector<DescriptorInfo> m_DescritorInfos;
+		bool m_Pushable{ false };
 
 		DescriptorLayoutCache *m_LayoutCache;
 		DescriptorAllocator *m_Alloc;
+
 
 	};
 
 	void descriptor_update_buffer(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding,
 		AllocatedBuffer &buffer, uint32_t size, VkDescriptorType type, VkShaderStageFlags flags);
 	void descriptor_update_image(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding,
-		Texture &tex, VkDescriptorType type, VkShaderStageFlags flags);
+		VkTexture &tex, VkDescriptorType type, VkShaderStageFlags flags);
 	void descriptor_update_image_array(VulkanManager &manager, VkDescriptorSet *set, uint32_t binding,
-		Texture *textures, uint32_t imgCount, VkDescriptorType type, VkShaderStageFlags flags);
+		VkTexture *textures, uint32_t imgCount, VkDescriptorType type, VkShaderStageFlags flags);
 
 } // namespace vkutil

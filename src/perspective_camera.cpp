@@ -62,7 +62,7 @@ namespace Atlas
 		m_PMouseY = e.mouseY;
 
 		m_Yaw += xOffset * m_CamearSensitivity;
-		m_Pitch -= yOffset * m_CamearSensitivity;
+		m_Pitch += yOffset * m_CamearSensitivity;
 
 		m_Pitch = std::clamp(m_Pitch, -89.0f, 89.0f);
 
@@ -135,12 +135,12 @@ namespace Atlas
 
 		if (Application::is_key_pressed(KeyCode::LEFT_CONTROL))
 		{
-			m_CameraPosition.y += m_CameraMoveSpeed * ts;
+			m_CameraPosition.y -= m_CameraMoveSpeed * ts;
 			updated = true;
 		}
 		if (Application::is_key_pressed(KeyCode::SPACE))
 		{
-			m_CameraPosition.y -= m_CameraMoveSpeed * ts;
+			m_CameraPosition.y += m_CameraMoveSpeed * ts;
 			updated = true;
 		}
 

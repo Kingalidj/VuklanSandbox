@@ -9,6 +9,59 @@ namespace vkutil {
 
 	class VulkanManager;
 
+	struct VertexInputDescription {
+		std::vector<VkVertexInputBindingDescription> bindings;
+		std::vector<VkVertexInputAttributeDescription> attributes;
+
+		VkPipelineVertexInputStateCreateFlags flags = 0;
+
+	};
+
+	enum class VertexAttributeType : int {
+		INT = VK_FORMAT_R32_SINT,
+		INT2 = VK_FORMAT_R32G32_SINT,
+		INT3 = VK_FORMAT_R32G32B32_SINT,
+		INT4 = VK_FORMAT_R32G32B32A32_SINT,
+		FLOAT = VK_FORMAT_R32_SFLOAT,
+		FLOAT2 = VK_FORMAT_R32G32_SFLOAT,
+		FLOAT3 = VK_FORMAT_R32G32B32_SFLOAT,
+		FLOAT4 = VK_FORMAT_R32G32B32A32_SFLOAT,
+	};
+
+	class VertexInputDescriptionBuilder {
+	public:
+
+		VertexInputDescriptionBuilder(uint32_t size);
+
+		inline VertexInputDescription value() { return m_Description; }
+
+		template <typename T, typename U>
+		VertexInputDescriptionBuilder &push_attrib(VertexAttributeType type, U T:: *member) {
+
+			VkVertexInputAttributeDescription attribute{};
+			attribute.binding = 0;
+			attribute.location = m_AttribLocation++;
+			attribute.format = (VkFormat)type;
+			attribute.offset = (uint32_t)offset_of(member);
+
+			m_Description.attributes.push_back(attribute);
+			return *this;
+		}
+
+		VertexInputDescriptionBuilder &push_attrib(VertexAttributeType type, uint32_t offset);
+
+	private:
+
+		VertexInputDescription m_Description;
+		uint32_t m_AttribLocation = 0;
+
+		template<typename T, typename U> constexpr size_t offset_of(U T:: *member)
+		{
+			return (char *)&((T *)nullptr->*member) - (char *)nullptr;
+		}
+
+	};
+
 	struct Shader {
 		VkPipelineLayout layout;
 		VkPipeline pipeline;
@@ -45,8 +98,6 @@ namespace vkutil {
 		std::unordered_map<PipelineLayoutInfo, VkPipelineLayout, PipelineLayoutHash> m_LayoutCache;
 
 	};
-
-	struct VertexInputDescription;
 
 	class PipelineBuilder {
 	public:

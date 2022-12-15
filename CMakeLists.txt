@@ -27,26 +27,24 @@ set(SOURCES
 		src/render_api.cpp
 		src/perspective_camera.cpp
 		src/orthographic_camera.cpp
-		src/atl_vk_utils.cpp
 		src/descriptor.cpp
 		src/buffer.cpp
+		src/texture.cpp
 		src/shader.cpp
 		src/renderer.cpp
-		src/imgui_layer.cpp
-		src/texture.cpp
 		src/application.cpp
-		src/vk_buffer.cpp
 		src/window.cpp
+		src/imgui_layer.cpp
+		src/imgui_theme.cpp
+		src/atl_vk_utils.cpp
+		src/logger.cpp
+
 		src/vk_manager.cpp
 		src/vk_types.cpp
-		src/imgui_theme.cpp
-		src/logger.cpp
 		src/vk_descriptors.cpp
 		src/vk_pipeline.cpp
 		src/vk_engine.cpp
 		src/vk_initializers.cpp
-		src/vk_scene.cpp
-		src/vk_textures.cpp
 	)
 
 set(HEADERS
@@ -67,18 +65,16 @@ set(HEADERS
 		src/imgui_layer.h
 		src/texture.h
 		src/application.h
-		src/vk_buffer.h
 		src/window.h
-		src/vk_manager.h
-		src/vk_types.h
 		src/imgui_theme.h
 		src/logger.h
+
+		src/vk_manager.h
+		src/vk_types.h
 		src/vk_descriptors.h
 		src/vk_pipeline.h
 		src/vk_engine.h
 		src/vk_initializers.h
-		src/vk_scene.h
-		src/vk_textures.h
 	)
 
 set(EMBED

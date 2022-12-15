@@ -1,5 +1,4 @@
 #include "vk_pipeline.h"
-#include "vk_scene.h"
 #include "vk_manager.h"
 
 #include <shaderc/shaderc.hpp>
@@ -7,47 +6,69 @@
 #include <spirv_cross/spirv_reflect.hpp>
 #include <spirv_cross/spirv_cross.hpp>
 
+class ShaderIncluder : public shaderc::CompileOptions::IncluderInterface
+{
+	shaderc_include_result *GetInclude(
+		const char *requested_source,
+		shaderc_include_type type,
+		const char *requesting_source,
+		size_t include_depth)
+	{
+		const std::string name = requested_source;
+
+		std::ifstream is(name);
+		std::stringstream buffer;
+		buffer << is.rdbuf();
+
+		std::string contents = buffer.str();
+
+		auto container = new std::array<std::string, 2>;
+		(*container)[0] = name;
+		(*container)[1] = contents;
+
+		auto data = new shaderc_include_result;
+
+		data->user_data = container;
+
+		data->source_name = (*container)[0].data();
+		data->source_name_length = (*container)[0].size();
+
+		data->content = (*container)[1].data();
+		data->content_length = (*container)[1].size();
+
+		return data;
+	};
+
+	void ReleaseInclude(shaderc_include_result *data) override
+	{
+		delete static_cast<std::array<std::string, 2> *>(data->user_data);
+		delete data;
+	};
+};
+
+
 namespace vkutil {
 
-	class ShaderIncluder : public shaderc::CompileOptions::IncluderInterface
+	VertexInputDescriptionBuilder::VertexInputDescriptionBuilder(uint32_t size)
 	{
-		shaderc_include_result *GetInclude(
-			const char *requested_source,
-			shaderc_include_type type,
-			const char *requesting_source,
-			size_t include_depth)
-		{
-			const std::string name = requested_source;
+		VkVertexInputBindingDescription mainBinding{};
+		mainBinding.binding = 0;
+		mainBinding.stride = size;
+		mainBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		m_Description.bindings.push_back(mainBinding);
+	}
 
-			std::ifstream is(name);
-			std::stringstream buffer;
-			buffer << is.rdbuf();
+	VertexInputDescriptionBuilder &VertexInputDescriptionBuilder::push_attrib(VertexAttributeType type, uint32_t offset) {
 
-			std::string contents = buffer.str();
+		VkVertexInputAttributeDescription attribute{};
+		attribute.binding = 0;
+		attribute.location = m_AttribLocation++;
+		attribute.format = (VkFormat)type;
+		attribute.offset = offset;
 
-			auto container = new std::array<std::string, 2>;
-			(*container)[0] = name;
-			(*container)[1] = contents;
-
-			auto data = new shaderc_include_result;
-
-			data->user_data = container;
-
-			data->source_name = (*container)[0].data();
-			data->source_name_length = (*container)[0].size();
-
-			data->content = (*container)[1].data();
-			data->content_length = (*container)[1].size();
-
-			return data;
-		};
-
-		void ReleaseInclude(shaderc_include_result *data) override
-		{
-			delete static_cast<std::array<std::string, 2> *>(data->user_data);
-			delete data;
-		};
-	};
+		m_Description.attributes.push_back(attribute);
+		return *this;
+	}
 
 
 	VkPipelineLayout PipelineLayoutCache::create_pipeline_layout(VkPipelineLayoutCreateInfo &info)
@@ -463,6 +484,7 @@ namespace vkutil {
 
 		VK_CHECK(vkCreateComputePipelines(manager.device(), VK_NULL_HANDLE, 1, &info, nullptr, pipeline));
 	}
+
 
 
 } //namespace vkutil

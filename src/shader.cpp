@@ -12,7 +12,7 @@ namespace vkutil {
 	public:
 
 		VulkanShader(Atlas::ShaderCreateInfo &info)
-			:m_Descriptors(info.descriptors)
+			//:m_Descriptors(info.descriptors)
 		{
 			vkutil::VulkanEngine &engine = Atlas::Application::get_engine();
 			vkutil::VulkanManager &manager = engine.manager();
@@ -97,12 +97,6 @@ namespace vkutil {
 			m_Shader = engine.asset_manager().register_shader(shader);
 		}
 
-		VulkanShader &operator=(VulkanShader other)
-		{
-			m_Shader.swap(other.m_Shader);
-			return *this;
-		}
-
 		~VulkanShader()
 		{
 			if (auto shared = m_Shader.lock()) {
@@ -116,18 +110,18 @@ namespace vkutil {
 			VkCommandBuffer cmd = Atlas::Application::get_engine().get_active_command_buffer();
 			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, get_native_shader()->pipeline);
 
-			for (auto &d : m_Descriptors) {
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-					get_native_shader()->layout, 0, (uint32_t)m_Descriptors.size(),
-					&d.get_native_descriptor()->set, 0, nullptr);
-			}
+			//for (auto &d : m_Descriptors) {
+			//	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			//		get_native_shader()->layout, 0, (uint32_t)m_Descriptors.size(),
+			//		&d.get_native_descriptor()->set, 0, nullptr);
+			//}
 		}
 
-		void update(uint32_t descSet, uint32_t binding, Atlas::DescriptorBinding descBinding) {
-			CORE_ASSERT(descSet > m_Descriptors.size(), "descSet must an index into the descriptor sets");
+		//void update(uint32_t descSet, uint32_t binding, Atlas::DescriptorBinding descBinding) {
+		//	CORE_ASSERT(descSet > m_Descriptors.size(), "descSet must an index into the descriptor sets");
 
-			m_Descriptors.at(descSet).update(binding, descBinding);
-		}
+		//	m_Descriptors.at(descSet).update(binding, descBinding);
+		//}
 
 		vkutil::Shader *get_native_shader()
 		{
@@ -141,7 +135,7 @@ namespace vkutil {
 
 	private:
 		WeakRef<vkutil::Shader> m_Shader;
-		std::vector<Atlas::Descriptor> m_Descriptors;
+		//std::vector<Atlas::Descriptor> m_Descriptors;
 	};
 }
 
@@ -181,14 +175,29 @@ namespace Atlas {
 	}
 
 	Shader::Shader(ShaderCreateInfo &info) {
-		m_Shader = make_ref<vkutil::VulkanShader>(info);
+		m_Shader = make_scope<vkutil::VulkanShader>(info);
+	}
+
+	std::optional<Shader> Shader::compute(const char *path, bool optimize)
+	{
+		auto res = ShaderModule::load(path, ShaderStage::COMPUTE, optimize);
+		if (!res.has_value()) return std::nullopt;
+
+		ShaderCreateInfo info{};
+		info.modules = { res.value() };
+		return std::optional<Shader>(info);
+	}
+
+	vkutil::Shader *Shader::get_native_shader()
+	{
+		return m_Shader->get_native_shader();
 	}
 
 	void Shader::bind() {
 		m_Shader->bind();
 	}
 
-	std::optional<ShaderModule> load_shader_module(const char *path, ShaderStage stage, bool optimize)
+	std::optional<ShaderModule> ShaderModule::load(const char *path, ShaderStage stage, bool optimize)
 	{
 		ShaderModule module;
 		module.m_Path = path;

@@ -1,11 +1,8 @@
 #pragma once
 
-#include "vk_scene.h"
 #include "vk_types.h"
 #include "vk_descriptors.h"
-#include "vk_textures.h"
 #include "vk_manager.h"
-#include "vk_buffer.h"
 #include "event.h"
 
 #include <glm/glm.hpp>
@@ -13,6 +10,8 @@
 class Window;
 
 namespace vkutil {
+
+	void full_pipeline_barrier(VkCommandBuffer cmd);
 
 	//struct GPUCameraData {
 	//	glm::mat4 view;
@@ -66,11 +65,11 @@ namespace vkutil {
 			uint32_t attachmentCount, glm::vec4 clearColor, std::function<void()> &&func);
 		void exec_swapchain_renderpass(uint32_t swapchainImageIndex, glm::vec4 color, std::function<void()> &&func);
 
-		void dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func);
-		void dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func);
+		void dyn_renderpass(VkTexture &color, VkTexture &depth, glm::vec4 clearColor, std::function<void()> &&func);
+		void dyn_renderpass(VkTexture &color, glm::vec4 clearColor, std::function<void()> &&func);
 
-		void begin_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor);
-		void begin_renderpass(Texture &color, glm::vec4 clearColor);
+		void begin_renderpass(VkTexture &color, VkTexture &depth, glm::vec4 clearColor);
+		void begin_renderpass(VkTexture &color, glm::vec4 clearColor);
 		void end_renderpass();
 
 		//void draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count);
@@ -145,12 +144,10 @@ namespace vkutil {
 		FrameData m_FrameData;
 		DynRenderpassInfo m_DynRenderpassInfo;
 
-		Texture m_ColorTexture;
-		Texture m_DepthTexture;
+		VkTexture m_ColorTexture;
+		VkTexture m_DepthTexture;
 
 		DeletionQueue m_MainDeletionQueue;
-
-		std::vector<RenderObject> m_RenderObjects;
 
 		VulkanManager m_VkManager;
 		AssetManager m_AssetManager;

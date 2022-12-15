@@ -29,8 +29,8 @@ namespace Atlas {
 		m_ImGuiLayer = make_ref<ImGuiLayer>();
 		m_ImGuiLayer->on_attach();
 
-		m_ColorTexture = Texture((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, TextureFormat::R8G8B8A8);
-		m_DepthTexture = Texture((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, TextureFormat::D32);
+		m_ColorTexture = make_ref<Texture>((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, TextureFormat::R8G8B8A8);
+		m_DepthTexture = make_ref<Texture>((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y, TextureFormat::D32);
 
 		Render2D::init();
 	}
@@ -120,7 +120,7 @@ namespace Atlas {
 
 				m_Engine->exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 0 }, [&]() {
 					m_ImGuiLayer->on_imgui();
-					});
+				});
 
 				m_Engine->end_frame(swapchainImageIndex);
 				m_ImGuiLayer->end();
@@ -149,7 +149,7 @@ namespace Atlas {
 		viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
 		auto viewportSize = viewportBounds[1] - viewportBounds[0];
 
-		ImGui::Image(m_ColorTexture.get_id(), { viewportSize.x, viewportSize.y });
+		ImGui::Image(m_ColorTexture->get_id(), { viewportSize.x, viewportSize.y });
 		ImGui::End();
 
 		ImGui::ShowDemoWindow();
@@ -213,12 +213,12 @@ namespace Atlas {
 		return get_instance()->m_ViewportSize;
 	}
 
-	Texture &Application::get_viewport_color_texture()
+	Ref<Texture> Application::get_viewport_color_texture()
 	{
 		return get_instance()->m_ColorTexture;
 	}
 
-	Texture &Application::get_viewport_depth_texture()
+	Ref<Texture> Application::get_viewport_depth_texture()
 	{
 		return get_instance()->m_DepthTexture;
 	}
@@ -252,8 +252,8 @@ namespace Atlas {
 	{
 		m_ViewportSize = { e.width, e.height };
 
-		m_ColorTexture = Texture(e.width, e.height, TextureFormat::R8G8B8A8);
-		m_DepthTexture = Texture(e.width, e.height, TextureFormat::D32);
+		m_ColorTexture = make_ref<Texture>(e.width, e.height, TextureFormat::R8G8B8A8);
+		m_DepthTexture = make_ref<Texture>(e.width, e.height, TextureFormat::D32);
 
 		return false;
 	}

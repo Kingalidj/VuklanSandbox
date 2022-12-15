@@ -4,15 +4,12 @@
 
 namespace Atlas {
 
-	VkDescriptorType atlas_to_vk_descriptor_type(BufferType type) {
-		switch (type)
-		{
-		case BufferType::UNIFORM:
-			return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		default:
-			CORE_WARN("buffer type: {} not supported for descriptor type!");
-			return VK_DESCRIPTOR_TYPE_MAX_ENUM;
-		}
+	VkDescriptorType atlas_to_vk_descriptor_type(BufferTypeFlags type) {
+
+		if (type & BufferType::UNIFORM) return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		if (type & BufferType::STORAGE) return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+		CORE_ASSERT(false, "neither uniform or storage flag set for buffer");
 	}
 
 	VkShaderStageFlagBits atlas_to_vk_shaderstage(ShaderStage type) {

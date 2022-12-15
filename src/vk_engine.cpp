@@ -20,6 +20,22 @@ const uint8_t c_RobotoRegular[] = {
 
 namespace vkutil {
 
+	void full_pipeline_barrier(VkCommandBuffer cmd) {
+		VkMemoryBarrier2 barrier = {};
+		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+		barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT_KHR;
+		barrier.srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT_KHR | VK_ACCESS_2_MEMORY_WRITE_BIT_KHR;
+		barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT_KHR;
+		barrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT_KHR | VK_ACCESS_2_MEMORY_WRITE_BIT_KHR;
+
+		VkDependencyInfo dependencyInfo = {};
+		dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+		dependencyInfo.memoryBarrierCount = 1;
+		dependencyInfo.pMemoryBarriers = &barrier;
+
+		vkCmdPipelineBarrier2(cmd, &dependencyInfo);
+	}
+
 	VulkanEngine::VulkanEngine(Window &window)
 		: m_EventCallback(window.get_event_callback()),
 		m_WindowExtent({ window.get_width(), window.get_height() })
@@ -40,103 +56,8 @@ namespace vkutil {
 
 		init_vp_framebuffers();
 
-		//init_descriptors();
-		//init_pipelines();
-
-
-		//load_images();
-		//load_meshes();
-
-		//init_scene();
-
 		m_IsInitialized = true;
 	}
-
-	//void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject *first, uint32_t count) {
-	//	glm::vec3 camPos = { 0.f, -3.f, -9.f };
-
-	//	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
-	//	glm::mat4 projection = glm::perspective(glm::radians(70.f),
-	//		(float)m_ViewportExtent.width / m_ViewportExtent.height, 0.1f, 200.0f);
-	//	projection[1][1] *= -1;
-
-	//	glm::mat4 rotMat = glm::rotate(glm::mat4(1), glm::radians((float)m_FrameNumber * 2.0f), glm::vec3(0, 1, 0));
-
-	//	GPUCameraData camData{};
-	//	camData.proj = projection;
-	//	camData.view = view;
-	//	camData.viewProj = projection * view;
-
-	//	map_memory(m_VkManager, &m_FrameData.cameraBuffer, &camData, sizeof(GPUCameraData));
-
-	//	float framed = (m_FrameNumber / 120.f);
-
-	//	map_memory(m_VkManager, &m_FrameData.objectBuffer, [=](void *data) {
-	//		GPUObjectData *objectSSBO = (GPUObjectData *)data;
-
-	//	for (uint32_t i = 0; i < count; i++) {
-	//		RenderObject &object = first[i];
-	//		objectSSBO[i].modelMatrix = object.transformMatrix * rotMat;
-	//	}
-	//	});
-
-	//	Ref<Mesh> lastMesh = nullptr;
-	//	Ref<Material> lastMaterial = nullptr;
-	//	for (uint32_t i = 0; i < count; i++) {
-	//		RenderObject &object = first[i];
-
-	//		//vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
-
-	//		if (object.material != lastMaterial) {
-
-	//			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
-	//			lastMaterial = object.material;
-
-	//			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-	//				object.material->pipelineLayout, 0, 1,
-	//				&m_FrameData.cameraDescriptor, 0, nullptr);
-
-	//			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-	//				object.material->pipelineLayout, 1, 1,
-	//				&m_FrameData.objectDescriptor, 0, nullptr);
-
-	//			if (object.material->textureSet != VK_NULL_HANDLE) {
-
-	//				//Ref<Texture> tex = m_VkManager.get_texture("empire_diffuse").value();
-
-	//				//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-	//				//	object.material->pipelineLayout, 2, 1,
-	//				//	&tex->descriptor, 0, nullptr);
-
-	//				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-	//					object.material->pipelineLayout, 2, 1,
-	//					&object.material->textureSet, 0, nullptr);
-	//			}
-	//		}
-
-	//		/* glm::mat4 model = object.transformMatrix * rotMat; */
-	//		/* glm::mat4 meshMatrix = projection * view * model; */
-
-	//		/*
-	//	MeshPushConstants constants;
-	//	constants.renderMatrix = object.transformMatrix * rotMat;
-
-	//	// upload the mesh to the GPU via push constants
-	//	vkCmdPushConstants(cmd, object.material->pipelineLayout,
-	//										 VK_SHADER_STAGE_VERTEX_BIT, 0,
-	//	sizeof(MeshPushConstants), &constants);
-	//		*/
-
-	//		if (object.mesh != lastMesh) {
-	//			VkDeviceSize offset = 0;
-	//			vkCmdBindVertexBuffers(cmd, 0, 1, &object.mesh->vertexBuffer.buffer,
-	//				&offset);
-	//			lastMesh = object.mesh;
-	//		}
-
-	//		vkCmdDraw(cmd, (uint32_t)object.mesh->vertices.size(), 1, 0, i); // TODO: look at first instance
-	//	}
-	//}
 
 	void VulkanEngine::cleanup() {
 		if (m_IsInitialized) {
@@ -151,10 +72,6 @@ namespace vkutil {
 
 			m_VkManager.cleanup();
 			m_MainDeletionQueue.flush();
-
-			//glfwDestroyWindow(m_Window);
-			//m_Window->destroy();
-			//glfwTerminate();
 		}
 	}
 
@@ -176,13 +93,11 @@ namespace vkutil {
 		VK_CHECK(vkWaitForFences(m_Device, 1, &m_FrameData.renderFence, true, UINT64_MAX));
 		VK_CHECK(vkResetFences(m_Device, 1, &m_FrameData.renderFence));
 
-		// since we waited the buffer is empty
 		VK_CHECK(vkResetCommandBuffer(m_FrameData.renderCommandBuffer, 0));
 
 		m_AssetManager.destroy_queued(m_VkManager);
 
-		// we will write to this image index (framebuffer)
-		VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000,
+		VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX,
 			m_FrameData.presentSemaphore, nullptr,
 			swapchainImageIndex);
 
@@ -199,11 +114,6 @@ namespace vkutil {
 		VK_CHECK(vkBeginCommandBuffer(m_FrameData.renderCommandBuffer, &cmdBeginInfo));
 		m_FrameData.activeCommandBuffer = m_FrameData.renderCommandBuffer;
 
-		//{
-		//	ImGui_ImplVulkan_NewFrame();
-		//	ImGui_ImplGlfw_NewFrame();
-		//	ImGui::NewFrame();
-		//}
 	}
 
 	void VulkanEngine::end_frame(uint32_t swapchainImageIndex)
@@ -245,18 +155,6 @@ namespace vkutil {
 		VK_CHECK(vkQueuePresentKHR(m_GraphicsQueue, &presentInfo));
 
 		m_FrameNumber++;
-
-		//m_AssetManager.destroy_queued(m_VkManager);
-
-		//ImGuiIO &io = ImGui::GetIO();
-
-		//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-		//	GLFWwindow *backup_current_context = glfwGetCurrentContext();
-		//	ImGui::UpdatePlatformWindows();
-		//	ImGui::RenderPlatformWindowsDefault();
-		//	glfwMakeContextCurrent(backup_current_context);
-		//}
-
 	}
 
 	void VulkanEngine::exec_renderpass(VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t w, uint32_t h,
@@ -272,7 +170,6 @@ namespace vkutil {
 		VkClearValue depthClear{};
 		depthClear.depthStencil.depth = 1.0f;
 
-		//VkClearValue clearValues[] = { clearValue, depthClear };
 		std::vector<VkClearValue> clearValues;
 		clearValues.push_back(clearValue);
 		clearValues.push_back(depthClear);
@@ -283,8 +180,8 @@ namespace vkutil {
 
 		VkViewport viewport{};
 		viewport.x = 0;
-		viewport.y = 0;
-		viewport.height = (float)h;
+		viewport.y = (float)h;
+		viewport.height = -(float)h;
 		viewport.width = (float)w;
 		viewport.minDepth = 0;
 		viewport.maxDepth = 1;
@@ -308,21 +205,21 @@ namespace vkutil {
 			1, color, std::move(func));
 	}
 
-	void VulkanEngine::dyn_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor, std::function<void()> &&func)
+	void VulkanEngine::dyn_renderpass(VkTexture &color, VkTexture &depth, glm::vec4 clearColor, std::function<void()> &&func)
 	{
 		begin_renderpass(color, depth, clearColor);
 		func();
 		end_renderpass();
 	}
 
-	void VulkanEngine::dyn_renderpass(Texture &color, glm::vec4 clearColor, std::function<void()> &&func)
+	void VulkanEngine::dyn_renderpass(VkTexture &color, glm::vec4 clearColor, std::function<void()> &&func)
 	{
 		begin_renderpass(color, clearColor);
 		func();
 		end_renderpass();
 	}
 
-	void VulkanEngine::begin_renderpass(Texture &color, Texture &depth, glm::vec4 clearColor)
+	void VulkanEngine::begin_renderpass(VkTexture &color, VkTexture &depth, glm::vec4 clearColor)
 	{
 		if (m_DynRenderpassInfo.active) {
 			CORE_WARN("VulkanEngine::begin_renderpass was already called!");
@@ -376,8 +273,8 @@ namespace vkutil {
 
 		VkViewport viewport{};
 		viewport.x = 0;
-		viewport.y = 0;
-		viewport.height = (float)color.height;
+		viewport.y = (float)color.height;
+		viewport.height = -(float)color.height;
 		viewport.width = (float)color.width;
 		viewport.minDepth = 0;
 		viewport.maxDepth = 1;
@@ -395,12 +292,14 @@ namespace vkutil {
 		m_DynRenderpassInfo.active = true;
 	}
 
-	void VulkanEngine::begin_renderpass(Texture &color, glm::vec4 clearColor)
+	void VulkanEngine::begin_renderpass(VkTexture &color, glm::vec4 clearColor)
 	{
 		if (m_DynRenderpassInfo.active) {
 			CORE_WARN("VulkanEngine::begin_renderpass was already called!");
 			return;
 		}
+
+		//TODO: check alpha blending mode (not rendered to it if transparent)
 
 		VkCommandBuffer cmd = get_active_command_buffer();
 		VkImageSubresourceRange colorRange{};
@@ -412,7 +311,8 @@ namespace vkutil {
 			color.imageAllocation.image,
 			0,
 			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-			VK_IMAGE_LAYOUT_UNDEFINED,
+			//VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -425,7 +325,8 @@ namespace vkutil {
 		colorAttachment.imageView = color.imageView;
 		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		colorAttachment.loadOp = clearColor.a == 0 ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
+
 
 		VkRenderingInfo info{};
 		info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -438,8 +339,8 @@ namespace vkutil {
 
 		VkViewport viewport{};
 		viewport.x = 0;
-		viewport.y = 0;
-		viewport.height = (float)color.height;
+		viewport.y = (float)color.height;
+		viewport.height = -(float)color.height;
 		viewport.width = (float)color.width;
 		viewport.minDepth = 0;
 		viewport.maxDepth = 1;
@@ -475,92 +376,34 @@ namespace vkutil {
 
 		insert_image_memory_barrier(cmd,
 			m_DynRenderpassInfo.boundImage,
-			0,
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 			VK_ACCESS_SHADER_READ_BIT,
 			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 			colorRange
 		);
+
+		//insert_image_memory_barrier(cmd,
+		//	m_DynRenderpassInfo.boundImage,
+		//	0,
+		//	VK_ACCESS_SHADER_READ_BIT,
+		//	VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		//	VK_PIPELINE_STAGE_TRANSFER_BIT,
+		//	VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		//	colorRange
+		//);
 
 		m_DynRenderpassInfo.boundImage = VK_NULL_HANDLE;
 		m_DynRenderpassInfo.active = false;
 	}
 
-	//void VulkanEngine::draw() {
-
-	//	uint32_t swapchainImageIndex;
-	//	prepare_frame(&swapchainImageIndex);
-
-	//	VkCommandBuffer cmd = get_active_command_buffer();
-
-	//	ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
-
-	//	dyn_renderpass(m_ColorTexture, m_DepthTexture, { 0, 0, 0, 0 }, [&]() {
-	//		draw_objects(cmd, m_RenderObjects.data(), (uint32_t)m_RenderObjects.size());
-	//	});
-
-	//	//exec_renderpass(m_RenderPass, m_Framebuffers[swapchainImageIndex],
-	//	//	m_WindowExtent.width, m_WindowExtent.height,
-	//	//	1, { 0, 0, 0, 1 }, [&]() {
-	//	exec_swapchain_renderpass(swapchainImageIndex, { 0, 0, 0, 1 },
-	//		[&]() {
-
-	//		ImGui::ShowDemoWindow();
-
-	//	ImGui::Begin("Texture Viewer");
-	//	Ref<Texture> tex = m_VkManager.get_texture("rgb_test").value();
-	//	ImGui::Image(tex->imguiDescriptor, ImVec2(1200, 1200));
-	//	ImGui::End();
-
-	//	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	//	ImGui::Begin("Viewport");
-	//	ImGui::PopStyleVar();
-
-	//	auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
-	//	auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
-	//	auto viewportOffset = ImGui::GetWindowPos();
-	//	glm::vec2 viewportBounds[2];
-	//	viewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
-	//	viewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
-	//	auto viewportSize = viewportBounds[1] - viewportBounds[0];
-
-	//	ImGui::Image(m_ColorTexture.imguiDescriptor, { viewportSize.x, viewportSize.y });
-
-	//	ImGui::End();
-
-	//	ImGui::Begin("Settings");
-
-	//	float resolution = m_RenderResolution;
-	//	ImGui::SliderFloat("Resolution", &resolution, 0.0f, 1.0f);
-	//	if (resolution != m_RenderResolution && resolution != 0) {
-	//		m_ViewportbufferResized = true;
-	//		m_RenderResolution = resolution;
-	//	}
-
-	//	ImGui::End();
-
-	//	ImGui::Render();
-	//	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-
-	//	if (viewportSize.x != m_ViewportExtent.width || viewportSize.y != m_ViewportExtent.height) {
-	//		Atlas::ViewportResizedEvent event = { (uint32_t)viewportSize.x, (uint32_t)viewportSize.y };
-	//		Atlas::Event e(event);
-	//		m_EventCallback(e);
-	//	}
-
-	//	});
-
-	//	end_frame(swapchainImageIndex);
-
-	//}
-
-	VkBool32
-		spdlog_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
-			VkDebugUtilsMessageTypeFlagsEXT msgType,
-			const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-			void *) {
+	VkBool32 spdlog_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
+		VkDebugUtilsMessageTypeFlagsEXT msgType,
+		const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+		void *) {
 		auto mt = vkb::to_string_message_type(msgType);
 
 		switch (msgSeverity) {
@@ -606,6 +449,7 @@ namespace vkutil {
 		features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
 		features.pNext = nullptr;
 		features.dynamicRendering = true;
+		features.synchronization2 = true;
 
 		auto selection = vkb::PhysicalDeviceSelector(vkb_inst)
 			.set_minimum_version(1, 3)
@@ -670,7 +514,7 @@ namespace vkutil {
 		vkDestroyDevice(m_Device, nullptr);
 		vkb::destroy_debug_utils_messenger(m_Instance, m_DebugMessenger);
 		vkDestroyInstance(m_Instance, nullptr);
-			});
+		});
 	}
 
 	void VulkanEngine::init_swapchain() {
@@ -726,7 +570,7 @@ namespace vkutil {
 
 			m_MainDeletionQueue.push_function([=]() {
 				vkDestroyCommandPool(m_Device, m_FrameData.commandPool, nullptr);
-				});
+			});
 		}
 
 		m_VkManager.init_commands(m_GraphicsQueue, m_GraphicsQueueFamily);
@@ -774,17 +618,8 @@ namespace vkutil {
 
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-			});
+		});
 	}
-
-	//void print_rgb(uint32_t color) {
-	//	uint8_t a = (color & 0xff000000) >> 24;
-	//	uint8_t b = (color & 0x00ff0000) >> 16;
-	//	uint8_t g = (color & 0x0000ff00) >> 8;
-	//	uint8_t r = color & 0x000000ff;
-
-	//	CORE_INFO("(r, g, b, a): {}, {}, {}, {}", r, g, b, a);
-	//}
 
 	void VulkanEngine::init_vp_framebuffers() {
 
@@ -815,7 +650,6 @@ namespace vkutil {
 		const uint32_t swapchainImageCount = static_cast<uint32_t>(m_SwapchainImages.size());
 		m_Framebuffers = std::vector<VkFramebuffer>(swapchainImageCount);
 
-		// create framebuffers for each of the swapchain image views
 		for (uint32_t i = 0; i < swapchainImageCount; i++) {
 			VkImageView attachments = m_SwapchainImageViews[i];
 
@@ -851,110 +685,8 @@ namespace vkutil {
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroySemaphore(m_Device, m_FrameData.presentSemaphore, nullptr);
 		vkDestroySemaphore(m_Device, m_FrameData.renderSemaphore, nullptr);
-			});
+		});
 	}
-
-	//void VulkanEngine::init_pipelines() {
-
-	//	VkPipelineLayout layout{};
-
-	//	VkPipeline meshPipeline{};
-	//	VkPipeline debugPipeline{};
-
-	//	VertexInputDescription vertexDescription = VertexInputDescriptionBuilder(sizeof(Vertex))
-	//		.push_attrib(VertexAttributeType::FLOAT3, &Vertex::position)
-	//		.push_attrib(VertexAttributeType::FLOAT3, &Vertex::normal)
-	//		.push_attrib(VertexAttributeType::FLOAT3, &Vertex::color)
-	//		.push_attrib(VertexAttributeType::FLOAT3, &Vertex::uv)
-	//		.value();
-
-	//	{
-	//		VkShaderModule vertShader;
-	//		VkShaderModule fragShader;
-	//		load_spirv_shader_module("res/shaders/textured_lit.vert.spv", &vertShader, m_Device);
-	//		load_spirv_shader_module("res/shaders/textured_lit.frag.spv", &fragShader, m_Device);
-
-	//		VkPipelineLayoutCreateInfo meshPipelineLayoutInfo =
-	//			vkinit::pipeline_layout_create_info();
-
-	//		PipelineBuilder(m_VkManager)
-	//			//.set_renderpass(m_ViewportRenderPass)
-	//			.set_color_format(m_SwapchainImageFormat)
-	//			.set_vertex_description(vertexDescription)
-	//			.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
-	//			.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
-	//			.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
-	//			.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, m_DepthFormat)
-	//			.build(&meshPipeline, &layout);
-
-	//		m_VkManager.create_material("textured_mat", meshPipeline, layout);
-
-	//		vkDestroyShaderModule(m_Device, fragShader, nullptr);
-	//		vkDestroyShaderModule(m_Device, vertShader, nullptr);
-	//	}
-
-	//	{
-	//		VkShaderModule vertShader;
-	//		VkShaderModule fragShader;
-	//		load_spirv_shader_module("res/shaders/debug.vert.spv", &vertShader, m_Device);
-	//		load_spirv_shader_module("res/shaders/debug.frag.spv", &fragShader, m_Device);
-
-	//		PipelineBuilder(m_VkManager)
-	//			//.set_renderpass(m_ViewportRenderPass)
-	//			.set_color_format(m_SwapchainImageFormat)
-	//			.set_vertex_description(vertexDescription)
-	//			.set_descriptor_layouts({ m_CameraSetLayout, m_ObjectSetLayout, m_SingleTextureSetLayout })
-	//			.add_shader_module(vertShader, VK_SHADER_STAGE_VERTEX_BIT)
-	//			.add_shader_module(fragShader, VK_SHADER_STAGE_FRAGMENT_BIT)
-	//			.set_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL, m_DepthFormat)
-	//			.build(&debugPipeline);
-
-
-	//		m_VkManager.create_material("debug_mat", debugPipeline, layout);
-
-	//		vkDestroyShaderModule(m_Device, fragShader, nullptr);
-	//		vkDestroyShaderModule(m_Device, vertShader, nullptr);
-	//	}
-
-	//	m_MainDeletionQueue.push_function([=]() {
-	//		vkDestroyPipeline(m_Device, meshPipeline, nullptr);
-
-	//	vkDestroyPipeline(m_Device, debugPipeline, nullptr);
-	//	});
-	//}
-
-	//void VulkanEngine::load_meshes() {
-	//	Ref<Mesh> empire = load_mesh_from_obj("res/models/lost_empire.obj").value();
-
-	//	Ref<Mesh> triangle = make_ref<Mesh>();
-	//	triangle->vertices.resize(3);
-	//	triangle->vertices[0].position = { 0.5f, 0.5f, 0.0f };
-	//	triangle->vertices[1].position = { -0.5f, 0.5f, 0.0f };
-	//	triangle->vertices[2].position = { 0.f, -0.5f, 0.0f };
-
-	//	triangle->vertices[0].color = { 1.f, 0.f, 0.0f };
-	//	triangle->vertices[1].color = { 0.f, 1.f, 0.0f };
-	//	triangle->vertices[2].color = { 0.f, 0.f, 1.0f };
-
-	//	upload_mesh(empire);
-	//	upload_mesh(triangle);
-
-	//	m_VkManager.set_mesh("empire", empire);
-	//	m_VkManager.set_mesh("triangle", triangle);
-	//}
-
-	//void VulkanEngine::upload_mesh(Ref<Mesh> mesh) {
-
-	//	m_VkManager.upload_to_gpu(mesh->vertices.data(), (uint32_t)mesh->vertices.size() * sizeof(Vertex),
-	//		mesh->vertexBuffer,
-	//		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-	//		VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-
-	//	m_MainDeletionQueue.push_function([=]() {
-	//		vmaDestroyBuffer(m_Allocator, mesh->vertexBuffer.buffer,
-	//		mesh->vertexBuffer.allocation);
-	//	});
-	//}
 
 	void VulkanEngine::resize_window(uint32_t w, uint32_t h)
 	{
@@ -978,93 +710,8 @@ namespace vkutil {
 		else m_ViewportMinimized = false;
 	}
 
-	//void VulkanEngine::init_scene() {
-	//	RenderObject empire;
-	//	empire.mesh = m_VkManager.get_mesh("empire").value();
-	//	empire.material = m_VkManager.get_material("textured_mat").value();
-	//	empire.transformMatrix = glm::translate(glm::vec3{ 5, -10, 0 });
-
-	//	m_RenderObjects.push_back(empire);
-
-	//	Ref<Material> texturedMat = m_VkManager.get_material("textured_mat").value();
-
-	//	Ref<Texture> texture = m_VkManager.get_texture("empire_diffuse").value();
-
-	//	DescriptorBuilder(m_VkManager)
-	//		.bind_image(0, *texture.get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-	//		.build(&texturedMat->textureSet);
-
-	//	for (int x = -20; x <= 20; x++) {
-	//		for (int y = -20; y <= 20; y++) {
-
-	//			RenderObject tri;
-	//			tri.mesh = m_VkManager.get_mesh("triangle").value();
-	//			tri.material = m_VkManager.get_material("debug_mat").value();
-	//			glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(x, 3, y));
-	//			glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(0.2, 0.2, 0.2));
-	//			tri.transformMatrix = translation * scale;
-
-	//			m_RenderObjects.push_back(tri);
-	//		}
-	//	}
-
-	//}
-
-	//void VulkanEngine::init_descriptors() {
-
-	//	{
-	//		VkDescriptorSetLayoutBinding textureBind =
-	//			vkinit::descriptorset_layout_binding(
-	//				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-	//				VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-
-	//		VkDescriptorSetLayoutCreateInfo setInfo{};
-	//		setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	//		setInfo.pNext = nullptr;
-	//		setInfo.bindingCount = 1;
-	//		setInfo.flags = 0;
-	//		setInfo.pBindings = &textureBind;
-
-	//		m_SingleTextureSetLayout =
-	//			m_VkManager.get_descriptor_layout_cache().create_descriptor_layout(setInfo);
-	//	}
-
-	//	// const size_t sceneParamBufferSize =
-	//	// pad_uniform_buffer_size(sizeof(GPUSceneData));
-	//	const int MAX_OBJECTS = 10000; // TODO: dynamic object buffer?
-
-	//	create_buffer(m_VkManager, sizeof(GPUObjectData) * MAX_OBJECTS,
-	//		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-	//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-	//		&m_FrameData.objectBuffer);
-
-	//	create_buffer(m_VkManager, sizeof(GPUCameraData),
-	//		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-	//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-	//		&m_FrameData.cameraBuffer
-	//	);
-
-	//	DescriptorBuilder(m_VkManager)
-	//		.bind_buffer(0, m_FrameData.cameraBuffer, sizeof(GPUCameraData),
-	//			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-	//		.build(&m_FrameData.cameraDescriptor, &m_CameraSetLayout);
-
-	//	DescriptorBuilder(m_VkManager)
-	//		.bind_buffer(0, m_FrameData.objectBuffer, sizeof(GPUObjectData) * MAX_OBJECTS,
-	//			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-	//		.build(&m_FrameData.objectDescriptor, &m_ObjectSetLayout);
-
-	//	m_MainDeletionQueue.push_function([&]() {
-
-	//		destroy_buffer(m_VkManager, m_FrameData.objectBuffer);
-	//	destroy_buffer(m_VkManager, m_FrameData.cameraBuffer);
-	//	});
-	//}
 
 	void VulkanEngine::init_imgui(Window &window) {
-		// 1: create descriptor pool for IMGUI
-		//  the size of the pool is very oversize, but it's copied from imgui demo
-		//  itself.
 		VkDescriptorPoolSize pool_sizes[] = {
 			{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
 			{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
@@ -1088,9 +735,6 @@ namespace vkutil {
 		VkDescriptorPool imguiPool;
 		VK_CHECK(vkCreateDescriptorPool(m_Device, &pool_info, nullptr, &imguiPool));
 
-		// 2: initialize imgui library
-
-		// this initializes the core structures of imgui
 		ImGui::CreateContext();
 
 		ImGuiIO &io = ImGui::GetIO();
@@ -1115,7 +759,6 @@ namespace vkutil {
 
 		ImGui_ImplGlfw_InitForVulkan(window.get_native_window(), true);
 
-		// this initializes imgui for Vulkan
 		{
 			ImGui_ImplVulkan_InitInfo initInfo = {};
 			initInfo.Instance = m_Instance;
@@ -1140,14 +783,12 @@ namespace vkutil {
 				[&](VkCommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
 		}
 
-		// clear font textures from cpu data
 		ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-		// add the destroy the imgui created structures
 		m_MainDeletionQueue.push_function([=]() {
 			vkDestroyDescriptorPool(m_Device, imguiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();
-			});
+		});
 	}
 
 	size_t VulkanEngine::pad_uniform_buffer_size(size_t originalSize) {
@@ -1234,32 +875,6 @@ namespace vkutil {
 	{
 		VK_CHECK(vkDeviceWaitIdle(m_Device));
 	}
-
-	//void VulkanEngine::load_images() {
-	//	{
-	//		auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-	//		Ref<Texture> texture = make_ref<Texture>();
-	//		load_texture("res/images/lost_empire.png", m_VkManager, info, texture.get());
-
-	//		m_VkManager.set_texture("empire_diffuse", texture);
-
-	//		m_MainDeletionQueue.push_function([=] {
-	//			destroy_texture(m_VkManager, *texture);
-	//		});
-	//	}
-
-	//	{
-	//		auto info = vkinit::sampler_create_info(VK_FILTER_NEAREST);
-	//		Ref<Texture> texture = make_ref<Texture>();
-	//		load_texture("res/images/rgb_test.png", m_VkManager, info, texture.get());
-
-	//		m_VkManager.set_texture("rgb_test", texture);
-
-	//		m_MainDeletionQueue.push_function([=] {
-	//			destroy_texture(m_VkManager, *texture);
-	//		});
-	//	}
-	//}
 
 	void memory_barrier(VkCommandBuffer cmd, VkAccessFlagBits srcAccessBit, VkAccessFlagBits dstAccessBit, VkPipelineStageFlagBits srcStageBit, VkPipelineStageFlagBits dstStageBit)
 	{
