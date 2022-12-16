@@ -24,30 +24,29 @@ class Sandbox : public Atlas::Layer {
 		orthoCamera.on_update(ts);
 
 		Render2D::set_camera(orthoCamera.get_camera());
-		Render2D::test_render(Application::get_viewport_color_texture());
 
 
-		//Render2D::clear_color(Atlas::Color(200, 255, 255));
-		//Render2D::begin(Application::get_viewport_color_texture());
-		//Render2D::end();
+		Render2D::clear_color(Atlas::Color(200, 255, 255));
+		Render2D::begin(Application::get_viewport_color_texture());
+		Render2D::end();
 
-		//Render2D::clear_color(Atlas::Color(0, 0, 0, 0));
-		//Render2D::begin(Application::get_viewport_color_texture());
-		//Render2D::circle({ 0 , 1 }, 0.5, Color(0, 0, 200));
-		//Render2D::circle({ 0 , 2 }, 0.5, Color(200, 0, 0));
-		//Render2D::circle({ 0 , 3 }, 0.5, Color(200, 0, 0));
-		//Render2D::end();
+		Render2D::clear_color(Atlas::Color(0, 0, 0, 0));
+		Render2D::begin(Application::get_viewport_color_texture());
+		Render2D::circle({ 0 , 1 }, 0.5, Color(0, 0, 200));
+		Render2D::circle({ 0 , 2 }, 0.5, Color(200, 0, 0));
+		Render2D::circle({ 0 , 3 }, 0.5, Color(200, 0, 0));
+		Render2D::end();
 
-		//Render2D::clear_color(Atlas::Color(0, 0, 0, 0));
-		//Render2D::begin(Application::get_viewport_color_texture());
-		//Render2D::circle({ 1 , 0 }, 0.5, Color(0, 200, 0));
-		//Render2D::circle({ 2 , 0 }, 0.5, Color(0, 200, 0));
-		//Render2D::end();
+		Render2D::clear_color(Atlas::Color(0, 0, 0, 0));
+		Render2D::begin(Application::get_viewport_color_texture());
+		Render2D::circle({ 1 , 0 }, 0.5, Color(0, 200, 0));
+		Render2D::circle({ 2 , 0 }, 0.5, Color(0, 200, 0));
+		Render2D::end();
 
-		//Render2D::clear_color(Atlas::Color(0, 0, 0, 0));
-		//Render2D::begin(Application::get_viewport_color_texture());
-		//Render2D::circle({ 1 , 1 }, 0.5, Color(0, 0, 200));
-		//Render2D::end();
+		Render2D::clear_color(Atlas::Color(0, 0, 0, 0));
+		Render2D::begin(Application::get_viewport_color_texture());
+		Render2D::circle({ 1 , 1 }, 0.5, Color(0, 0, 200));
+		Render2D::end();
 	}
 
 	void on_event(Atlas::Event &e) override {

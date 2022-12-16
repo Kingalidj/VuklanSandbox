@@ -97,6 +97,15 @@ namespace vkutil {
 		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copy);
 		});
 
+		VmaAllocationInfo info{};
+		vmaGetAllocationInfo(manager.get_allocator(), buffer.allocation, &info);
+
+		VkMappedMemoryRange range{};
+		range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+		range.size = VK_WHOLE_SIZE;
+		range.memory = info.deviceMemory;
+		vkFlushMappedMemoryRanges(manager.device(), 1, &range);
+
 		vmaDestroyBuffer(manager.get_allocator(), stagingBuffer.buffer, stagingBuffer.allocation);
 	}
 

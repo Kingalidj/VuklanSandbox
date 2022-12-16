@@ -21,7 +21,7 @@ namespace Atlas {
 
 		//const uint32_t maxVertices{ 500 };
 		//const uint32_t maxIndices{ 300 };
-		static const uint32_t MAX_VERTICES = 60000;
+		static const uint32_t MAX_VERTICES = 6000;
 		static const uint32_t MAX_INDICES = 100000;
 		static const uint32_t MAX_TEXTURE_SLOTS = 25;
 
@@ -341,10 +341,53 @@ namespace Atlas {
 		verts[2].texID = 0;
 		verts[2].sqrRadius = 2;
 
+		indices[0] = 0;
+		indices[1] = 1;
+		indices[2] = 2;
+
 		s_Data.vertexBuffer.set_data(verts.data(), 3 * sizeof(Vertex));
 		s_Data.indexBuffer.set_data(indices.data(), 3 * sizeof(uint32_t));
 
-		RenderApi::begin(colorTex, {255});
+		RenderApi::begin(colorTex, { 255 });
+
+		s_Data.defaultShader.bind();
+		s_Data.defaultDescriptor.push(s_Data.defaultShader, 0);
+		s_Data.vertexBuffer.bind();
+		s_Data.indexBuffer.bind();
+
+		RenderApi::drawIndexed(3);
+		RenderApi::end();
+
+		vkutil::full_pipeline_barrier(Application::get_engine().get_active_command_buffer());
+
+		pos = { 2, 2 };
+
+		verts[0].position = glm::vec3(pos, 0.0f);
+		verts[0].color = col;
+		verts[0].uv = { 0, 0 };
+		verts[0].texID = 0;
+		verts[0].sqrRadius = 2;
+
+		verts[1].position = { pos.x + 1, pos.y };
+		verts[1].color = col;
+		verts[1].uv = { 1, 0 };
+		verts[1].texID = 0;
+		verts[1].sqrRadius = 2;
+
+		verts[2].position = { pos.x + 1, pos.y + 1 };
+		verts[2].color = col;
+		verts[2].uv = { 1, 1 };
+		verts[2].texID = 0;
+		verts[2].sqrRadius = 2;
+
+		indices[0] = 0;
+		indices[1] = 1;
+		indices[2] = 2;
+
+		s_Data.vertexBuffer.set_data(verts.data(), 3 * sizeof(Vertex));
+		s_Data.indexBuffer.set_data(indices.data(), 3 * sizeof(uint32_t));
+
+		RenderApi::begin(colorTex, { 0, 0, 0, 0 });
 
 		s_Data.defaultShader.bind();
 		s_Data.defaultDescriptor.push(s_Data.defaultShader, 0);
